@@ -1,0 +1,37 @@
+<!-- Root layout flex container -->
+<div class="flex h-screen print:h-auto print:block bg-background overflow-hidden print:overflow-visible relative" [ngClass]="{'dark': isDarkMode()}">
+  
+  <!-- Main Content Area -->
+  <div class="flex-1 flex flex-col h-screen print:h-auto relative pb-16 md:pb-0 w-full overflow-hidden print:overflow-visible" [ngClass]="{'pb-0': isLoginPage()}">
+    <!-- Header -->
+    <app-header class="print:hidden" *ngIf="!isLoginPage()"></app-header>
+
+    <!-- Routed Canvas Content -->
+    <main class="flex-1 overflow-y-auto print:overflow-visible" [ngClass]="isLoginPage() ? 'p-0' : 'p-container-margin'">
+      <div [ngClass]="isLoginPage() ? 'w-full h-full print:h-auto' : 'max-w-7xl mx-auto print:max-w-none print:m-0'">
+        <router-outlet></router-outlet>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- Global Toasts Container -->
+<div class="fixed top-4 left-1/2 -translate-x-1/2 z-[9999] flex flex-col gap-2 pointer-events-none w-full max-w-sm px-4 print:hidden">
+  <div *ngFor="let toast of toastService.toasts()" 
+       class="pointer-events-auto flex items-center justify-between p-4 rounded-lg shadow-lg border animate-in fade-in slide-in-from-top-4"
+       [ngClass]="{
+         'bg-surface-container-lowest border-success text-success': toast.type === 'success',
+         'bg-surface-container-lowest border-error text-error': toast.type === 'error',
+         'bg-surface-container-lowest border-primary text-primary': toast.type === 'info'
+       }">
+    <div class="flex items-center gap-3">
+      <span class="material-symbols-outlined">
+        {{ toast.type === 'success' ? 'check_circle' : (toast.type === 'error' ? 'error' : 'info') }}
+      </span>
+      <span class="text-sm font-medium">{{ toast.message }}</span>
+    </div>
+    <button (click)="toastService.remove(toast.id)" class="text-on-surface-variant hover:text-on-surface transition-colors">
+      <span class="material-symbols-outlined text-[18px]">close</span>
+    </button>
+  </div>
+</div>

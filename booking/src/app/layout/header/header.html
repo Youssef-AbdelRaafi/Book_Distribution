@@ -1,0 +1,270 @@
+<header class="flex justify-between items-center w-full px-container-margin h-16 sticky top-0 z-50 shadow-sm bg-surface-container-lowest border-b border-surface-container-high">
+  <div class="flex items-center gap-space-lg">
+    <!-- Logo & Greeting -->
+    <div class="flex items-center gap-3">
+      <img [src]="assetUrls.logo" alt="شعار النظام" class="h-10 w-auto object-contain">
+      <div class="hidden md:block text-sm text-on-surface-variant font-medium">
+        أهلاً بك في النظام لإدارة المخازن
+      </div>
+      <span class="md:hidden text-sm font-bold text-primary">النظام</span>
+    </div>
+  </div>
+  <div class="flex items-center gap-space-md text-on-surface-variant">
+    <button (click)="openHelp()" class="p-2 rounded-full hover:bg-surface-container transition-colors active:scale-95 duration-150" title="دليل الاستخدام">
+      <span class="material-symbols-outlined">help_outline</span>
+    </button>
+    <button (click)="openSettings()" class="p-2 rounded-full hover:bg-surface-container transition-colors active:scale-95 duration-150" title="الإعدادات">
+      <span class="material-symbols-outlined">settings</span>
+    </button>
+    <button (click)="authService.logout()" class="p-2 rounded-full text-error hover:bg-error/10 transition-colors active:scale-95 duration-150" title="تسجيل الخروج">
+      <span class="material-symbols-outlined">logout</span>
+    </button>
+  </div>
+</header>
+
+<!-- Settings Modal -->
+<div *ngIf="isSettingsOpen" class="fixed inset-0 z-[999] flex items-center justify-center bg-black/50 p-4">
+  <div class="bg-surface-container-lowest rounded-xl shadow-lg w-full max-w-sm max-h-[90vh] flex flex-col">
+    <div class="flex justify-between items-center p-4 border-b border-surface-container-high shrink-0">
+      <h2 class="text-lg font-bold text-primary flex items-center gap-2">
+        <span class="material-symbols-outlined">settings</span> الإعدادات
+      </h2>
+      <button (click)="closeSettings()" class="text-on-surface-variant hover:text-error transition-colors">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+    <div class="p-5 space-y-4 text-on-surface flex-1 overflow-y-auto custom-scrollbar">
+      <p class="text-sm text-on-surface-variant">تخصيص الواجهة حسب تفضيلاتك.</p>
+      
+
+      <div class="flex items-center justify-between p-3 bg-surface-container-low rounded-lg border border-surface-container-high">
+        <div class="font-medium text-sm">الوضع المظلم</div>
+        <button (click)="themeService.toggleDarkMode()" [ngClass]="themeService.isDarkMode() ? 'bg-primary' : 'bg-surface-variant'" class="w-10 h-5 rounded-full relative transition-colors shadow-inner">
+          <div class="w-4 h-4 bg-white rounded-full absolute top-0.5 transition-all shadow-sm" [ngClass]="themeService.isDarkMode() ? 'left-0.5' : 'right-0.5'"></div>
+        </button>
+      </div>
+      <div class="pt-2 mt-2 border-t border-surface-container-high">
+        <div class="font-bold text-sm text-primary mb-3">إعدادات الطباعة</div>
+        <div class="space-y-3">
+          <div>
+            <label class="block text-[10px] text-on-surface-variant mb-1">اسم المؤسسة (العلامة التجارية)</label>
+            <input type="text" [(ngModel)]="editPrintSettings.brandName" class="w-full bg-surface-container-lowest border border-outline-variant rounded px-2 py-1.5 text-xs focus:border-primary outline-none">
+          </div>
+          <div>
+            <label class="block text-[10px] text-on-surface-variant mb-1">بيانات التواصل (الإدارة والهواتف)</label>
+            <input type="text" [(ngModel)]="editPrintSettings.phones" class="w-full bg-surface-container-lowest border border-outline-variant rounded px-2 py-1.5 text-xs focus:border-primary outline-none">
+          </div>
+            <div class="flex gap-2">
+              <div class="flex-1">
+                <label class="block text-[10px] text-on-surface-variant mb-1">العملة الأساسية (مثال: R.O. أو ج.م)</label>
+                <input type="text" [(ngModel)]="editPrintSettings.mainCurrency" class="w-full bg-surface-container-lowest border border-outline-variant rounded px-2 py-1.5 text-xs focus:border-primary outline-none">
+              </div>
+              <div class="flex-1">
+                <label class="block text-[10px] text-on-surface-variant mb-1">العملة الفرعية (مثال: Bz أو قرش)</label>
+                <input type="text" [(ngModel)]="editPrintSettings.subCurrency" class="w-full bg-surface-container-lowest border border-outline-variant rounded px-2 py-1.5 text-xs focus:border-primary outline-none">
+              </div>
+            </div>
+            <div class="flex gap-2">
+              <div class="flex-1">
+                <label class="block text-[10px] text-on-surface-variant mb-1">بداية الترم الأول</label>
+                <input type="date" [(ngModel)]="editPrintSettings.term1Start" class="w-full bg-surface-container-lowest border border-outline-variant rounded px-2 py-1.5 text-xs focus:border-primary outline-none">
+              </div>
+              <div class="flex-1">
+                <label class="block text-[10px] text-on-surface-variant mb-1">بداية الترم الثاني</label>
+                <input type="date" [(ngModel)]="editPrintSettings.term2Start" class="w-full bg-surface-container-lowest border border-outline-variant rounded px-2 py-1.5 text-xs focus:border-primary outline-none">
+              </div>
+            </div>
+          </div>
+      </div>
+
+      <div class="pt-2 mt-2 border-t border-surface-container-high">
+        <div class="font-bold text-sm text-primary mb-3">ترتيب الأقسام</div>
+        <div class="space-y-2">
+          <div *ngFor="let section of filteredEditSectionOrder; let i = index" class="flex justify-between items-center p-2 bg-surface-container-low border border-surface-container-high rounded text-sm font-medium text-text-heading shadow-sm">
+            <span>{{ getSectionName(section) }}</span>
+            <div class="flex items-center gap-1">
+              <button (click)="moveUp(section)" [disabled]="i === 0" class="p-1 rounded text-on-surface-variant hover:bg-surface-variant disabled:opacity-30 transition-colors">
+                <span class="material-symbols-outlined text-[16px]">arrow_upward</span>
+              </button>
+              <button (click)="moveDown(section)" [disabled]="i === filteredEditSectionOrder.length - 1" class="p-1 rounded text-on-surface-variant hover:bg-surface-variant disabled:opacity-30 transition-colors">
+                <span class="material-symbols-outlined text-[16px]">arrow_downward</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pt-2 mt-2 border-t border-surface-container-high">
+        <div class="font-bold text-sm text-primary mb-3">إدارة العام الدراسي</div>
+        <div class="space-y-2">
+           <button (click)="startNewYear()" class="w-full py-2 bg-error text-white rounded-lg text-sm font-medium hover:bg-error/90 transition-colors shadow-sm flex items-center justify-center gap-2">
+             <span class="material-symbols-outlined text-[18px]">event_busy</span>
+             إغلاق سنة وبدء سنة جديدة
+           </button>
+           <p class="text-[10px] text-on-surface-variant text-center">سيتم إيقاف جميع الفصول السابقة وبدء عام جديد.</p>
+        </div>
+      </div>
+    </div>
+    <div class="p-4 border-t border-surface-container-high bg-surface-container-low rounded-b-xl flex justify-end gap-2 shrink-0">
+      <button (click)="closeSettings()" class="px-4 py-2 border border-outline-variant rounded-lg text-sm font-medium text-on-surface-variant hover:bg-surface-container transition-colors">
+        إلغاء
+      </button>
+      <button (click)="savePrintSettings()" class="px-4 py-2 bg-primary text-on-primary rounded-lg text-sm font-medium hover:bg-primary-container transition-colors shadow-sm">
+        حفظ الإعدادات
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Help / Guide Modal -->
+<div *ngIf="isHelpOpen" class="fixed inset-0 z-[999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+  <div class="bg-surface-container-lowest rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+    
+    <!-- Modal Header -->
+    <div class="flex justify-between items-center p-5 border-b border-surface-container-high bg-surface-primary shrink-0">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+          <span class="material-symbols-outlined text-[24px]">menu_book</span>
+        </div>
+        <div>
+          <h2 class="text-xl font-bold text-text-heading">دليل الاستخدام الشامل</h2>
+          <p class="text-xs text-on-surface-variant mt-0.5">خطوات العمل في النظام</p>
+        </div>
+      </div>
+      <button (click)="closeHelp()" class="text-on-surface-variant hover:bg-error/10 hover:text-error w-8 h-8 rounded-full flex items-center justify-center transition-colors">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+
+    <!-- Modal Body (Timeline Flow) -->
+    <div class="p-6 overflow-y-auto custom-scrollbar flex-1 bg-surface-container-lowest">
+      
+      <!-- Phase 1: Preparation -->
+      <div class="mb-8">
+        <h3 class="text-sm font-bold text-primary mb-4 flex items-center gap-2">
+          <span class="material-symbols-outlined text-[18px]">engineering</span>
+          المرحلة الأولى: التجهيز (قبل بداية العام)
+        </h3>
+        <div class="space-y-4 relative before:absolute before:inset-y-0 before:right-[15px] before:w-[2px] before:bg-surface-container-high pl-2 pr-2">
+          
+          <div class="relative pr-8">
+            <div class="absolute right-0 top-1 w-8 h-8 rounded-full bg-surface-container-highest border-4 border-surface-container-lowest flex items-center justify-center z-10">
+              <span class="material-symbols-outlined text-[14px] text-on-surface-variant">store</span>
+            </div>
+            <h4 class="font-bold text-text-heading text-sm">إضافة المكتبات</h4>
+            <p class="text-xs text-on-surface-variant mt-1 leading-relaxed">الخطوة الأولى طبيعياً هي إضافة وتعريف جميع المكتبات التي تتعامل معها. يمكنك إضافة بيانات المكتبة، المحافظة، المدينه، اسم المكتبه، اسم صاحبها لكتابته تلقائيا فى الفواتير التى يتم ارسالها لها، ساعات العمل كمرجع لتجنب ارسال الكتب.</p>
+          </div>
+
+          <div class="relative pr-8">
+            <div class="absolute right-0 top-1 w-8 h-8 rounded-full bg-surface-container-highest border-4 border-surface-container-lowest flex items-center justify-center z-10">
+              <span class="material-symbols-outlined text-[14px] text-on-surface-variant">library_books</span>
+            </div>
+            <h4 class="font-bold text-text-heading text-sm">إضافة وتكويد الكتب</h4>
+            <p class="text-xs text-on-surface-variant mt-1 leading-relaxed">قم بتعريف الكتب وإصدارات المناهج التي ستقوم ببيعها في النظام ليتم سحبها لاحقاً في الفواتير.</p>
+          </div>
+
+          <div class="relative pr-8">
+            <div class="absolute right-0 top-1 w-8 h-8 rounded-full bg-surface-container-highest border-4 border-surface-container-lowest flex items-center justify-center z-10">
+              <span class="material-symbols-outlined text-[14px] text-on-surface-variant">inventory_2</span>
+            </div>
+            <h4 class="font-bold text-text-heading text-sm">تغذية المخزون الحر</h4>
+            <p class="text-xs text-on-surface-variant mt-1 leading-relaxed">إضافة الكميات المتاحة من هذه الكتب إلى المخزن الرئيسي لتكون جاهزة للموسم. (هذه العملية مستمرة قبل وخلال الترم).</p>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Phase 2: Operations -->
+      <div class="mb-8">
+        <h3 class="text-sm font-bold text-info mb-4 flex items-center gap-2">
+          <span class="material-symbols-outlined text-[18px]">sync</span>
+          المرحلة الثانية: التشغيل (خلال وبعد الترم)
+        </h3>
+        <div class="space-y-4 relative before:absolute before:inset-y-0 before:right-[15px] before:w-[2px] before:bg-surface-container-high pl-2 pr-2">
+          
+          <div class="relative pr-8">
+            <div class="absolute right-0 top-1 w-8 h-8 rounded-full bg-info/20 border-4 border-surface-container-lowest flex items-center justify-center z-10">
+              <span class="material-symbols-outlined text-[14px] text-info">shopping_cart</span>
+            </div>
+            <h4 class="font-bold text-text-heading text-sm">عملية الطلب (المبيعات)</h4>
+            <p class="text-xs text-on-surface-variant mt-1 leading-relaxed">عندما تسحب مكتبة كمية معينة، قم بإنشاء فاتورة "طلب" وسيتم خصم الكمية من المخزون تلقائياً.</p>
+          </div>
+
+          <div class="relative pr-8">
+            <div class="absolute right-0 top-1 w-8 h-8 rounded-full bg-error/10 border-4 border-surface-container-lowest flex items-center justify-center z-10">
+              <span class="material-symbols-outlined text-[14px] text-error">assignment_return</span>
+            </div>
+            <h4 class="font-bold text-text-heading text-sm">عملية الاسترجاع (المرتجعات)</h4>
+            <p class="text-xs text-on-surface-variant mt-1 leading-relaxed">في نهاية الترم، الكتب التي لم تُباع تُعاد للمخزن عن طريق فاتورة "مرتجع"، ليتم إعادتها للمخزون الحر وتحديث الحسابات.</p>
+          </div>
+
+          <div class="relative pr-8">
+            <div class="absolute right-0 top-1 w-8 h-8 rounded-full bg-surface-container-highest border-4 border-surface-container-lowest flex items-center justify-center z-10">
+              <span class="material-symbols-outlined text-[14px] text-on-surface-variant">receipt_long</span>
+            </div>
+            <h4 class="font-bold text-text-heading text-sm">إدارة الفواتير</h4>
+            <p class="text-xs text-on-surface-variant mt-1 leading-relaxed">جميع الفواتير تُحفظ في سجل الفواتير للرجوع إليها في أي وقت ويمكنك إعادة طباعتها إذا لزم الأمر.</p>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Phase 3: Analytics & Accounting -->
+      <div class="mb-4">
+        <h3 class="text-sm font-bold text-success mb-4 flex items-center gap-2">
+          <span class="material-symbols-outlined text-[18px]">account_balance</span>
+          المرحلة الثالثة: الحسابات والتحليلات
+        </h3>
+        <div class="space-y-4 relative before:absolute before:inset-y-0 before:right-[15px] before:w-[2px] before:bg-surface-container-high pl-2 pr-2">
+          
+          <div class="relative pr-8">
+            <div class="absolute right-0 top-1 w-8 h-8 rounded-full bg-success/20 border-4 border-surface-container-lowest flex items-center justify-center z-10">
+              <span class="material-symbols-outlined text-[14px] text-success">request_quote</span>
+            </div>
+            <h4 class="font-bold text-text-heading text-sm">المخالصات المالية</h4>
+            <p class="text-xs text-on-surface-variant mt-1 leading-relaxed">تصدر من قسم المكتبات. المخالصة تقوم بتصفية الحساب (الطلبات ناقص المرتجعات) للمكتبة المحددة، أو مخالصة عامة لجميع المكتبات.</p>
+          </div>
+
+          <div class="relative pr-8">
+            <div class="absolute right-0 top-1 w-8 h-8 rounded-full bg-warning/20 border-4 border-surface-container-lowest flex items-center justify-center z-10">
+              <span class="material-symbols-outlined text-[14px] text-warning">monitoring</span>
+            </div>
+            <h4 class="font-bold text-text-heading text-sm">الرؤى وتحليل البيانات</h4>
+            <p class="text-xs text-on-surface-variant mt-1 leading-relaxed">تُخبرك لوحة "تحليل التقدم" باجابه الاسئله التى نريد معرفه اجابتها بشكل دورى لتسهيل عملك دون الحاجه للذهاب لرئيه البيانات و فهمها لمعرفه الاجابه.</p>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Features & Control -->
+      <div class="mt-8 pt-6 border-t border-surface-container-high">
+        <h3 class="text-sm font-bold text-text-heading mb-4">مزايا وتحكم إضافي ⚙️</h3>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div class="bg-surface-container-low p-3 rounded-lg border border-surface-container-high flex gap-3">
+            <span class="material-symbols-outlined text-primary text-[20px]">drag_indicator</span>
+            <div>
+              <p class="text-xs font-bold text-text-heading">ترتيب الواجهة</p>
+              <p class="text-[10px] text-on-surface-variant mt-0.5">من الإعدادات، يمكنك ترتيب الأقسام لأعلى وأسفل لتخصيص مساحة عملك حسب ما تركز عليه يومياً.</p>
+            </div>
+          </div>
+          <div class="bg-surface-container-low p-3 rounded-lg border border-surface-container-high flex gap-3">
+            <span class="material-symbols-outlined text-primary text-[20px]">print</span>
+            <div>
+              <p class="text-xs font-bold text-text-heading">تخصيص الفواتير</p>
+              <p class="text-[10px] text-on-surface-variant mt-0.5">أضف اسم علامتك التجارية وأرقام هواتفك من الإعدادات لتظهر بشكل احترافي على المطبوعات.</p>
+            </div>
+          </div>
+
+          <div class="bg-surface-container-low p-3 rounded-lg border border-surface-container-high flex gap-3">
+            <span class="material-symbols-outlined text-primary text-[20px]">dark_mode</span>
+            <div>
+              <p class="text-xs font-bold text-text-heading">الوضع المظلم</p>
+              <p class="text-[10px] text-on-surface-variant mt-0.5">يُقلل إجهاد العين عند العمل لفترات طويلة على النظام في الإضاءة الخافتة.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>

@@ -1,0 +1,98 @@
+<div class="space-y-space-xl">
+  <!-- Page Header -->
+  <div class="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+    <div>
+      <h2 class="text-2xl md:text-3xl font-semibold text-text-heading">إدارة المخزون والمكتبات</h2>
+      <p class="text-sm text-on-surface-variant mt-1">النظام المتكامل لإدارة الكتب، الطلبيات، وبيانات المكتبات والمناطق الجغرافية في مكان واحد.</p>
+    </div>
+    <div class="flex flex-wrap gap-space-sm w-full md:w-auto">
+      <button (click)="undoLatest()" [disabled]="!canUndoLatest()" [ngClass]="{'opacity-50 cursor-not-allowed': !canUndoLatest()}" class="flex-1 md:flex-none flex items-center justify-center gap-2 bg-surface-primary border border-outline-variant text-on-surface px-4 py-2 rounded-lg text-sm font-medium hover:bg-surface-container transition-colors shadow-sm disabled:hover:bg-surface-primary" title="تراجع عن آخر إجراء">
+        <span class="material-symbols-outlined text-[20px]">undo</span> تراجع
+      </button>
+      <button (click)="openHistory()" class="flex-1 md:flex-none flex items-center justify-center gap-2 bg-surface-primary border border-outline-variant text-on-surface px-4 py-2 rounded-lg text-sm font-medium hover:bg-surface-container transition-colors shadow-sm">
+        <span class="material-symbols-outlined text-[20px]">history</span> سجل الأحداث
+      </button>
+      <button (click)="redoLatest()" [disabled]="!canRedoLatest()" [ngClass]="{'opacity-50 cursor-not-allowed': !canRedoLatest()}" class="flex-1 md:flex-none flex items-center justify-center gap-2 bg-surface-primary border border-outline-variant text-on-surface px-4 py-2 rounded-lg text-sm font-medium hover:bg-surface-container transition-colors shadow-sm disabled:hover:bg-surface-primary" title="إعادة آخر إجراء تم التراجع عنه">
+        <span class="material-symbols-outlined text-[20px]">redo</span> إعادة
+      </button>
+    </div>
+  </div>
+
+  <!-- Main Grid -->
+  <div class="flex flex-col lg:grid lg:grid-cols-12 gap-gutter">
+    <!-- Right Column (Invoices, Inventory, Dashboard/Progress) -->
+    <div class="contents lg:flex lg:flex-col lg:gap-4 lg:col-span-8">
+      <app-invoices [isCompact]="true" style="display: contents;" (addInventoryBook)="inv.openAddModal()"></app-invoices>
+      <app-inventory #inv [isCompact]="true" style="display: contents;"></app-inventory>
+      <app-dashboard [isCompact]="true" style="display: contents;"></app-dashboard>
+    </div>
+
+    <!-- Left Column (Libraries) -->
+    <div class="contents lg:flex lg:flex-col lg:gap-4 lg:col-span-4">
+      <app-libraries [isCompact]="true" style="display: contents;"></app-libraries>
+    </div>
+  </div>
+</div>
+
+<!-- History Modal -->
+<div *ngIf="isHistoryModalOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 print-only-hide p-4">
+  <div class="bg-surface-container-lowest rounded-xl shadow-lg w-full max-w-lg max-h-[90vh] flex flex-col">
+    <div class="flex justify-between items-center p-5 border-b border-surface-container-high">
+      <h2 class="text-lg font-bold text-primary flex items-center gap-2">
+        <span class="material-symbols-outlined">history</span> سجل الأحداث
+      </h2>
+      <button (click)="closeHistory()" class="text-on-surface-variant hover:text-error transition-colors">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+    
+    <!-- Filters -->
+    <div class="p-4 bg-surface-container-low border-b border-surface-container-high flex flex-col sm:flex-row gap-3">
+      <div class="relative flex-1">
+        <span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[20px]">search</span>
+        <input type="text" [ngModel]="searchQuery()" (ngModelChange)="searchQuery.set($event)" placeholder="البحث في الأحداث..." class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg py-2 pr-10 pl-4 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all">
+      </div>
+      <div class="sm:w-48">
+        <select [ngModel]="timeFilter()" (ngModelChange)="timeFilter.set($event)" class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg py-2 px-3 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all cursor-pointer">
+          <option value="all">كل الأوقات</option>
+          <option value="today">اليوم فقط</option>
+          <option value="yesterday">الأمس</option>
+          <option value="week">آخر 7 أيام</option>
+        </select>
+      </div>
+    </div>
+    <div class="flex-1 overflow-y-auto p-5 custom-scrollbar space-y-3">
+      <div *ngFor="let act of filteredActivities()" [ngClass]="{'opacity-50': act.status === 'undone'}" class="p-3 bg-surface-container-low rounded-lg border border-surface-container-high flex flex-col gap-2 transition-opacity">
+        <div class="flex justify-between items-start">
+          <div class="flex items-center gap-2">
+            <span class="text-sm font-bold" [ngClass]="act.status === 'undone' ? 'text-on-surface-variant line-through' : 'text-text-heading'">{{ act.action }}</span>
+            <span *ngIf="act.status === 'undone'" class="text-[10px] bg-surface-variant text-on-surface px-2 py-0.5 rounded-full">تم التراجع</span>
+          </div>
+          <span class="text-xs text-on-surface-variant font-mono">{{ act.timestamp | date:'dd/MM/yyyy hh:mm a' }}</span>
+        </div>
+        
+        <div class="flex justify-between items-end gap-4 mt-1">
+          <div class="text-sm flex-1" [ngClass]="act.status === 'undone' ? 'text-on-surface-variant/70' : 'text-on-surface-variant'">{{ act.details }}</div>
+          
+          <div class="flex items-center gap-2" *ngIf="act.type">
+            <button *ngIf="act.status !== 'undone'" (click)="undoActivity(act.id)" class="text-xs font-medium text-error hover:bg-error-container hover:text-error px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1 border border-transparent hover:border-error-container">
+              <span class="material-symbols-outlined text-[16px]">undo</span> تراجع
+            </button>
+            <button *ngIf="act.status === 'undone'" (click)="redoActivity(act.id)" class="text-xs font-medium text-primary hover:bg-primary-container hover:text-primary px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1 border border-transparent hover:border-primary-container">
+              <span class="material-symbols-outlined text-[16px]">redo</span> إعادة
+            </button>
+          </div>
+        </div>
+      </div>
+      <div *ngIf="filteredActivities().length === 0" class="text-center py-8 text-on-surface-variant text-sm border border-dashed border-outline-variant rounded-lg flex flex-col items-center gap-2">
+        <span class="material-symbols-outlined text-4xl text-on-surface-variant/50">history_toggle_off</span>
+        لا توجد أحداث مطابقة للبحث.
+      </div>
+    </div>
+    <div class="p-5 border-t border-surface-container-high bg-surface-container-low rounded-b-xl flex justify-end">
+      <button (click)="closeHistory()" class="px-5 py-2.5 border border-outline-variant rounded-lg text-sm font-medium text-on-surface-variant hover:bg-surface-container transition-colors">
+        إغلاق
+      </button>
+    </div>
+  </div>
+</div>

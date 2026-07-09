@@ -1,0 +1,43 @@
+# .NET
+**/bin/
+**/obj/
+**/out/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+.vs/
+
+# ASP.NET Core secrets & local config
+**/appsettings.Development.json
+**/appsettings.Production.json
+**/appsettings.*.local.json
+**/secrets.json
+
+# Publish output
+publish/
+
+# Node / Angular (booking)
+booking/node_modules/
+booking/dist/
+booking/.angular/
+
+# Environment & secrets
+.env
+.env.*
+!.env.example
+
+# IDE & tooling
+.idea/
+.cursor/
+*.swp
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs & temp
+*.log
+npm-debug.log*
+yarn-error.log*

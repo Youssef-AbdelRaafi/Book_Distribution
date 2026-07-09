@@ -1,0 +1,315 @@
+<div [ngClass]="isCompact ? 'contents' : 'space-y-space-xl'">
+  <!-- Page Header -->
+  <div *ngIf="!isCompact" class="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+    <div>
+      <h2 class="text-2xl md:text-3xl font-semibold text-text-heading flex items-center gap-2">
+        تحليل التقدم
+      </h2>
+      <p class="text-sm text-on-surface-variant mt-1">مؤشرات الأداء الرئيسية والتحليلات الذكية لعملك</p>
+    </div>
+    
+    <div class="flex items-center gap-3 bg-surface-container-low p-1.5 rounded-lg border border-outline-variant">
+      <span class="text-sm font-medium text-on-surface-variant px-2">الترم المالي:</span>
+      <select [ngModel]="settingsService.getActiveTermCode()" (ngModelChange)="onTermCodeChange($event)" class="bg-surface-primary border-none rounded py-1 px-3 text-sm font-bold text-primary focus:outline-none cursor-pointer">
+        <option value="A">الترم الأول</option>
+        <option value="B">الترم الثاني</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Stats Grid -->
+  <div [style.order]="settingsService.sectionOrder().indexOf('stats')" *ngIf="!isCompact" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-gutter">
+    <div class="bg-surface-primary p-space-md rounded-lg shadow-sm border border-surface-container-high flex items-center gap-4 relative overflow-hidden group">
+      <div class="absolute inset-0 bg-primary/5 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
+      <div class="w-12 h-12 rounded-full bg-primary-fixed-dim text-primary flex items-center justify-center relative z-10">
+        <span class="material-symbols-outlined text-[24px]">payments</span>
+      </div>
+      <div class="relative z-10">
+        <p class="text-xs text-on-surface-variant mb-0.5">إجمالي المبيعات (الصافي)</p>
+        <h4 class="text-xl font-bold">{{ stats().totalRevenue | number }} <span class="text-xs font-normal text-on-surface-variant">{{ settingsService.printSettings().mainCurrency }}</span></h4>
+      </div>
+    </div>
+
+    <div class="bg-surface-primary p-space-md rounded-lg shadow-sm border border-surface-container-high flex items-center gap-4 relative overflow-hidden group">
+      <div class="absolute inset-0 bg-success/5 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
+      <div class="w-12 h-12 rounded-full bg-success/20 text-success flex items-center justify-center relative z-10">
+        <span class="material-symbols-outlined text-[24px]">menu_book</span>
+      </div>
+      <div class="relative z-10">
+        <p class="text-xs text-on-surface-variant mb-0.5">الكتب المباعة</p>
+        <h4 class="text-xl font-bold">{{ stats().totalItemsSold | number }} <span class="text-xs font-normal text-on-surface-variant">كتاب</span></h4>
+      </div>
+    </div>
+
+    <div class="bg-surface-primary p-space-md rounded-lg shadow-sm border border-surface-container-high flex items-center gap-4 relative overflow-hidden group">
+      <div class="absolute inset-0 bg-warning/5 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
+      <div class="w-12 h-12 rounded-full bg-warning/20 text-warning flex items-center justify-center relative z-10">
+        <span class="material-symbols-outlined text-[24px]">account_balance_wallet</span>
+      </div>
+      <div class="relative z-10">
+        <p class="text-xs text-on-surface-variant mb-0.5">المبالغ المحصلة (المخالصات)</p>
+        <h4 class="text-xl font-bold">{{ stats().totalCollected | number }} <span class="text-xs font-normal text-on-surface-variant">{{ settingsService.printSettings().mainCurrency }}</span></h4>
+      </div>
+    </div>
+
+    <div class="bg-surface-primary p-space-md rounded-lg shadow-sm border border-surface-container-high flex items-center gap-4 relative overflow-hidden group">
+      <div class="absolute inset-0 bg-info/5 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
+      <div class="w-12 h-12 rounded-full bg-info/20 text-info flex items-center justify-center relative z-10">
+        <span class="material-symbols-outlined text-[24px]">store</span>
+      </div>
+      <div class="relative z-10">
+        <p class="text-xs text-on-surface-variant mb-0.5">عدد المكتبات المسجلة</p>
+        <h4 class="text-xl font-bold">{{ stats().totalLibraries | number }} <span class="text-xs font-normal text-on-surface-variant">مكتبة</span></h4>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bento Content -->
+  <div [ngClass]="isCompact ? 'contents' : 'grid grid-cols-1 lg:grid-cols-12 gap-gutter'">
+    <!-- Progress Analysis Column -->
+    <div [ngClass]="isCompact ? 'w-full' : 'lg:col-span-12 space-y-gutter'" [style.order]="settingsService.sectionOrder().indexOf('dashboard')">
+      
+      <!-- Progress Analysis Card -->
+      <div class="bg-surface-primary rounded-lg shadow-sm border border-surface-container-high p-space-md">
+        <div class="mb-space-md pb-4 flex justify-between items-center cursor-pointer select-none border-b border-surface-container-high" (click)="toggleAnalysis()">
+          <div class="flex items-center gap-3">
+            <h3 class="text-xl font-semibold text-text-heading flex items-center gap-2">
+              <span class="material-symbols-outlined text-primary">analytics</span> {{ isClassicMode() ? 'تحليل التقدم' : 'الرؤى والتحليلات الذكية' }}
+            </h3>
+            
+            <button (click)="toggleClassicMode($event)" class="text-xs font-medium px-3 py-1.5 rounded-full flex items-center gap-1 transition-colors border border-outline-variant hover:bg-surface-variant text-on-surface-variant">
+              <span class="material-symbols-outlined text-[14px]">swap_horiz</span>
+              {{ isClassicMode() ? 'التبديل للتحليل الذكي' : 'التبديل للتحليل الكلاسيكي' }}
+            </button>
+          </div>
+          <span class="material-symbols-outlined text-on-surface-variant transition-transform duration-300" [ngClass]="{'rotate-180': isAnalysisCollapsed()}">expand_more</span>
+        </div>
+
+        <div *ngIf="!isAnalysisCollapsed()" class="animate-in fade-in slide-in-from-top-2 duration-300 space-y-space-lg">
+          
+          <!-- === SMART ANALYTICS MODE === -->
+          <ng-container *ngIf="!isClassicMode()">
+          
+          <!-- Chart Row -->
+          <div class="bg-surface-container-lowest rounded-xl p-space-md border border-outline-variant/30">
+            <h4 class="text-sm font-semibold text-on-surface-variant mb-4 flex items-center gap-2">
+              <span class="material-symbols-outlined text-primary text-[18px]">trending_up</span>
+              متى نبيع أكثر؟ (المبيعات النقدية حسب الترم)
+            </h4>
+            
+            <div *ngIf="!chartData().hasData" class="text-center py-8 text-on-surface-variant text-sm border-2 border-dashed border-surface-container-high rounded-lg">
+              لا توجد مبيعات مسجلة حتى الآن لرسم المؤشر.
+            </div>
+
+            <!-- Chart -->
+            <div *ngIf="chartData().hasData" class="relative h-[200px] w-full flex items-end gap-4 sm:gap-8 px-4 pt-6 pb-8">
+              <!-- Y-axis labels -->
+              <div class="absolute right-0 top-0 bottom-8 flex flex-col justify-between text-[10px] text-on-surface-variant font-medium pointer-events-none">
+                <span>{{ chartData().label100 }}</span>
+                <span>{{ chartData().label50 }}</span>
+                <span>{{ chartData().label0 }}</span>
+              </div>
+              
+              <!-- Grid lines -->
+              <div class="absolute inset-x-0 inset-y-0 mr-8 mb-8 pointer-events-none flex flex-col justify-between">
+                <div class="w-full border-t border-dashed border-surface-container-highest h-0"></div>
+                <div class="w-full border-t border-dashed border-surface-container-highest h-0"></div>
+                <div class="w-full border-t border-surface-container-high h-0"></div>
+              </div>
+
+              <!-- Bars -->
+              <div class="flex-1 flex items-end justify-center gap-4 sm:gap-12 h-full z-10 mr-8 pr-4">
+                <div *ngFor="let bar of chartData().bars" class="w-full max-w-[60px] flex flex-col items-center group relative h-full justify-end">
+                  <!-- Tooltip -->
+                  <div class="absolute -top-10 bg-on-surface text-surface text-xs py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-20 pointer-events-none">
+                    {{ bar.revenue | number }} {{ settingsService.printSettings().mainCurrency }}
+                  </div>
+                  <!-- Bar Body -->
+                  <div class="w-full rounded-t-sm transition-all duration-500 relative overflow-hidden" 
+                       [ngClass]="bar.colorClass"
+                       [style.height.%]="bar.heightPercent">
+                  </div>
+                  <!-- Label -->
+                  <div class="absolute -bottom-6 whitespace-nowrap text-xs font-medium text-text-heading">
+                    {{ bar.term }}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-space-lg">
+            
+            <!-- Pending Balances List -->
+            <div class="bg-surface-container-lowest rounded-xl p-space-md border border-outline-variant/30 flex flex-col">
+              <h4 class="text-sm font-semibold text-on-surface-variant mb-4 flex items-center gap-2">
+                <span class="material-symbols-outlined text-error text-[18px]">account_balance</span>
+                أين أموالي؟ (أعلى المديونيات)
+              </h4>
+              
+              <div class="space-y-4 flex-1">
+                <div *ngIf="pendingBalances().length === 0" class="text-center py-6 text-on-surface-variant text-sm">
+                  جميع الحسابات مسددة بالكامل.
+                </div>
+                
+                <div *ngFor="let lib of pendingBalances(); let i = index" class="flex items-center justify-between group">
+                  <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs bg-error/10 text-error">
+                      #{{ i + 1 }}
+                    </div>
+                    <div>
+                      <p class="text-sm font-medium text-text-heading group-hover:text-error transition-colors truncate max-w-[100px]">{{ lib.name }}</p>
+                    </div>
+                  </div>
+                  <div class="text-left">
+                    <p class="text-sm font-bold text-error">{{ lib.balance | number }}</p>
+                    <p class="text-[10px] text-on-surface-variant">{{ settingsService.printSettings().mainCurrency }}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Critical Stock List -->
+            <div class="bg-surface-container-lowest rounded-xl p-space-md border border-outline-variant/30 flex flex-col">
+              <h4 class="text-sm font-semibold text-on-surface-variant mb-4 flex items-center gap-2">
+                <span class="material-symbols-outlined text-warning text-[18px]">warning</span>
+                ماذا يجب أن أطبع؟ (نواقص حرجة)
+              </h4>
+              
+              <div class="space-y-4 flex-1">
+                <div *ngIf="criticalStock().length === 0" class="text-center py-6 text-on-surface-variant text-sm">
+                  المخزون كافٍ ومستقر.
+                </div>
+
+                <div *ngFor="let stock of criticalStock()" class="flex items-center justify-between group">
+                  <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-warning/10 text-warning">
+                      <span class="material-symbols-outlined text-[16px]">print</span>
+                    </div>
+                    <div>
+                      <p class="text-sm font-medium text-text-heading group-hover:text-warning transition-colors truncate max-w-[100px]">{{ stock.name }}</p>
+                      <p class="text-[10px] text-warning font-medium">متبقي: {{ stock.remaining }} فقط</p>
+                    </div>
+                  </div>
+                  <div class="text-left">
+                    <p class="text-[10px] text-on-surface-variant">طلب السوق</p>
+                    <p class="text-sm font-bold text-text-heading">{{ stock.demand }}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Most Refunded Books List -->
+            <div class="bg-surface-container-lowest rounded-xl p-space-md border border-outline-variant/30 flex flex-col md:col-span-2 lg:col-span-1">
+              <h4 class="text-sm font-semibold text-on-surface-variant mb-4 flex items-center gap-2">
+                <span class="material-symbols-outlined text-info text-[18px]">assignment_return</span>
+                ما هي المشكلة؟ (الأكثر استرجاعاً)
+              </h4>
+              
+              <div class="space-y-4 flex-1">
+                <div *ngIf="mostRefunded().length === 0" class="text-center py-6 text-on-surface-variant text-sm">
+                  لا توجد مرتجعات حتى الآن.
+                </div>
+
+                <div *ngFor="let book of mostRefunded()" class="flex items-center justify-between group">
+                  <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-info/10 text-info">
+                      <span class="material-symbols-outlined text-[16px]">remove_shopping_cart</span>
+                    </div>
+                    <div>
+                      <p class="text-sm font-medium text-text-heading group-hover:text-info transition-colors truncate max-w-[120px]">{{ book.name }}</p>
+                    </div>
+                  </div>
+                  <div class="text-left">
+                    <p class="text-sm font-bold text-info">{{ book.count }}</p>
+                    <p class="text-[10px] text-on-surface-variant">مرتجع</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            </div>
+          </ng-container>
+
+          <!-- === CLASSIC ANALYTICS MODE === -->
+          <ng-container *ngIf="isClassicMode()">
+            
+            <!-- Controls Row -->
+            <div class="flex justify-end items-center mb-4">
+              <div class="flex items-center gap-2">
+                <label class="text-sm text-on-surface-variant">عرض البيانات حسب:</label>
+                <div class="relative">
+                  <select [ngModel]="classicDisplayMode()" (ngModelChange)="classicDisplayMode.set($event)" class="appearance-none bg-surface-container-lowest border border-outline-variant rounded-md pr-3 py-1.5 pl-8 text-sm text-text-heading outline-none focus:border-primary focus:ring-1 focus:ring-primary min-w-[120px]">
+                    <option value="libraries">عدد المكتبات</option>
+                    <option value="revenue">قيمة المبيعات</option>
+                    <option value="quantity">الكميات المباعة</option>
+                  </select>
+                  <span class="material-symbols-outlined absolute left-2 top-1/2 -translate-y-1/2 text-[18px] text-on-surface-variant pointer-events-none">expand_more</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Classic Chart Row -->
+            <div class="bg-surface-container-lowest rounded-xl p-space-md border border-outline-variant/30 mb-space-lg">
+              <div class="relative h-[250px] w-full flex items-end gap-4 sm:gap-12 px-8 pt-6 pb-8 border-b border-surface-container-high">
+                <!-- X-axis labels (Years) and Bars -->
+                <div *ngFor="let bar of classicChartData().bars" class="relative group flex-1 flex justify-center h-full items-end">
+                  <!-- Bar -->
+                  <div class="w-full max-w-[120px] rounded-t-md transition-all duration-500 ease-out {{ bar.colorClass }}"
+                       [style.height.%]="bar.heightPercent">
+                  </div>
+                  
+                  <!-- Year Label under the line -->
+                  <div class="absolute -bottom-7 text-xs font-bold text-on-surface-variant">
+                    {{ bar.year }}
+                  </div>
+                  
+                  <!-- Tooltip -->
+                  <div class="absolute -top-10 bg-surface-container-highest text-on-surface text-xs px-2 py-1 rounded shadow opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 whitespace-nowrap">
+                    {{ bar.value | number }} {{ classicDisplayMode() === 'revenue' ? settingsService.printSettings().mainCurrency : (classicDisplayMode() === 'quantity' ? 'كتاب' : 'مكتبة') }}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Classic Data Table -->
+            <div class="bg-surface-container-lowest rounded-xl border border-outline-variant/30 overflow-hidden">
+              <div class="overflow-x-auto">
+                <table class="w-full text-sm text-right">
+                  <thead class="bg-surface-container-low text-on-surface-variant text-xs">
+                    <tr>
+                      <th class="px-4 py-3 font-medium">السنة</th>
+                      <th class="px-4 py-3 font-medium">الترم</th>
+                      <th class="px-4 py-3 font-medium">المكتبة الأكثر مبيعا</th>
+                      <th class="px-4 py-3 font-medium text-center">الكتب المطلوبة</th>
+                      <th class="px-4 py-3 font-medium text-center">المسترجعة</th>
+                      <th class="px-4 py-3 font-medium text-center">صافي المبيعات</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-surface-container-high text-text-heading">
+                    <tr *ngFor="let row of classicTableData()" class="hover:bg-surface-container-lowest transition-colors">
+                      <td class="px-4 py-3 font-bold">{{ row.year }}</td>
+                      <td class="px-4 py-3">{{ row.term }}</td>
+                      <td class="px-4 py-3 font-medium">{{ row.bestLibrary }}</td>
+                      <td class="px-4 py-3 text-center">{{ row.ordered | number }}</td>
+                      <td class="px-4 py-3 text-center text-error">{{ row.refunded | number }}</td>
+                      <td class="px-4 py-3 text-center font-bold text-success">{{ row.netSales | number }}</td>
+                    </tr>
+                    <tr *ngIf="classicTableData().length === 0">
+                      <td colspan="6" class="px-4 py-8 text-center text-on-surface-variant">
+                        لا توجد بيانات متاحة حالياً
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+          </ng-container>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>

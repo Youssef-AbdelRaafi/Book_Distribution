@@ -1,0 +1,134 @@
+<div [ngClass]="isCompact ? 'contents' : 'space-y-space-xl'">
+  <!-- Page Header -->
+  <div *ngIf="!isCompact" class="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+    <div>
+      <h2 class="text-2xl md:text-3xl font-semibold text-text-heading">المخزون العام والتسعير</h2>
+      <p class="text-sm text-on-surface-variant mt-1">إدارة الكتب المسجلة للفصل الدراسي الحالي، وتحديد الأسعار، ومراقبة الكميات المتاحة في المخزون الرئيسي.</p>
+    </div>
+    <div class="flex gap-3">
+      <button (click)="openAddModal()" class="bg-primary text-on-primary px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary-container transition-colors shadow-sm flex items-center gap-2">
+        <span class="material-symbols-outlined text-[18px]">library_add</span> إضافة كتاب للمخزون
+      </button>
+      <button (click)="toggleEditMode()" class="bg-surface-container-low text-on-surface px-4 py-2 border border-surface-container-high rounded-lg text-sm font-medium hover:bg-surface-container transition-colors flex items-center gap-2" [ngClass]="{'bg-primary/10 text-primary border-primary': isEditMode()}">
+        <span class="material-symbols-outlined text-[18px]">edit</span> {{ isEditMode() ? 'إنهاء التعديل' : 'تعديل الأسعار' }}
+      </button>
+    </div>
+  </div>
+
+  <!-- Inventory Table Card -->
+  <div class="bg-surface-primary rounded-lg shadow-sm border border-surface-container-high overflow-hidden flex flex-col" [style.order]="settingsService.sectionOrder().indexOf('inventory')" [ngClass]="{'min-h-[450px]': !isListCollapsed()}">
+    <!-- Table Header / Filters -->
+    <div class="p-space-md border-b border-surface-container-high bg-surface-primary flex flex-wrap gap-space-sm justify-between items-center cursor-pointer select-none" (click)="toggleList()">
+      <div class="flex items-center gap-4">
+        <h3 class="text-xl font-semibold text-text-heading flex items-center gap-2">
+          <span class="material-symbols-outlined text-primary">view_list</span> المخزون الرئيسي
+        </h3>
+        <span class="material-symbols-outlined text-on-surface-variant transition-transform duration-300" [ngClass]="{'rotate-180': isListCollapsed()}">expand_more</span>
+      </div>
+      <div class="flex gap-space-sm" (click)="$event.stopPropagation()">
+        <!-- Subject Filter -->
+        <select [(ngModel)]="selectedSubject" class="bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-1.5 text-sm text-on-surface focus:border-primary focus:ring-1 focus:ring-primary outline-none appearance-none cursor-pointer">
+          <option *ngFor="let sub of subjectsList()" [value]="sub">{{ sub }}</option>
+        </select>
+
+        <!-- Grade Filter -->
+        <select [(ngModel)]="selectedGrade" class="bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-1.5 text-sm text-on-surface focus:border-primary focus:ring-1 focus:ring-primary outline-none appearance-none cursor-pointer">
+          <option *ngFor="let grade of gradesList()" [value]="grade">{{ grade }}</option>
+        </select>
+
+        <!-- Term Filter -->
+        <select [(ngModel)]="selectedTerm" class="bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-1.5 text-sm text-on-surface focus:border-primary focus:ring-1 focus:ring-primary outline-none appearance-none cursor-pointer">
+          <option value="كل الأترام">كل الفصول</option>
+          <option value="الأول">الفصل الأول</option>
+          <option value="الثاني">الفصل الثاني</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Table Content -->
+    <div *ngIf="!isListCollapsed()" class="overflow-x-auto flex-1 custom-scrollbar">
+      <table class="w-full text-right border-collapse min-w-[700px]">
+        <thead class="bg-surface-container-low sticky top-0 shadow-sm z-10">
+          <tr>
+            <th class="p-3.5 text-sm font-semibold text-on-surface-variant border-b border-surface-container-high w-12">#</th>
+            <th class="p-3.5 text-sm font-semibold text-on-surface-variant border-b border-surface-container-high">المادة</th>
+            <th class="p-3.5 text-sm font-semibold text-on-surface-variant border-b border-surface-container-high">الصف</th>
+            <th class="p-3.5 text-sm font-semibold text-on-surface-variant border-b border-surface-container-high text-left">السعر (R.O)</th>
+            <th class="p-3.5 text-sm font-semibold text-on-surface-variant border-b border-surface-container-high text-left">المخزون المتاح</th>
+          </tr>
+        </thead>
+        <tbody class="text-sm text-on-surface divide-y divide-surface-container-high">
+          <tr *ngFor="let item of filteredInventory(); let idx = index" 
+              class="hover:bg-surface-container-low transition-colors"
+              [ngClass]="idx % 2 === 0 ? 'bg-surface-primary' : 'bg-surface-alt'">
+            <td class="p-3.5 text-on-surface-variant font-mono">{{ idx + 1 }}</td>
+            <td class="p-3.5 font-medium">{{ item.name }}</td>
+            <td class="p-3.5">{{ item.grade }}</td>
+            <td class="p-3.5 text-left">
+              <div *ngIf="!isEditMode()" class="font-mono">{{ item.price | number:'1.3-3' }}</div>
+              <div *ngIf="isEditMode()" class="flex justify-end">
+                <input type="number" [ngModel]="item.price" (ngModelChange)="updatePrice(item, $event)" class="w-24 bg-surface-primary border border-outline-variant rounded-md px-2 py-1 text-left font-mono focus:border-primary outline-none" min="0" step="0.100">
+              </div>
+            </td>
+            <td class="p-3.5 text-left font-mono">
+              <span *ngIf="item.stockQuantity > 50" class="font-medium text-success bg-success/10 px-2 py-0.5 rounded-full">{{ item.stockQuantity | number }}</span>
+              <span *ngIf="item.stockQuantity > 10 && item.stockQuantity <= 50" class="font-medium text-warning bg-warning/10 px-2 py-0.5 rounded-full">{{ item.stockQuantity | number }}</span>
+              <span *ngIf="item.stockQuantity <= 10" class="text-error font-bold flex items-center justify-end gap-1 bg-error/10 px-2 py-0.5 rounded-full w-max ml-auto" title="مخزون منخفض أو منعدم">
+                {{ item.stockQuantity | number }} <span class="material-symbols-outlined text-[16px]">warning</span>
+              </span>
+            </td>
+          </tr>
+          <tr *ngIf="filteredInventory().length === 0">
+            <td colspan="5" class="p-8 text-center text-on-surface-variant">لا توجد مواد تطابق الفلاتر المحددة.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Add Book Modal -->
+<div *ngIf="showAddModal()" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 print-only-hide">
+  <div class="bg-surface-container-lowest rounded-xl shadow-lg w-full max-w-md flex flex-col">
+    <div class="flex justify-between items-center p-5 border-b border-surface-container-high">
+      <h2 class="text-lg font-bold text-primary flex items-center gap-2"><span class="material-symbols-outlined">library_add</span> إضافة كتاب جديد للمخزون</h2>
+      <button (click)="closeAddModal()" class="text-on-surface-variant hover:text-error transition-colors">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+    
+    <div class="p-5 space-y-4">
+      <div>
+        <label class="block text-xs font-medium text-on-surface-variant mb-1.5">اسم الكتاب (الطباعة)</label>
+        <input [(ngModel)]="newBook.name" type="text" class="w-full bg-surface-primary border border-outline-variant rounded-lg px-3 py-2 text-sm focus:border-primary outline-none" placeholder="مثال: فيزياء الصف التاسع - كتاب الطالب">
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-on-surface-variant mb-1.5">المادة</label>
+        <input [(ngModel)]="newBook.subject" type="text" class="w-full bg-surface-primary border border-outline-variant rounded-lg px-3 py-2 text-sm focus:border-primary outline-none" placeholder="مثال: فيزياء">
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-on-surface-variant mb-1.5">الصف / الفئة</label>
+        <input [(ngModel)]="newBook.grade" type="text" class="w-full bg-surface-primary border border-outline-variant rounded-lg px-3 py-2 text-sm focus:border-primary outline-none" placeholder="مثال: إصدارات الصف التاسع">
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-medium text-on-surface-variant mb-1.5">سعر الكتاب (R.O)</label>
+          <input [(ngModel)]="newBook.price" type="number" step="0.100" class="w-full bg-surface-primary border border-outline-variant rounded-lg px-3 py-2 text-sm focus:border-primary outline-none font-mono" placeholder="0.000">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-on-surface-variant mb-1.5">الرصيد الافتتاحي</label>
+          <input [(ngModel)]="newBook.stockQuantity" type="number" class="w-full bg-surface-primary border border-outline-variant rounded-lg px-3 py-2 text-sm focus:border-primary outline-none font-mono" placeholder="0">
+        </div>
+      </div>
+    </div>
+    
+    <div class="p-5 border-t border-surface-container-high bg-surface-container-low rounded-b-xl flex justify-end gap-3">
+      <button (click)="closeAddModal()" class="px-5 py-2.5 border border-outline-variant rounded-lg text-sm font-medium text-on-surface-variant hover:bg-surface-container transition-colors">
+        إلغاء
+      </button>
+      <button (click)="saveNewBook()" class="px-5 py-2.5 bg-primary text-on-primary rounded-lg text-sm font-medium hover:bg-primary-container transition-colors shadow-sm">
+        حفظ وإضافة
+      </button>
+    </div>
+  </div>
+</div>
