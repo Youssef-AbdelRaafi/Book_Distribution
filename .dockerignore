@@ -1,0 +1,13 @@
+**/bin/
+**/obj/
+node_modules/
+.git/
+.vs/
+.github/
+booking/dist/
+*.log
+*.db-shm
+*.db-wal
+booking/.angular/
+app.db
+.env

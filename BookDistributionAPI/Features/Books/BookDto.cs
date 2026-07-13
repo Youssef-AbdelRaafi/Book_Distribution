@@ -89,6 +89,6 @@ public class ResetStockDto
     [Range(1, int.MaxValue)]
     public int SemesterId { get; set; }
 
-    [Range(0, int.MaxValue)]
-    public int? NewStockQuantity { get; set; }
+    [Required, Range(0, int.MaxValue)]
+    public int NewStockQuantity { get; set; }
 }

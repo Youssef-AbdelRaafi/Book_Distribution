@@ -1,12 +1,13 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using BookDistributionAPI.Common;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using System.Threading.Tasks;
+using System.Threading;
 
 namespace BookDistributionAPI.Features.Auth;
 
@@ -23,34 +24,27 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("login")]
-    public IActionResult Login([FromBody] LoginRequest request)
+    public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.Username) || string.IsNullOrWhiteSpace(request.Password))
         {
-            return BadRequest(new LoginResponse
-            {
-                Success = false,
-                Message = "الرجاء إدخال اسم المستخدم وكلمة المرور"
-            });
+            return BadRequest(ApiResponse<LoginResponse>.Fail("الرجاء إدخال اسم المستخدم وكلمة المرور"));
         }
 
         if (IsValidUser(request))
         {
             var expiresAt = DateTime.UtcNow.AddMinutes(_authOptions.TokenMinutes);
-            return Ok(new LoginResponse
+            var response = new LoginResponse
             {
                 Success = true,
                 Token = CreateToken(request.Username, expiresAt),
                 ExpiresAt = expiresAt,
                 Message = "تم تسجيل الدخول بنجاح"
-            });
+            };
+            return Ok(ApiResponse<LoginResponse>.Ok(response, "تم تسجيل الدخول بنجاح"));
         }
 
-        return Unauthorized(new LoginResponse
-        {
-            Success = false,
-            Message = "اسم المستخدم أو كلمة المرور غير صحيحة"
-        });
+        return Unauthorized(ApiResponse<LoginResponse>.Fail("اسم المستخدم أو كلمة المرور غير صحيحة"));
     }
 
     private bool IsValidUser(LoginRequest request)

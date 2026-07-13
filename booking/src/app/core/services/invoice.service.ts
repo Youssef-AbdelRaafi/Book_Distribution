@@ -1,91 +1,143 @@
 import { Injectable, inject, signal } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, tap, catchError, of } from 'rxjs';
-import { Invoice } from '../models/invoice.model';
+import { Invoice, ClearancePreview } from '../models/invoice.model';
+import { ApiResponse } from '../models/api-response.model';
+import { ToastService } from './toast.service';
 import { environment } from '../../../environments/environment';
+
+interface CreateOrderRequest {
+  libraryId: number;
+  semesterId: number;
+  items: { bookId: number; quantity: number }[];
+}
+
+interface CreateRefundRequest {
+  libraryId: number;
+  semesterId: number;
+  items: { bookId: number; quantity: number }[];
+}
+
+interface CreateClearanceRequest {
+  libraryId: number;
+  semesterId: number;
+}
+
+interface CreateBatchClearanceRequest {
+  semesterId: number;
+}
+
+interface NextNumberResponse {
+  nextNumber: number;
+  termCode: string;
+  displayNumber: string;
+}
 
 @Injectable({ providedIn: 'root' })
 export class InvoiceService {
   private http = inject(HttpClient);
+  private toast = inject(ToastService);
   private apiUrl = `${environment.apiUrl}/invoices`;
 
   private invoicesSignal = signal<Invoice[]>([]);
   public readonly invoices$ = this.invoicesSignal.asReadonly();
 
-  fetchInvoices(filters?: any): void {
-    let params: any = {};
+  fetchInvoices(filters?: { type?: string; semesterId?: number; libraryId?: number }): void {
+    let params = new HttpParams();
     if (filters) {
-      if (filters.type) params.type = filters.type;
-      if (filters.semesterId) params.semesterId = filters.semesterId;
-      if (filters.libraryId) params.libraryId = filters.libraryId;
+      if (filters.type) params = params.set('type', filters.type);
+      if (filters.semesterId) params = params.set('semesterId', filters.semesterId);
+      if (filters.libraryId) params = params.set('libraryId', filters.libraryId);
     }
-    this.http.get<any>(this.apiUrl, { params }).pipe(
+    this.http.get<ApiResponse<Invoice[]>>(this.apiUrl, { params }).pipe(
       tap(res => {
-        const data = res.data || res;
+        const data = res.data;
         this.invoicesSignal.set(Array.isArray(data) ? data : []);
       }),
-      catchError(error => {
-        console.error('API Error fetching invoices', error);
+      catchError(() => {
+        this.toast.show('تعذر تحميل الفواتير', 'error');
         return of([]);
       })
     ).subscribe();
   }
 
-  createOrder(order: { libraryId: number; semesterId: number; items: { bookId: number; quantity: number }[] }): Observable<any> {
-    return this.http.post<any>(`${this.apiUrl}/order`, order).pipe(
+  private prependInvoice(inv: Invoice): void {
+    this.invoicesSignal.set([inv, ...this.invoicesSignal()]);
+  }
+
+  private replaceInvoice(id: number, inv: Invoice): void {
+    this.invoicesSignal.set(
+      this.invoicesSignal().map(i => i.id === id ? inv : i)
+    );
+  }
+
+  private removeInvoice(id: number): void {
+    this.invoicesSignal.set(
+      this.invoicesSignal().filter(i => i.id !== id)
+    );
+  }
+
+  createOrder(order: CreateOrderRequest): Observable<ApiResponse<Invoice>> {
+    return this.http.post<ApiResponse<Invoice>>(`${this.apiUrl}/order`, order).pipe(
+      tap(res => {
+        const created = res.data;
+        if (created?.id) this.prependInvoice(created);
+      })
+    );
+  }
+
+  createRefund(refund: CreateRefundRequest): Observable<ApiResponse<Invoice>> {
+    return this.http.post<ApiResponse<Invoice>>(`${this.apiUrl}/refund`, refund).pipe(
+      tap(res => {
+        const created = res.data;
+        if (created?.id) this.prependInvoice(created);
+      })
+    );
+  }
+
+  createClearance(clearance: CreateClearanceRequest): Observable<ApiResponse<Invoice>> {
+    return this.http.post<ApiResponse<Invoice>>(`${this.apiUrl}/clearance`, clearance).pipe(
       tap(() => this.fetchInvoices())
     );
   }
 
-  createRefund(refund: { libraryId: number; semesterId: number; items: { bookId: number; quantity: number }[] }): Observable<any> {
-    return this.http.post<any>(`${this.apiUrl}/refund`, refund).pipe(
+  createBatchClearance(semesterId: number): Observable<ApiResponse<{ count: number; invoices: Invoice[] }>> {
+    return this.http.post<ApiResponse<{ count: number; invoices: Invoice[] }>>(`${this.apiUrl}/clearance/batch`, { semesterId } as CreateBatchClearanceRequest).pipe(
       tap(() => this.fetchInvoices())
     );
   }
 
-  createClearance(clearance: { libraryId: number; semesterId: number }): Observable<any> {
-    return this.http.post<any>(`${this.apiUrl}/clearance`, clearance).pipe(
-      tap(() => this.fetchInvoices())
-    );
-  }
-
-  createBatchClearance(semesterId: number): Observable<any> {
-    return this.http.post<any>(`${this.apiUrl}/clearance/batch`, { semesterId }).pipe(
-      tap(() => this.fetchInvoices())
-    );
-  }
-
-  getClearancePreview(semesterId: number, libraryId?: number): Observable<any> {
-    let params: any = { semesterId: semesterId.toString() };
-    if (libraryId) params.libraryId = libraryId.toString();
-    return this.http.get<any>(`${this.apiUrl}/clearance/preview`, { params });
+  getClearancePreview(semesterId: number, libraryId?: number): Observable<ApiResponse<ClearancePreview>> {
+    let params = new HttpParams().set('semesterId', semesterId.toString());
+    if (libraryId) params = params.set('libraryId', libraryId.toString());
+    return this.http.get<ApiResponse<ClearancePreview>>(`${this.apiUrl}/clearance/preview`, { params });
   }
 
   getInvoicesByLibrary(libraryName: string): Invoice[] {
     return this.invoicesSignal().filter(inv => inv.libraryName === libraryName);
   }
 
-  getInvoicesByLibraryId(libraryId: number): Observable<any> {
-    return this.http.get<any>(this.apiUrl, { params: { libraryId: libraryId.toString() } });
+  getInvoicesByLibraryId(libraryId: number): Observable<ApiResponse<Invoice[]>> {
+    return this.http.get<ApiResponse<Invoice[]>>(this.apiUrl, { params: new HttpParams().set('libraryId', libraryId.toString()) });
   }
 
-  updatePrintStatus(id: number, status: string): Observable<any> {
-    return this.http.put<any>(`${this.apiUrl}/${id}/print-status`, { printStatus: status }).pipe(
-      tap(() => this.fetchInvoices())
+  updatePrintStatus(id: number, status: string): Observable<ApiResponse<Invoice>> {
+    return this.http.put<ApiResponse<Invoice>>(`${this.apiUrl}/${id}/print-status`, { printStatus: status }).pipe(
+      tap(res => {
+        const updated = res.data;
+        if (updated?.id) this.replaceInvoice(id, updated);
+      })
     );
   }
 
-  deleteInvoice(id: number): Observable<any> {
-    return this.http.delete<any>(`${this.apiUrl}/${id}`).pipe(
-      tap(() => this.fetchInvoices())
+  deleteInvoice(id: number): Observable<ApiResponse<unknown>> {
+    return this.http.delete<ApiResponse<unknown>>(`${this.apiUrl}/${id}`).pipe(
+      tap(() => this.removeInvoice(id))
     );
   }
 
-  getNextNumber(semesterId: number): Observable<any> {
-    return this.http.get<any>(`${this.apiUrl}/next-number`, { params: { semesterId: semesterId.toString() } });
+  getNextNumber(semesterId: number): Observable<ApiResponse<NextNumberResponse>> {
+    return this.http.get<ApiResponse<NextNumberResponse>>(`${this.apiUrl}/next-number`, { params: new HttpParams().set('semesterId', semesterId.toString()) });
   }
 
-  // backward compat
-  saveInvoice(invoice: Invoice) {}
-  updateInvoice(updatedInvoice: Invoice) {}
 }

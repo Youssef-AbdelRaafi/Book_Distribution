@@ -6,6 +6,7 @@ using BookDistributionAPI.Features.Libraries;
 using BookDistributionAPI.Features.Books;
 using BookDistributionAPI.Features.Invoices;
 using BookDistributionAPI.Features.Settings;
+using BookDistributionAPI.Features.ReceiptVouchers;
 
 namespace BookDistributionAPI.Data;
 
@@ -23,6 +24,7 @@ public class AppDbContext : DbContext
     public DbSet<Invoice> Invoices => Set<Invoice>();
     public DbSet<InvoiceItem> InvoiceItems => Set<InvoiceItem>();
     public DbSet<AppSetting> AppSettings => Set<AppSetting>();
+    public DbSet<ReceiptVoucher> ReceiptVouchers => Set<ReceiptVoucher>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -48,6 +50,9 @@ public class AppDbContext : DbContext
             .HasIndex(s => new { s.AcademicYearId, s.Code })
             .IsUnique();
 
+        modelBuilder.Entity<Semester>()
+            .HasIndex(s => s.AcademicYearId);
+
         modelBuilder.Entity<Governorate>()
             .Property(g => g.Name)
             .HasMaxLength(100);
@@ -63,6 +68,9 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<City>()
             .HasIndex(c => new { c.GovernorateId, c.Name })
             .IsUnique();
+
+        modelBuilder.Entity<City>()
+            .HasIndex(c => c.GovernorateId);
 
         modelBuilder.Entity<Book>()
             .Property(b => b.Name)
@@ -85,6 +93,9 @@ public class AppDbContext : DbContext
             .IsUnique();
 
         modelBuilder.Entity<Book>()
+            .HasIndex(b => b.SemesterId);
+
+        modelBuilder.Entity<Book>()
             .ToTable(t =>
             {
                 t.HasCheckConstraint("CK_Books_Price_NonNegative", "[Price] >= 0");
@@ -97,7 +108,7 @@ public class AppDbContext : DbContext
 
         modelBuilder.Entity<Library>()
             .Property(l => l.Logo)
-            .HasMaxLength(1000);
+            .HasMaxLength(500);
 
         modelBuilder.Entity<Library>()
             .Property(l => l.OwnerName)
@@ -202,6 +213,9 @@ public class AppDbContext : DbContext
             .HasColumnType("decimal(10,3)");
 
         modelBuilder.Entity<InvoiceItem>()
+            .HasIndex(ii => ii.BookId);
+
+        modelBuilder.Entity<InvoiceItem>()
             .ToTable(t =>
             {
                 t.HasCheckConstraint("CK_InvoiceItems_Quantity_Positive", "[Quantity] > 0");
@@ -215,7 +229,7 @@ public class AppDbContext : DbContext
 
         modelBuilder.Entity<AppSetting>()
             .Property(s => s.Value)
-            .HasMaxLength(1000);
+            .HasMaxLength(4000);
 
         modelBuilder.Entity<AppSetting>()
             .HasIndex(s => s.Key)
@@ -227,7 +241,8 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<Semester>()
             .HasOne(s => s.AcademicYear)
             .WithMany(a => a.Semesters)
-            .HasForeignKey(s => s.AcademicYearId);
+            .HasForeignKey(s => s.AcademicYearId)
+            .OnDelete(DeleteBehavior.Restrict);
 
         modelBuilder.Entity<City>()
             .HasOne(c => c.Governorate)
@@ -265,6 +280,12 @@ public class AppDbContext : DbContext
             .HasIndex(lb => new { lb.LibraryId, lb.BookId })
             .IsUnique();
 
+        modelBuilder.Entity<LibraryBook>()
+            .HasIndex(lb => lb.LibraryId);
+
+        modelBuilder.Entity<LibraryBook>()
+            .HasIndex(lb => lb.BookId);
+
         modelBuilder.Entity<Invoice>()
             .HasOne(i => i.Library)
             .WithMany(l => l.Invoices)
@@ -288,11 +309,79 @@ public class AppDbContext : DbContext
             .HasForeignKey(ii => ii.BookId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        modelBuilder.Entity<InvoiceItem>()
+            .HasIndex(ii => ii.InvoiceId);
+
         modelBuilder.Entity<Invoice>()
             .HasIndex(i => new { i.LibraryId, i.SemesterId, i.InvoiceNumber })
             .IsUnique();
 
         modelBuilder.Entity<Invoice>()
+            .HasIndex(i => new { i.LibraryId, i.InvoiceYear, i.InvoiceNumber });
+
+        modelBuilder.Entity<Invoice>()
             .HasIndex(i => new { i.LibraryId, i.SemesterId });
+
+        modelBuilder.Entity<Invoice>()
+            .HasIndex(i => i.SemesterId);
+
+        modelBuilder.Entity<Invoice>()
+            .HasIndex(i => new { i.SemesterId, i.Type });
+
+        modelBuilder.Entity<Invoice>()
+            .HasIndex(i => i.Date);
+
+        // ---- ReceiptVoucher ----
+        modelBuilder.Entity<ReceiptVoucher>()
+            .Ignore(rv => rv.DisplayNumber);
+
+        modelBuilder.Entity<ReceiptVoucher>()
+            .Property(rv => rv.Amount)
+            .HasColumnType("decimal(10,3)");
+
+        modelBuilder.Entity<ReceiptVoucher>()
+            .Property(rv => rv.PaymentMethod)
+            .HasMaxLength(20);
+
+        modelBuilder.Entity<ReceiptVoucher>()
+            .Property(rv => rv.ChequeNumber)
+            .HasMaxLength(50);
+
+        modelBuilder.Entity<ReceiptVoucher>()
+            .Property(rv => rv.BankName)
+            .HasMaxLength(100);
+
+        modelBuilder.Entity<ReceiptVoucher>()
+            .Property(rv => rv.Purpose)
+            .HasMaxLength(500);
+
+        modelBuilder.Entity<ReceiptVoucher>()
+            .ToTable(t =>
+            {
+                t.HasCheckConstraint("CK_ReceiptVouchers_Amount_Positive", "[Amount] > 0");
+                t.HasCheckConstraint("CK_ReceiptVouchers_PaymentMethod", "[PaymentMethod] IN ('cash', 'cheque')");
+            });
+
+        modelBuilder.Entity<ReceiptVoucher>()
+            .HasIndex(rv => new { rv.LibraryId, rv.SemesterId });
+
+        modelBuilder.Entity<ReceiptVoucher>()
+            .HasOne(rv => rv.Library)
+            .WithMany()
+            .HasForeignKey(rv => rv.LibraryId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<ReceiptVoucher>()
+            .HasOne(rv => rv.Semester)
+            .WithMany()
+            .HasForeignKey(rv => rv.SemesterId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<ReceiptVoucher>()
+            .HasIndex(rv => new { rv.VoucherYear, rv.VoucherNumber })
+            .IsUnique();
+
+        modelBuilder.Entity<ReceiptVoucher>()
+            .HasIndex(rv => rv.Date);
     }
 }

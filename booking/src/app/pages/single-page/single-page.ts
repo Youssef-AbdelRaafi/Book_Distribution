@@ -1,4 +1,4 @@
-import { Component, computed, signal, inject } from '@angular/core';
+import { Component, computed, signal, inject, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { LibrariesComponent } from '../libraries/libraries';
@@ -11,11 +11,13 @@ import { SettingsService } from '../../core/services/settings.service';
 
 @Component({
   selector: 'app-single-page',
+  changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
   imports: [CommonModule, FormsModule, RouterModule, LibrariesComponent, InvoicesComponent, InventoryComponent, DashboardComponent],
   templateUrl: './single-page.html'
 })
 export class SinglePageComponent {
+  trackById = (i: number, item: any) => item?.id ?? i;
   private activityService = inject(ActivityService);
   public settingsService = inject(SettingsService);
   

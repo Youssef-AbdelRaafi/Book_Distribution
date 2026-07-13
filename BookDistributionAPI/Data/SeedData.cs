@@ -1,3 +1,5 @@
+using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
 using BookDistributionAPI.Features.AcademicYears;
 using BookDistributionAPI.Features.Semesters;
 using BookDistributionAPI.Features.Governorates;
@@ -9,21 +11,23 @@ namespace BookDistributionAPI.Data;
 
 public static class SeedData
 {
-    public static void Initialize(AppDbContext db)
+    public static async Task InitializeAsync(AppDbContext db)
     {
-        using var transaction = db.Database.BeginTransaction();
+        await using var transaction = await db.Database.BeginTransactionAsync();
         try
         {
-            if (!db.AcademicYears.Any())
+            if (!await db.AcademicYears.AnyAsync())
             {
-                var year = new AcademicYear { Name = "2025-2026", IsActive = true };
+                var currentYear = DateTime.Now.Year;
+                var nextYear = currentYear + 1;
+                var year = new AcademicYear { Name = $"{currentYear}-{nextYear}", IsActive = true };
                 db.AcademicYears.Add(year);
-                db.SaveChanges();
+                await db.SaveChangesAsync();
 
-                var sem1 = new Semester { AcademicYearId = year.Id, Name = "الأول", Code = "A", IsActive = true };
-                var sem2 = new Semester { AcademicYearId = year.Id, Name = "الثاني", Code = "B", IsActive = false };
+                var sem1 = new Semester { AcademicYearId = year.Id, Name = "الفصل الأول", Code = "A", IsActive = true };
+                var sem2 = new Semester { AcademicYearId = year.Id, Name = "الفصل الثاني", Code = "B", IsActive = false };
                 db.Semesters.AddRange(sem1, sem2);
-                db.SaveChanges();
+                await db.SaveChangesAsync();
 
                 var govs = new Dictionary<string, string[]>
                 {
@@ -50,7 +54,7 @@ public static class SeedData
                 }
 
                 db.Governorates.AddRange(governorates);
-                db.SaveChanges();
+                await db.SaveChangesAsync();
 
                 foreach (var gov in govs)
                 {
@@ -62,64 +66,82 @@ public static class SeedData
                 }
 
                 db.Cities.AddRange(cities);
-                db.SaveChanges();
+                await db.SaveChangesAsync();
             } // End of if !db.AcademicYears.Any()
 
-            var existingSem1 = db.Semesters.FirstOrDefault(s => s.Name == "الأول");
-            var existingSem2 = db.Semesters.FirstOrDefault(s => s.Name == "الثاني");
-
-            if (existingSem1 == null || existingSem2 == null)
+            var activeYear = await db.AcademicYears.FirstOrDefaultAsync(y => y.IsActive);
+            if (activeYear == null)
             {
-                transaction.Commit();
+                await transaction.CommitAsync();
                 return;
             }
 
-            var expectedBooks = new[]
-        {
-            // Semester 1 Books
-            new Book { Name = "فيزياء الصف التاسع (كتاب واحد)", Grade = "إصدارات الصف التاسع", Subject = "فيزياء", SemesterId = existingSem1.Id, Price = 3.000m, StockQuantity = 500 },
-            new Book { Name = "كيمياء الصف التاسع (كتابين)", Grade = "إصدارات الصف التاسع", Subject = "كيمياء", SemesterId = existingSem1.Id, Price = 3.000m, StockQuantity = 500 },
-            new Book { Name = "فيزياء الصف العاشر (كتاب واحد)", Grade = "إصدارات الصف العاشر", Subject = "فيزياء", SemesterId = existingSem1.Id, Price = 3.000m, StockQuantity = 500 },
-            new Book { Name = "كيمياء الصف العاشر (كتابين)", Grade = "إصدارات الصف العاشر", Subject = "كيمياء", SemesterId = existingSem1.Id, Price = 3.000m, StockQuantity = 500 },
-            new Book { Name = "فيزياء الحادي عشر (كتابين)", Grade = "إصدارات الصف الحادي عشر", Subject = "فيزياء", SemesterId = existingSem1.Id, Price = 3.500m, StockQuantity = 500 },
-            new Book { Name = "العلوم البيئية (القسم الأدبي)", Grade = "إصدارات الصف الحادي عشر", Subject = "علوم بيئية", SemesterId = existingSem1.Id, Price = 3.500m, StockQuantity = 500 },
-            new Book { Name = "فيزياء الثاني عشر (كتاب واحد)", Grade = "إصدارات الصف الثاني عشر", Subject = "فيزياء", SemesterId = existingSem1.Id, Price = 4.000m, StockQuantity = 500 },
-            new Book { Name = "العلوم البيئية ثاني عشر (كتاب واحد)", Grade = "إصدارات الصف الثاني عشر", Subject = "علوم بيئية", SemesterId = existingSem1.Id, Price = 3.500m, StockQuantity = 500 },
-            new Book { Name = "كيمياء الثاني عشر (كتاب واحد)", Grade = "إصدارات الصف الثاني عشر", Subject = "كيمياء", SemesterId = existingSem1.Id, Price = 4.000m, StockQuantity = 500 },
-
-            // Semester 2 Books
-            new Book { Name = "فيزياء الصف التاسع (كتاب واحد)", Grade = "إصدارات الصف التاسع", Subject = "فيزياء", SemesterId = existingSem2.Id, Price = 3.000m, StockQuantity = 500 },
-            new Book { Name = "كيمياء الصف التاسع (كتاب واحد)", Grade = "إصدارات الصف التاسع", Subject = "كيمياء", SemesterId = existingSem2.Id, Price = 3.000m, StockQuantity = 500 },
-            new Book { Name = "فيزياء الصف العاشر (كتاب واحد)", Grade = "إصدارات الصف العاشر", Subject = "فيزياء", SemesterId = existingSem2.Id, Price = 3.000m, StockQuantity = 500 },
-            new Book { Name = "فيزياء الحادي عشر (كتاب واحد)", Grade = "إصدارات الصف الحادي عشر", Subject = "فيزياء", SemesterId = existingSem2.Id, Price = 4.000m, StockQuantity = 500 },
-            new Book { Name = "العلوم البيئية أدبي (كتاب واحد)", Grade = "إصدارات الصف الحادي عشر", Subject = "علوم بيئية", SemesterId = existingSem2.Id, Price = 3.500m, StockQuantity = 500 },
-            new Book { Name = "فيزياء الثاني عشر (كتابين)", Grade = "إصدارات الصف الثاني عشر", Subject = "فيزياء", SemesterId = existingSem2.Id, Price = 4.000m, StockQuantity = 500 },
-            new Book { Name = "العلوم البيئية أدبي (كتاب واحد)", Grade = "إصدارات الصف الثاني عشر", Subject = "علوم بيئية", SemesterId = existingSem2.Id, Price = 3.500m, StockQuantity = 500 }
-        };
-
-            var existingBooks = db.Books.ToList();
-            var booksToAdd = new List<Book>();
-            foreach (var b in expectedBooks)
+            var bookTemplates = new[]
             {
-                var exists = existingBooks.Any(eb => eb.SemesterId == b.SemesterId && eb.Name == b.Name && eb.Grade == b.Grade);
+                // Semester 1 Books
+                new { Name = "فيزياء الصف التاسع (كتاب واحد)", Grade = "إصدارات الصف التاسع", Subject = "فيزياء", Semester = "الفصل الأول", Price = 3.000m },
+                new { Name = "كيمياء الصف التاسع (كتابين)", Grade = "إصدارات الصف التاسع", Subject = "كيمياء", Semester = "الفصل الأول", Price = 3.000m },
+                new { Name = "فيزياء الصف العاشر (كتاب واحد)", Grade = "إصدارات الصف العاشر", Subject = "فيزياء", Semester = "الفصل الأول", Price = 3.000m },
+                new { Name = "كيمياء الصف العاشر (كتابين)", Grade = "إصدارات الصف العاشر", Subject = "كيمياء", Semester = "الفصل الأول", Price = 3.000m },
+                new { Name = "فيزياء الحادي عشر (كتابين)", Grade = "إصدارات الصف الحادي عشر", Subject = "فيزياء", Semester = "الفصل الأول", Price = 3.500m },
+                new { Name = "العلوم البيئية (القسم الأدبي)", Grade = "إصدارات الصف الحادي عشر", Subject = "علوم بيئية", Semester = "الفصل الأول", Price = 3.500m },
+                new { Name = "فيزياء الثاني عشر (كتاب واحد)", Grade = "إصدارات الصف الثاني عشر", Subject = "فيزياء", Semester = "الفصل الأول", Price = 4.000m },
+                new { Name = "العلوم البيئية ثاني عشر (كتاب واحد)", Grade = "إصدارات الصف الثاني عشر", Subject = "علوم بيئية", Semester = "الفصل الأول", Price = 3.500m },
+                new { Name = "كيمياء الثاني عشر (كتاب واحد)", Grade = "إصدارات الصف الثاني عشر", Subject = "كيمياء", Semester = "الفصل الأول", Price = 4.000m },
+
+                // Semester 2 Books
+                new { Name = "فيزياء الصف التاسع (كتاب واحد)", Grade = "إصدارات الصف التاسع", Subject = "فيزياء", Semester = "الفصل الثاني", Price = 3.000m },
+                new { Name = "كيمياء الصف التاسع (كتاب واحد)", Grade = "إصدارات الصف التاسع", Subject = "كيمياء", Semester = "الفصل الثاني", Price = 3.000m },
+                new { Name = "فيزياء الصف العاشر (كتاب واحد)", Grade = "إصدارات الصف العاشر", Subject = "فيزياء", Semester = "الفصل الثاني", Price = 3.000m },
+                new { Name = "فيزياء الحادي عشر (كتاب واحد)", Grade = "إصدارات الصف الحادي عشر", Subject = "فيزياء", Semester = "الفصل الثاني", Price = 4.000m },
+                new { Name = "العلوم البيئية أدبي (كتاب واحد)", Grade = "إصدارات الصف الحادي عشر", Subject = "علوم بيئية", Semester = "الفصل الثاني", Price = 3.500m },
+                new { Name = "فيزياء الثاني عشر (كتابين)", Grade = "إصدارات الصف الثاني عشر", Subject = "فيزياء", Semester = "الفصل الثاني", Price = 4.000m },
+                new { Name = "العلوم البيئية أدبي (كتاب واحد)", Grade = "إصدارات الصف الثاني عشر", Subject = "علوم بيئية", Semester = "الفصل الثاني", Price = 3.500m }
+            };
+
+            var existingBooks = await db.Books.ToListAsync();
+            var booksToAdd = new List<Book>();
+
+            var activeSem1 = await db.Semesters.FirstOrDefaultAsync(s => s.Name == "الفصل الأول" && s.AcademicYearId == activeYear.Id);
+            var activeSem2 = await db.Semesters.FirstOrDefaultAsync(s => s.Name == "الفصل الثاني" && s.AcademicYearId == activeYear.Id);
+
+            if (activeSem1 == null || activeSem2 == null)
+            {
+                await transaction.CommitAsync();
+                return;
+            }
+
+            foreach (var template in bookTemplates)
+            {
+                var semesterId = template.Semester == "الفصل الأول" ? activeSem1.Id : activeSem2.Id;
+                var exists = existingBooks.Any(eb => eb.SemesterId == semesterId && eb.Name == template.Name && eb.Grade == template.Grade);
+
                 if (!exists)
                 {
-                    booksToAdd.Add(b);
+                    booksToAdd.Add(new Book
+                    {
+                        Name = template.Name,
+                        Grade = template.Grade,
+                        Subject = template.Subject,
+                        SemesterId = semesterId,
+                        Price = template.Price,
+                        StockQuantity = 500
+                    });
                 }
             }
 
             db.Books.AddRange(booksToAdd);
 
-            // Optional: update physics 9 and 10 in sem1 if their names were previously "كتابين"
-            var phys9Sem1 = existingBooks.FirstOrDefault(eb => eb.SemesterId == existingSem1.Id && eb.Grade == "إصدارات الصف التاسع" && eb.Subject == "فيزياء" && eb.Name.Contains("كتابين"));
+            // Optional: update physics 9 and 10 in activeSem1 if their names were previously "كتابين"
+            var phys9Sem1 = existingBooks.FirstOrDefault(eb => eb.SemesterId == activeSem1.Id && eb.Grade == "إصدارات الصف التاسع" && eb.Subject == "فيزياء" && eb.Name.Contains("كتابين"));
             if (phys9Sem1 != null) { phys9Sem1.Name = "فيزياء الصف التاسع (كتاب واحد)"; }
-            
-            var phys10Sem1 = existingBooks.FirstOrDefault(eb => eb.SemesterId == existingSem1.Id && eb.Grade == "إصدارات الصف العاشر" && eb.Subject == "فيزياء" && eb.Name.Contains("كتابين"));
+
+            var phys10Sem1 = existingBooks.FirstOrDefault(eb => eb.SemesterId == activeSem1.Id && eb.Grade == "إصدارات الصف العاشر" && eb.Subject == "فيزياء" && eb.Name.Contains("كتابين"));
             if (phys10Sem1 != null) { phys10Sem1.Name = "فيزياء الصف العاشر (كتاب واحد)"; }
 
-            db.SaveChanges();
+            await db.SaveChangesAsync();
 
-            if (!db.AppSettings.Any())
+            if (!await db.AppSettings.AnyAsync())
             {
                 var settings = new[]
                 {
@@ -131,10 +153,10 @@ public static class SeedData
                     new AppSetting { Key = "whatsappNumber", Value = "91913020" },
                 };
                 db.AppSettings.AddRange(settings);
-                db.SaveChanges();
+                await db.SaveChangesAsync();
             }
 
-            if (!db.Libraries.Any())
+            if (!await db.Libraries.AnyAsync())
             {
                 var libData = new List<(string Gov, string City, string[] Libs)>
         {
@@ -181,8 +203,8 @@ public static class SeedData
             ("محافظة الوسطى", "محوت", new[] { "متجر أشرف رشاد" })
         };
 
-                var governoratesDict = db.Governorates.ToDictionary(g => g.Name);
-                var citiesDict = db.Cities.ToDictionary(c => new { c.Name, c.GovernorateId });
+                var governoratesDict = await db.Governorates.ToDictionaryAsync(g => g.Name);
+                var citiesDict = await db.Cities.ToDictionaryAsync(c => new { c.Name, c.GovernorateId });
 
                 var librariesToAdd = new List<Library>();
                 foreach (var mapping in libData)
@@ -214,14 +236,15 @@ public static class SeedData
                     }
                 }
                 db.Libraries.AddRange(librariesToAdd);
-                db.SaveChanges();
+                await db.SaveChangesAsync();
             }
 
-            transaction.Commit();
+            await transaction.CommitAsync();
         }
-        catch
+        catch (Exception ex)
         {
-            transaction.Rollback();
+            await transaction.RollbackAsync();
+            Console.Error.WriteLine($"Seed failed: {ex.Message}");
             throw;
         }
     }

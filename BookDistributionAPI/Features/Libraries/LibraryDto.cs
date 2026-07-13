@@ -39,16 +39,16 @@ public class CreateLibraryDto
     [StringLength(1000)]
     public string? Logo { get; set; }
 
-    [StringLength(100)]
+    [Required, StringLength(100)]
     public string OwnerName { get; set; } = string.Empty;
 
-    [StringLength(30)]
+    [Required, StringLength(30)]
     public string OwnerPhone { get; set; } = string.Empty;
 
-    [StringLength(100)]
+    [Required, StringLength(100)]
     public string ResponsibleName { get; set; } = string.Empty;
 
-    [StringLength(30)]
+    [Required, StringLength(30)]
     public string ResponsiblePhone { get; set; } = string.Empty;
 
     [StringLength(30)]

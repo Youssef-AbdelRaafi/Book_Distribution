@@ -5,7 +5,7 @@ export interface AssetUrls {
 }
 
 export const ASSET_URLS: AssetUrls = {
-  logo: '/assets/logo.jpeg',
-  signatureStamp: '/assets/signature_stamp.jpeg',
-  seriesStamp: '/assets/stamp2.jpeg'
+  logo: '/assets/logo.png',
+  signatureStamp: '/assets/signature_stamp.png',
+  seriesStamp: '/assets/stamp2.png'
 };

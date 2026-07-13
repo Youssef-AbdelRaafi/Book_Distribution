@@ -1,15 +1,21 @@
-import { Component, computed, signal, inject, Input, ChangeDetectorRef, effect, Output, EventEmitter } from '@angular/core';
+import { Component, computed, signal, inject, Input, ChangeDetectorRef, effect, Output, EventEmitter, DestroyRef, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { filter, switchMap } from 'rxjs';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { InventoryService } from '../../core/services/inventory.service';
 import { LibraryService } from '../../core/services/library.service';
 import { InvoiceService } from '../../core/services/invoice.service';
 import { ToastService } from '../../core/services/toast.service';
+import { ConfirmService } from '../../core/services/confirm.service';
 import { Invoice, InvoiceItem } from '../../core/models/invoice.model';
-import { Library, City } from '../../core/models/library.model';
+import { Library } from '../../core/models/library.model';
 import { ActivityService } from '../../core/services/activity.service';
 import { SettingsService } from '../../core/services/settings.service';
+import { formatAmountRials, formatAmountBaisa } from '../../core/utils/format.utils';
+import { ReceiptVoucherService } from '../../core/services/receipt-voucher.service';
 import { ASSET_URLS } from '../../core/constants/asset-urls';
+import { LS_INV_FORM_COLLAPSED, LS_INV_HISTORY_COLLAPSED, LS_INV_IS_MERGED, LS_INV_FORCE_SHOW_BTN } from '../../core/constants/local-storage-keys';
 import { printWhenImagesReady } from '../../core/utils/print.utils';
 import { InvoicePrintFooterComponent } from '../../shared/invoice-print-footer/invoice-print-footer';
 
@@ -26,19 +32,26 @@ interface DraftInvoiceItem {
 
 @Component({
   selector: 'app-invoices',
+  changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
   imports: [CommonModule, FormsModule, InvoicePrintFooterComponent],
   templateUrl: './invoices.html'
 })
 export class InvoicesComponent {
   @Input() isCompact = false;
+  trackById = (i: number, item: any) => item?.id ?? i;
+  trackByIndex = (i: number) => i;
   @Output() addInventoryBook = new EventEmitter<void>();
   protected Math = Math;
+  formatAmountRials = formatAmountRials;
+  formatAmountBaisa = formatAmountBaisa;
   
   private inventoryService = inject(InventoryService);
   public libraryService = inject(LibraryService);
   private invoiceService = inject(InvoiceService);
+  private receiptVoucherService = inject(ReceiptVoucherService);
   private toast = inject(ToastService);
+  private confirmService = inject(ConfirmService);
   private activityService = inject(ActivityService);
   public settingsService = inject(SettingsService);
   private cdr = inject(ChangeDetectorRef);
@@ -47,8 +60,8 @@ export class InvoicesComponent {
     this.addInventoryBook.emit();
   }
 
-  getLibraryResponsible(libraryName: string): { name: string, phone: string } {
-    const lib = this.librariesData().find(l => l.name === libraryName);
+  getLibraryResponsible(libraryId: number): { name: string, phone: string } {
+    const lib = this.librariesData().find(l => l.id === libraryId);
     return { 
       name: lib?.responsibleName || lib?.ownerName || '', 
       phone: lib?.responsiblePhone || lib?.ownerPhone || '' 
@@ -72,18 +85,62 @@ export class InvoicesComponent {
     return Array.from(groupsMap.entries()).map(([grade, items]) => ({ grade, items }));
   }
 
-  librariesData = signal<Library[]>([]);
-  
-  isFormCollapsed = signal(localStorage.getItem('inv_formCollapsed') === 'true');
-  toggleForm() {
-    this.isFormCollapsed.set(!this.isFormCollapsed());
-    localStorage.setItem('inv_formCollapsed', String(this.isFormCollapsed()));
+  getTypeColor(type: string): string {
+    switch (type) {
+      case 'order': return 'bg-primary';
+      case 'refund': return 'bg-error';
+      case 'receipt_voucher': return 'bg-[#1a237e]';
+      default: return 'bg-secondary';
+    }
   }
 
-  isHistoryCollapsed = signal(localStorage.getItem('inv_historyCollapsed') === 'true');
+  getTypeBadgeClass(type: string): string {
+    switch (type) {
+      case 'order': return 'bg-primary/10 text-primary';
+      case 'refund': return 'bg-error/10 text-error';
+      case 'receipt_voucher': return 'bg-[#1a237e]/10 text-[#1a237e]';
+      default: return 'bg-secondary/10 text-secondary';
+    }
+  }
+
+  getTypeAmountColor(type: string): string {
+    switch (type) {
+      case 'order': return 'text-primary';
+      case 'refund': return 'text-error';
+      case 'receipt_voucher': return 'text-[#1a237e]';
+      default: return 'text-secondary';
+    }
+  }
+
+  getTypeLabel(type: string): string {
+    switch (type) {
+      case 'order': return 'طلبية بيع';
+      case 'refund': return 'مرتجع';
+      case 'receipt_voucher': return 'سند قبض';
+      default: return 'مخالصة';
+    }
+  }
+
+  getPrintTypeLabel(type: string | undefined): string {
+    switch (type) {
+      case 'order': return 'فاتورة رقم';
+      case 'refund': return 'مرتجع رقم';
+      default: return 'مخالصة رقم';
+    }
+  }
+
+  librariesData = signal<Library[]>([]);
+  
+  isFormCollapsed = signal(localStorage.getItem(LS_INV_FORM_COLLAPSED) === 'true');
+  toggleForm() {
+    this.isFormCollapsed.set(!this.isFormCollapsed());
+    localStorage.setItem(LS_INV_FORM_COLLAPSED, String(this.isFormCollapsed()));
+  }
+
+  isHistoryCollapsed = signal(localStorage.getItem(LS_INV_HISTORY_COLLAPSED) === 'true');
   toggleHistory() {
     this.isHistoryCollapsed.set(!this.isHistoryCollapsed());
-    localStorage.setItem('inv_historyCollapsed', String(this.isHistoryCollapsed()));
+    localStorage.setItem(LS_INV_HISTORY_COLLAPSED, String(this.isHistoryCollapsed()));
   }
 
   // Active form state
@@ -93,7 +150,7 @@ export class InvoicesComponent {
 
   filteredCities() {
     const govs = this.libraryService.governorates();
-    const gov = govs.find(g => g.id == this.selectedGovernorateId);
+    const gov = govs.find(g => g.id === Number(this.selectedGovernorateId));
     return gov?.cities || [];
   }
 
@@ -143,7 +200,27 @@ export class InvoicesComponent {
   }
 
   filteredInvoices = computed(() => {
-    let list = this.invoicesList();
+    let list: any[] = [...this.invoicesList()];
+    
+    // Mix in receipt vouchers
+    const vouchers = this.receiptVoucherService.vouchers$();
+    const mappedVouchers = vouchers.map(v => ({
+      ...v,
+      type: 'receipt_voucher',
+      totalAmount: v.amount, // Map amount to totalAmount for unified display
+      items: [] // No items for voucher
+    }));
+    
+    list = [...list, ...mappedVouchers];
+
+    const activeSemIds = new Set(
+      this.settingsService.allSemesters()
+        .filter(s => s.academicYearName === this.settingsService.activeSemester()?.academicYearName)
+        .map(s => s.id)
+    );
+    if (activeSemIds.size > 0) {
+      list = list.filter(i => i.semesterId == null || activeSemIds.has(i.semesterId));
+    }
 
     const govId = this.filterGovernorateId();
     if (govId) list = list.filter(i => {
@@ -195,34 +272,45 @@ export class InvoicesComponent {
     });
   });
 
-  isMerged = signal(localStorage.getItem('inv_isMerged') === 'true');
+  isMerged = signal(localStorage.getItem(LS_INV_IS_MERGED) === 'true');
 
   setMerged(val: boolean) {
     this.isMerged.set(val);
-    localStorage.setItem('inv_isMerged', String(val));
+    localStorage.setItem(LS_INV_IS_MERGED, String(val));
   }
 
-  isForceShowButtonVisible = signal<boolean>(JSON.parse(localStorage.getItem('inv_force_show_btn') || 'false'));
+  isForceShowButtonVisible = signal<boolean>(JSON.parse(localStorage.getItem(LS_INV_FORCE_SHOW_BTN) || 'false'));
   isForceShowActive = signal<boolean>(false);
 
   toggleForceShowButtonVisibility() {
     this.isForceShowButtonVisible.update(v => !v);
-    localStorage.setItem('inv_force_show_btn', JSON.stringify(this.isForceShowButtonVisible()));
+    localStorage.setItem(LS_INV_FORCE_SHOW_BTN, JSON.stringify(this.isForceShowButtonVisible()));
   }
 
 
 
   invoicesList = this.invoiceService.invoices$;
   draftItems = signal<DraftInvoiceItem[]>([]);
+  private draftVersion = signal(0);
 
   invoiceSemesterId = signal<number>(0);
   filterDraftGrade = signal<string>('');
+
+  activeYearSemesters = computed(() => {
+    const active = this.settingsService.activeSemester();
+    if (!active) return this.settingsService.allSemesters();
+    return this.settingsService.allSemesters().filter(s => s.academicYearName === active.academicYearName);
+  });
 
   availableGrades = computed(() => {
     const grades = new Set<string>();
     this.draftItems().forEach(i => grades.add(i.grade || 'أخرى'));
     return Array.from(grades);
   });
+
+  trackByBookId(index: number, item: any): number {
+    return item.bookId;
+  }
 
   onInvoiceSemesterChange() {
     this.draftItems.update(items => items.map(i => ({ ...i, quantity: null, total: null })));
@@ -251,11 +339,14 @@ export class InvoicesComponent {
   });
 
   draftTotal = computed(() => {
+    this.draftVersion();
     const semId = this.invoiceSemesterId();
     return this.draftItems()
       .filter(i => semId <= 0 || i.semesterId === semId)
       .reduce((sum, item) => sum + (item.total || 0), 0);
   });
+
+  private destroyRef = inject(DestroyRef);
 
   constructor() {
     effect(() => {
@@ -268,12 +359,16 @@ export class InvoicesComponent {
       }
     });
 
-    this.libraryService.libraries$.subscribe(items => {
+    this.libraryService.libraries$.pipe(
+      takeUntilDestroyed(this.destroyRef)
+    ).subscribe(items => {
       this.librariesData.set(items);
       this.cdr.detectChanges();
     });
 
-    this.inventoryService.inventory$.subscribe(items => {
+    this.inventoryService.inventory$.pipe(
+      takeUntilDestroyed(this.destroyRef)
+    ).subscribe(items => {
       const currentDrafts = this.draftItems();
       const newDrafts = items.map(i => {
         const existing = currentDrafts.find(d => d.bookId === i.id);
@@ -298,7 +393,7 @@ export class InvoicesComponent {
     } else {
       item.total = null;
     }
-    this.draftItems.update(items => [...items]);
+    this.draftVersion.update(v => v + 1);
   }
 
   processOrder() {
@@ -318,12 +413,13 @@ export class InvoicesComponent {
     const orderData = {
       libraryId: this.selectedLibraryId,
       semesterId: currentSemId,
-      items: itemsToProcess.map(i => ({ bookId: i.bookId, quantity: i.quantity! }))
+      items: itemsToProcess.map(i => ({ bookId: i.bookId, quantity: i.quantity as number }))
     };
 
-    this.invoiceService.createOrder(orderData).subscribe({
-      next: (res: any) => {
-        const invoice = res.data || res;
+    this.invoiceService.createOrder(orderData).pipe(
+      takeUntilDestroyed(this.destroyRef)
+    ).subscribe({      next: (res) => {
+        const invoice = res.data!;
         this.toast.show('تم تسجيل طلب الشراء بنجاح وخصم الكميات!', 'success');
         this.resetDraft();
         this.inventoryService.fetchBooks(); // Refresh stock
@@ -352,12 +448,13 @@ export class InvoicesComponent {
     const refundData = {
       libraryId: this.selectedLibraryId,
       semesterId: currentSemId,
-      items: itemsToProcess.map(i => ({ bookId: i.bookId, quantity: i.quantity! }))
+      items: itemsToProcess.map(i => ({ bookId: i.bookId, quantity: i.quantity as number }))
     };
 
-    this.invoiceService.createRefund(refundData).subscribe({
-      next: (res: any) => {
-        const invoice = res.data || res;
+    this.invoiceService.createRefund(refundData).pipe(
+      takeUntilDestroyed(this.destroyRef)
+    ).subscribe({      next: (res) => {
+        const invoice = res.data!;
         this.toast.show('تم تسجيل المرتجعات بنجاح وإعادتها للمخزون!', 'success');
         this.resetDraft();
         this.inventoryService.fetchBooks(); // Refresh stock
@@ -374,17 +471,22 @@ export class InvoicesComponent {
     this.selectedLibraryId = 0;
   }
 
-  invoiceToPrint = signal<Invoice | null>(null);
+  invoiceToPrint = signal<any | null>(null);
   readonly assetUrls = ASSET_URLS;
 
-  printInvoice(invoice: Invoice) {
+  printInvoice(invoice: any) {
     this.invoiceToPrint.set(invoice);
     this.cdr.detectChanges();
-    printWhenImagesReady('.invoice-print-page', () => {
-      const success = window.confirm('هل تمت الطباعة بنجاح؟');
-      if (invoice.id) {
-        this.invoiceService.updatePrintStatus(invoice.id, success ? 'printed' : 'pending').subscribe();
-      }
+    if (invoice.type !== 'receipt_voucher' && invoice.id) {
+      window.onafterprint = () => {
+        this.invoiceService.updatePrintStatus(invoice.id, 'printed').pipe(
+          takeUntilDestroyed(this.destroyRef)
+        ).subscribe({ error: () => {} });
+        window.onafterprint = null;
+      };
+    }
+    const selector = invoice.type === 'receipt_voucher' ? '.receipt-voucher-print-page' : '.invoice-print-page';
+    printWhenImagesReady(selector, () => {
       this.invoiceToPrint.set(null);
     });
   }
@@ -393,28 +495,40 @@ export class InvoicesComponent {
     this.printInvoice(invoice);
   }
 
-  deleteInvoice(invoice: Invoice, event: Event) {
+  deleteInvoice(invoice: any, event: Event) {
     event.stopPropagation();
-    if (confirm(`هل أنت متأكد من حذف ${invoice.type === 'order' ? 'فاتورة البيع' : (invoice.type === 'refund' ? 'المرتجع' : 'المخالصة')} رقم ${invoice.displayNumber}؟`)) {
-      if (invoice.id) {
-        this.invoiceService.deleteInvoice(invoice.id).subscribe({
-          next: () => {
-            this.toast.show('تم الحذف بنجاح', 'success');
-            this.inventoryService.fetchBooks();
-          },
-          error: (err: any) => {
-            this.toast.show(err.error?.message || 'تعذر الحذف', 'error');
-          }
-        });
-      }
-    }
+
+    const msg = invoice.type === 'receipt_voucher'
+      ? `هل أنت متأكد من حذف سند القبض رقم ${invoice.displayNumber}؟`
+      : `هل أنت متأكد من حذف ${invoice.type === 'order' ? 'فاتورة البيع' : (invoice.type === 'refund' ? 'المرتجع' : 'المخالصة')} رقم ${invoice.displayNumber}؟`;
+
+    this.confirmService.confirm(msg).pipe(
+      filter(result => !!result && !!invoice.id),
+      switchMap(() => {
+        if (invoice.type === 'receipt_voucher') {
+          return this.receiptVoucherService.delete(invoice.id);
+        }
+        return this.invoiceService.deleteInvoice(invoice.id);
+      }),
+      takeUntilDestroyed(this.destroyRef)
+    ).subscribe({
+      next: () => {
+        this.toast.show('تم الحذف بنجاح', 'success');
+        if (invoice.type !== 'receipt_voucher') {
+          this.inventoryService.fetchBooks();
+        }
+      },
+      error: (err: any) => this.toast.show(err.error?.message || 'تعذر الحذف', 'error')
+    });
   }
 
   getPhoneNumbersOnly(phones: string | undefined): string {
     if (!phones) return '';
-    const prefix = 'إدارة المبيعات: هاتف:';
-    if (phones.includes(prefix)) {
-      return phones.replace(prefix, '').trim();
+    const prefixes = ['إدارة المبيعات: هاتف:', 'هاتف:', 'إدارة المبيعات:'];
+    for (const prefix of prefixes) {
+      if (phones.startsWith(prefix)) {
+        return phones.substring(prefix.length).trim();
+      }
     }
     return phones;
   }

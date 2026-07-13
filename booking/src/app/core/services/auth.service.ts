@@ -1,9 +1,11 @@
-import { Injectable, signal, inject } from '@angular/core';
+import { Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
+import { Observable } from 'rxjs';
 import { ToastService } from './toast.service';
 import { AppDataService } from './app-data.service';
 import { environment } from '../../../environments/environment';
+import { LS_AUTH_TOKEN, LS_AUTH_EXPIRES_AT } from '../constants/local-storage-keys';
 
 interface LoginResponse {
   success: boolean;
@@ -16,8 +18,8 @@ interface LoginResponse {
   providedIn: 'root'
 })
 export class AuthService {
-  private readonly AUTH_KEY = 'auth_token';
-  private readonly EXPIRY_KEY = 'auth_expires_at';
+  private readonly AUTH_KEY = LS_AUTH_TOKEN;
+  private readonly EXPIRY_KEY = LS_AUTH_EXPIRES_AT;
   private readonly apiUrl = `${environment.apiUrl}/auth`;
   
   // Reactive signal for login state
@@ -28,7 +30,11 @@ export class AuthService {
     private toast: ToastService,
     private http: HttpClient,
     private appData: AppDataService
-  ) {}
+  ) {
+    if (this.isAuthenticated()) {
+      this.appData.loadAuthenticatedData();
+    }
+  }
 
   private checkAuth(): boolean {
     const token = localStorage.getItem(this.AUTH_KEY);
@@ -46,25 +52,23 @@ export class AuthService {
     return true;
   }
 
-  login(username: string, password: string): void {
-    this.http.post<LoginResponse>(`${this.apiUrl}/login`, { username, password }).subscribe({
-      next: (response) => {
-        if (!response.success || !response.token || !response.expiresAt) {
-          this.toast.show(response.message || 'تعذر تسجيل الدخول', 'error');
-          return;
-        }
+  login(username: string, password: string): Observable<LoginResponse> {
+    return this.http.post<LoginResponse>(`${this.apiUrl}/login`, { username, password });
+  }
 
-        localStorage.setItem(this.AUTH_KEY, response.token);
-        localStorage.setItem(this.EXPIRY_KEY, response.expiresAt);
-        this.isAuthenticated.set(true);
-        this.appData.loadAuthenticatedData();
-        this.router.navigate(['/single-page']);
-      },
-      error: (error) => {
-        const message = error?.error?.message || 'اسم المستخدم أو كلمة المرور غير صحيحة';
-        this.toast.show(message, 'error');
-      }
-    });
+  handleLoginResponse(res: any): void {
+    const response = res.data || res;
+    if (!response.success || !response.token || !response.expiresAt) {
+      this.toast.show(res.message || response.message || 'تعذر تسجيل الدخول', 'error');
+      return;
+    }
+    localStorage.setItem(this.AUTH_KEY, response.token);
+    localStorage.setItem(this.EXPIRY_KEY, response.expiresAt);
+    this.isAuthenticated.set(true);
+    this.appData.loadAuthenticatedData();
+    const returnUrl = sessionStorage.getItem('returnUrl') || '/single-page';
+    sessionStorage.removeItem('returnUrl');
+    this.router.navigate([returnUrl]);
   }
 
   getToken(): string | null {

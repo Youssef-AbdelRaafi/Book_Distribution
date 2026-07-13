@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using BookDistributionAPI.Common;
 using BookDistributionAPI.Data;
+using System.Threading;
 
 namespace BookDistributionAPI.Features.Books;
 
@@ -10,14 +11,22 @@ namespace BookDistributionAPI.Features.Books;
 public class BooksController : ControllerBase
 {
     private readonly AppDbContext _db;
-    public BooksController(AppDbContext db) => _db = db;
+    private readonly IAcademicYearHelper _academicYearHelper;
+    public BooksController(AppDbContext db, IAcademicYearHelper academicYearHelper)
+    {
+        _db = db;
+        _academicYearHelper = academicYearHelper;
+    }
 
     [HttpGet]
-    public async Task<IActionResult> GetAll([FromQuery] int? semesterId)
+    public async Task<IActionResult> GetAll([FromQuery] int? semesterId, CancellationToken cancellationToken)
     {
+        var activeSemesterIds = await _academicYearHelper.GetActiveSemesterIdsAsync(cancellationToken);
         var query = _db.Books.AsQueryable();
         if (semesterId.HasValue)
             query = query.Where(b => b.SemesterId == semesterId.Value);
+        else if (activeSemesterIds.Count > 0)
+            query = query.Where(b => activeSemesterIds.Contains(b.SemesterId));
 
         var books = await query
             .OrderBy(b => b.Grade)
@@ -32,15 +41,15 @@ public class BooksController : ControllerBase
                 Price = b.Price,
                 StockQuantity = b.StockQuantity
             })
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         return Ok(ApiResponse<object>.Ok(books));
     }
 
     [HttpGet("{id}")]
-    public async Task<IActionResult> GetById(int id)
+    public async Task<IActionResult> GetById(int id, CancellationToken cancellationToken)
     {
-        var book = await _db.Books.FindAsync(id);
+        var book = await _db.Books.FindAsync([id], cancellationToken);
         if (book == null) return NotFound(ApiResponse<object>.Fail("الكتاب غير موجود"));
         return Ok(ApiResponse<object>.Ok(new BookDto
         {
@@ -51,13 +60,18 @@ public class BooksController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] CreateBookDto dto)
+    public async Task<IActionResult> Create([FromBody] CreateBookDto dto, CancellationToken cancellationToken)
     {
-        if (!await _db.Semesters.AnyAsync(s => s.Id == dto.SemesterId))
+        if (!await _db.Semesters.AnyAsync(s => s.Id == dto.SemesterId, cancellationToken))
             return BadRequest(ApiResponse<object>.Fail("الفصل الدراسي غير موجود"));
 
-        if (await _db.Books.AnyAsync(b => b.SemesterId == dto.SemesterId && b.Name == dto.Name && b.Grade == dto.Grade))
+        await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
+
+        if (await _db.Books.AnyAsync(b => b.SemesterId == dto.SemesterId && b.Name == dto.Name && b.Grade == dto.Grade, cancellationToken))
+        {
+            await transaction.RollbackAsync(cancellationToken);
             return Conflict(ApiResponse<object>.Fail("هذا الكتاب موجود بالفعل في نفس الفصل الدراسي"));
+        }
 
         var book = new Book
         {
@@ -69,7 +83,8 @@ public class BooksController : ControllerBase
             StockQuantity = dto.StockQuantity
         };
         _db.Books.Add(book);
-        await _db.SaveChangesAsync();
+        await _db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
         return Ok(ApiResponse<object>.Ok(new BookDto
         {
             Id = book.Id, Name = book.Name, Grade = book.Grade,
@@ -79,13 +94,13 @@ public class BooksController : ControllerBase
     }
 
     [HttpPost("bulk")]
-    public async Task<IActionResult> CreateBulk([FromBody] BulkCreateBooksDto dto)
+    public async Task<IActionResult> CreateBulk([FromBody] BulkCreateBooksDto dto, CancellationToken cancellationToken)
     {
         var semesterIds = dto.Books.Select(b => b.SemesterId).Distinct().ToList();
         var existingSemesterIds = await _db.Semesters
             .Where(s => semesterIds.Contains(s.Id))
             .Select(s => s.Id)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         var missingSemesterIds = semesterIds.Except(existingSemesterIds).ToList();
         if (missingSemesterIds.Count > 0)
@@ -98,10 +113,12 @@ public class BooksController : ControllerBase
         if (duplicateInRequest != null)
             return BadRequest(ApiResponse<object>.Fail($"يوجد كتاب مكرر في الطلب: {duplicateInRequest.Key.Name}"));
 
+        await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
+
         var existingBooks = await _db.Books
             .Where(b => semesterIds.Contains(b.SemesterId))
             .Select(b => new { b.SemesterId, b.Name, b.Grade })
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         var existingBookKeys = existingBooks
             .Select(b => new { b.SemesterId, b.Name, b.Grade })
@@ -111,7 +128,10 @@ public class BooksController : ControllerBase
         {
             var key = new { candidate.SemesterId, candidate.Name, candidate.Grade };
             if (existingBookKeys.Contains(key))
+            {
+                await transaction.RollbackAsync(cancellationToken);
                 return Conflict(ApiResponse<object>.Fail($"كتاب موجود بالفعل: {candidate.Name}"));
+            }
         }
 
         var books = dto.Books.Select(b => new Book
@@ -125,14 +145,15 @@ public class BooksController : ControllerBase
         }).ToList();
 
         _db.Books.AddRange(books);
-        await _db.SaveChangesAsync();
+        await _db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
         return Ok(ApiResponse<object>.Ok(books.Count, $"تم إضافة {books.Count} كتاب بنجاح"));
     }
 
     [HttpPut("{id}")]
-    public async Task<IActionResult> Update(int id, [FromBody] UpdateBookDto dto)
+    public async Task<IActionResult> Update(int id, [FromBody] UpdateBookDto dto, CancellationToken cancellationToken)
     {
-        var book = await _db.Books.FindAsync(id);
+        var book = await _db.Books.FindAsync([id], cancellationToken);
         if (book == null) return NotFound(ApiResponse<object>.Fail("الكتاب غير موجود"));
 
         if (dto.Name != null) book.Name = dto.Name;
@@ -140,7 +161,7 @@ public class BooksController : ControllerBase
         if (dto.Subject != null) book.Subject = dto.Subject;
         if (dto.Price.HasValue && dto.Price.Value != book.Price)
         {
-            var hasInvoiceItems = await _db.InvoiceItems.AnyAsync(ii => ii.BookId == id);
+            var hasInvoiceItems = await _db.InvoiceItems.AnyAsync(ii => ii.BookId == id, cancellationToken);
             if (hasInvoiceItems)
                 return BadRequest(ApiResponse<object>.Fail("لا يمكن تغيير سعر كتاب تم استخدامه في فواتير. أضف كتاباً جديداً بالسعر الجديد"));
 
@@ -148,7 +169,7 @@ public class BooksController : ControllerBase
         }
         if (dto.StockQuantity.HasValue && dto.StockQuantity.Value != book.StockQuantity)
         {
-            var hasInvoiceItems = await _db.InvoiceItems.AnyAsync(ii => ii.BookId == id);
+            var hasInvoiceItems = await _db.InvoiceItems.AnyAsync(ii => ii.BookId == id, cancellationToken);
             if (hasInvoiceItems && dto.StockQuantity.Value < book.StockQuantity)
                 return BadRequest(ApiResponse<object>.Fail("لا يمكن تقليل المخزون يدوياً لكتاب له فواتير. استخدم فواتير البيع والمرتجعات"));
 
@@ -162,12 +183,12 @@ public class BooksController : ControllerBase
             b.Id != id &&
             b.SemesterId == book.SemesterId &&
             b.Name == book.Name &&
-            b.Grade == book.Grade);
+            b.Grade == book.Grade, cancellationToken);
 
         if (duplicate)
             return Conflict(ApiResponse<object>.Fail("يوجد كتاب آخر بنفس الاسم والصف في نفس الفصل الدراسي"));
 
-        await _db.SaveChangesAsync();
+        await _db.SaveChangesAsync(cancellationToken);
         return Ok(ApiResponse<object>.Ok(new BookDto
         {
             Id = book.Id, Name = book.Name, Grade = book.Grade,
@@ -177,41 +198,47 @@ public class BooksController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    public async Task<IActionResult> Delete(int id)
+    public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
     {
-        var book = await _db.Books.FindAsync(id);
+        var book = await _db.Books.FindAsync([id], cancellationToken);
         if (book == null) return NotFound(ApiResponse<object>.Fail("الكتاب غير موجود"));
 
-        var hasInvoices = await _db.InvoiceItems.AnyAsync(ii => ii.BookId == id);
+        var hasInvoices = await _db.InvoiceItems.AnyAsync(ii => ii.BookId == id, cancellationToken);
         if (hasInvoices)
             return BadRequest(ApiResponse<object>.Fail("لا يمكن حذف كتاب مرتبط بفواتير"));
 
-        var hasLibraryQuantities = await _db.LibraryBooks.AnyAsync(lb => lb.BookId == id);
+        var hasLibraryQuantities = await _db.LibraryBooks.AnyAsync(lb => lb.BookId == id, cancellationToken);
         if (hasLibraryQuantities)
             return BadRequest(ApiResponse<object>.Fail("لا يمكن حذف كتاب مرتبط بكميات مكتبات"));
 
         _db.Books.Remove(book);
-        await _db.SaveChangesAsync();
+        await _db.SaveChangesAsync(cancellationToken);
         return Ok(ApiResponse<object>.Ok(true, "تم حذف الكتاب"));
     }
 
     [HttpPost("reset-stock")]
-    public async Task<IActionResult> ResetStock([FromBody] ResetStockDto dto)
+    public async Task<IActionResult> ResetStock([FromBody] ResetStockDto dto, CancellationToken cancellationToken)
     {
-        var semester = await _db.Semesters.FindAsync(dto.SemesterId);
+        var semester = await _db.Semesters.FindAsync([dto.SemesterId], cancellationToken);
         if (semester == null) return NotFound(ApiResponse<object>.Fail("الفصل الدراسي غير موجود"));
 
+        await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
+
         var hasActiveInvoices = await _db.Invoices
-            .AnyAsync(i => i.SemesterId == dto.SemesterId && i.Type != "clearance");
+            .AnyAsync(i => i.SemesterId == dto.SemesterId && i.Type != "clearance", cancellationToken);
 
         if (hasActiveInvoices)
+        {
+            await transaction.RollbackAsync(cancellationToken);
             return BadRequest(ApiResponse<object>.Fail("لا يمكن تفريغ المخزون لوجود فواتير نشطة في هذا الفصل الدراسي. قم بإنشاء المخالصات أولاً"));
+        }
 
         var affectedRows = await _db.Books
             .Where(b => b.SemesterId == dto.SemesterId)
             .ExecuteUpdateAsync(setters => setters
-                .SetProperty(b => b.StockQuantity, dto.NewStockQuantity ?? 0));
+                .SetProperty(b => b.StockQuantity, dto.NewStockQuantity), cancellationToken);
 
+        await transaction.CommitAsync(cancellationToken);
         return Ok(ApiResponse<object>.Ok(affectedRows, $"تم تحديث مخزون {affectedRows} كتاب بنجاح"));
     }
 }

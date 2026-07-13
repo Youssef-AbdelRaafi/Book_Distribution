@@ -109,9 +109,7 @@
   }
 }
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+
 
 @layer utilities {
   .custom-scrollbar::-webkit-scrollbar {
@@ -154,7 +152,7 @@
     top: 0;
     width: 100%;
     margin: 0;
-    padding: 10mm; /* Add padding here since we remove margin from @page */
+    padding: 8mm;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
@@ -165,7 +163,7 @@
 }
 
 @page {
-  size: A4;
-  margin: 0; /* Removing margin hides browser URL and timestamp headers/footers */
+  size: A4 portrait;
+  margin: 0;
 }
 

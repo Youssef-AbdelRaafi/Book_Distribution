@@ -6,13 +6,13 @@
       <p class="text-sm text-on-surface-variant mt-1">النظام المتكامل لإدارة الكتب، الطلبيات، وبيانات المكتبات والمناطق الجغرافية في مكان واحد.</p>
     </div>
     <div class="flex flex-wrap gap-space-sm w-full md:w-auto">
-      <button (click)="undoLatest()" [disabled]="!canUndoLatest()" [ngClass]="{'opacity-50 cursor-not-allowed': !canUndoLatest()}" class="flex-1 md:flex-none flex items-center justify-center gap-2 bg-surface-primary border border-outline-variant text-on-surface px-4 py-2 rounded-lg text-sm font-medium hover:bg-surface-container transition-colors shadow-sm disabled:hover:bg-surface-primary" title="تراجع عن آخر إجراء">
+      <button type="button" (click)="undoLatest()" [disabled]="!canUndoLatest()" [ngClass]="{'opacity-50 cursor-not-allowed': !canUndoLatest()}" class="flex-1 md:flex-none flex items-center justify-center gap-2 bg-surface-primary border border-outline-variant text-on-surface px-4 py-2 rounded-lg text-sm font-medium hover:bg-surface-container transition-colors shadow-sm disabled:hover:bg-surface-primary" title="تراجع عن آخر إجراء">
         <span class="material-symbols-outlined text-[20px]">undo</span> تراجع
       </button>
-      <button (click)="openHistory()" class="flex-1 md:flex-none flex items-center justify-center gap-2 bg-surface-primary border border-outline-variant text-on-surface px-4 py-2 rounded-lg text-sm font-medium hover:bg-surface-container transition-colors shadow-sm">
+      <button type="button" (click)="openHistory()" class="flex-1 md:flex-none flex items-center justify-center gap-2 bg-surface-primary border border-outline-variant text-on-surface px-4 py-2 rounded-lg text-sm font-medium hover:bg-surface-container transition-colors shadow-sm">
         <span class="material-symbols-outlined text-[20px]">history</span> سجل الأحداث
       </button>
-      <button (click)="redoLatest()" [disabled]="!canRedoLatest()" [ngClass]="{'opacity-50 cursor-not-allowed': !canRedoLatest()}" class="flex-1 md:flex-none flex items-center justify-center gap-2 bg-surface-primary border border-outline-variant text-on-surface px-4 py-2 rounded-lg text-sm font-medium hover:bg-surface-container transition-colors shadow-sm disabled:hover:bg-surface-primary" title="إعادة آخر إجراء تم التراجع عنه">
+      <button type="button" (click)="redoLatest()" [disabled]="!canRedoLatest()" [ngClass]="{'opacity-50 cursor-not-allowed': !canRedoLatest()}" class="flex-1 md:flex-none flex items-center justify-center gap-2 bg-surface-primary border border-outline-variant text-on-surface px-4 py-2 rounded-lg text-sm font-medium hover:bg-surface-container transition-colors shadow-sm disabled:hover:bg-surface-primary" title="إعادة آخر إجراء تم التراجع عنه">
         <span class="material-symbols-outlined text-[20px]">redo</span> إعادة
       </button>
     </div>
@@ -41,7 +41,7 @@
       <h2 class="text-lg font-bold text-primary flex items-center gap-2">
         <span class="material-symbols-outlined">history</span> سجل الأحداث
       </h2>
-      <button (click)="closeHistory()" class="text-on-surface-variant hover:text-error transition-colors">
+      <button type="button" (click)="closeHistory()" class="text-on-surface-variant hover:text-error transition-colors">
         <span class="material-symbols-outlined">close</span>
       </button>
     </div>
@@ -62,7 +62,7 @@
       </div>
     </div>
     <div class="flex-1 overflow-y-auto p-5 custom-scrollbar space-y-3">
-      <div *ngFor="let act of filteredActivities()" [ngClass]="{'opacity-50': act.status === 'undone'}" class="p-3 bg-surface-container-low rounded-lg border border-surface-container-high flex flex-col gap-2 transition-opacity">
+      <div *ngFor="let act of filteredActivities(); trackBy: trackById" [ngClass]="{'opacity-50': act.status === 'undone'}" class="p-3 bg-surface-container-low rounded-lg border border-surface-container-high flex flex-col gap-2 transition-opacity">
         <div class="flex justify-between items-start">
           <div class="flex items-center gap-2">
             <span class="text-sm font-bold" [ngClass]="act.status === 'undone' ? 'text-on-surface-variant line-through' : 'text-text-heading'">{{ act.action }}</span>
@@ -75,10 +75,10 @@
           <div class="text-sm flex-1" [ngClass]="act.status === 'undone' ? 'text-on-surface-variant/70' : 'text-on-surface-variant'">{{ act.details }}</div>
           
           <div class="flex items-center gap-2" *ngIf="act.type">
-            <button *ngIf="act.status !== 'undone'" (click)="undoActivity(act.id)" class="text-xs font-medium text-error hover:bg-error-container hover:text-error px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1 border border-transparent hover:border-error-container">
+            <button type="button" *ngIf="act.status !== 'undone'" (click)="undoActivity(act.id)" class="text-xs font-medium text-error hover:bg-error-container hover:text-error px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1 border border-transparent hover:border-error-container">
               <span class="material-symbols-outlined text-[16px]">undo</span> تراجع
             </button>
-            <button *ngIf="act.status === 'undone'" (click)="redoActivity(act.id)" class="text-xs font-medium text-primary hover:bg-primary-container hover:text-primary px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1 border border-transparent hover:border-primary-container">
+            <button type="button" *ngIf="act.status === 'undone'" (click)="redoActivity(act.id)" class="text-xs font-medium text-primary hover:bg-primary-container hover:text-primary px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1 border border-transparent hover:border-primary-container">
               <span class="material-symbols-outlined text-[16px]">redo</span> إعادة
             </button>
           </div>
@@ -90,7 +90,7 @@
       </div>
     </div>
     <div class="p-5 border-t border-surface-container-high bg-surface-container-low rounded-b-xl flex justify-end">
-      <button (click)="closeHistory()" class="px-5 py-2.5 border border-outline-variant rounded-lg text-sm font-medium text-on-surface-variant hover:bg-surface-container transition-colors">
+      <button type="button" (click)="closeHistory()" class="px-5 py-2.5 border border-outline-variant rounded-lg text-sm font-medium text-on-surface-variant hover:bg-surface-container transition-colors">
         إغلاق
       </button>
     </div>

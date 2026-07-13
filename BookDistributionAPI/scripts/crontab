@@ -1,0 +1,2 @@
+# Daily backup at 2:00 AM
+0 2 * * * /app/backup-db.sh >> /app/backups/backup.log 2>&1

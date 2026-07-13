@@ -15,10 +15,10 @@ namespace BookDistributionAPI.Migrations
                 name: "AcademicYears",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    Name = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
-                    IsActive = table.Column<bool>(type: "bit", nullable: false)
+                    Id = table.Column<int>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    Name = table.Column<string>(type: "TEXT", maxLength: 20, nullable: false),
+                    IsActive = table.Column<bool>(type: "INTEGER", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -29,10 +29,10 @@ namespace BookDistributionAPI.Migrations
                 name: "AppSettings",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    Key = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
-                    Value = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: false)
+                    Id = table.Column<int>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    Key = table.Column<string>(type: "TEXT", maxLength: 100, nullable: false),
+                    Value = table.Column<string>(type: "TEXT", maxLength: 4000, nullable: false)
                 },
                 constraints: table =>
                 {
@@ -43,9 +43,9 @@ namespace BookDistributionAPI.Migrations
                 name: "Governorates",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    Name = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false)
+                    Id = table.Column<int>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    Name = table.Column<string>(type: "TEXT", maxLength: 100, nullable: false)
                 },
                 constraints: table =>
                 {
@@ -56,12 +56,12 @@ namespace BookDistributionAPI.Migrations
                 name: "Semesters",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    AcademicYearId = table.Column<int>(type: "int", nullable: false),
-                    Name = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
-                    Code = table.Column<string>(type: "nvarchar(5)", maxLength: 5, nullable: false),
-                    IsActive = table.Column<bool>(type: "bit", nullable: false)
+                    Id = table.Column<int>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    AcademicYearId = table.Column<int>(type: "INTEGER", nullable: false),
+                    Name = table.Column<string>(type: "TEXT", maxLength: 50, nullable: false),
+                    Code = table.Column<string>(type: "TEXT", maxLength: 5, nullable: false),
+                    IsActive = table.Column<bool>(type: "INTEGER", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -71,17 +71,17 @@ namespace BookDistributionAPI.Migrations
                         column: x => x.AcademicYearId,
                         principalTable: "AcademicYears",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
                 name: "Cities",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    Name = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
-                    GovernorateId = table.Column<int>(type: "int", nullable: false)
+                    Id = table.Column<int>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    Name = table.Column<string>(type: "TEXT", maxLength: 100, nullable: false),
+                    GovernorateId = table.Column<int>(type: "INTEGER", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -98,14 +98,14 @@ namespace BookDistributionAPI.Migrations
                 name: "Books",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    Name = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
-                    Grade = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
-                    Subject = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
-                    SemesterId = table.Column<int>(type: "int", nullable: false),
+                    Id = table.Column<int>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    Name = table.Column<string>(type: "TEXT", maxLength: 200, nullable: false),
+                    Grade = table.Column<string>(type: "TEXT", maxLength: 100, nullable: false),
+                    Subject = table.Column<string>(type: "TEXT", maxLength: 100, nullable: false),
+                    SemesterId = table.Column<int>(type: "INTEGER", nullable: false),
                     Price = table.Column<decimal>(type: "decimal(10,3)", nullable: false),
-                    StockQuantity = table.Column<int>(type: "int", nullable: false)
+                    StockQuantity = table.Column<int>(type: "INTEGER", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -124,25 +124,25 @@ namespace BookDistributionAPI.Migrations
                 name: "Libraries",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    Name = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
-                    GovernorateId = table.Column<int>(type: "int", nullable: false),
-                    CityId = table.Column<int>(type: "int", nullable: false),
-                    Logo = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: true),
-                    OwnerName = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
-                    OwnerPhone = table.Column<string>(type: "nvarchar(30)", maxLength: 30, nullable: false),
-                    ResponsibleName = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
-                    ResponsiblePhone = table.Column<string>(type: "nvarchar(30)", maxLength: 30, nullable: false),
-                    LandlinePhone = table.Column<string>(type: "nvarchar(30)", maxLength: 30, nullable: true),
-                    Shift1Start = table.Column<string>(type: "nvarchar(5)", maxLength: 5, nullable: false),
-                    Shift1End = table.Column<string>(type: "nvarchar(5)", maxLength: 5, nullable: false),
-                    Shift2Start = table.Column<string>(type: "nvarchar(5)", maxLength: 5, nullable: true),
-                    Shift2End = table.Column<string>(type: "nvarchar(5)", maxLength: 5, nullable: true),
-                    ResponseRating = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: true),
-                    PaymentRating = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: true),
-                    Notes = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: true),
-                    IsActive = table.Column<bool>(type: "bit", nullable: false)
+                    Id = table.Column<int>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    Name = table.Column<string>(type: "TEXT", maxLength: 200, nullable: false),
+                    GovernorateId = table.Column<int>(type: "INTEGER", nullable: false),
+                    CityId = table.Column<int>(type: "INTEGER", nullable: false),
+                    Logo = table.Column<string>(type: "TEXT", maxLength: 500, nullable: true),
+                    OwnerName = table.Column<string>(type: "TEXT", maxLength: 100, nullable: false),
+                    OwnerPhone = table.Column<string>(type: "TEXT", maxLength: 30, nullable: false),
+                    ResponsibleName = table.Column<string>(type: "TEXT", maxLength: 100, nullable: false),
+                    ResponsiblePhone = table.Column<string>(type: "TEXT", maxLength: 30, nullable: false),
+                    LandlinePhone = table.Column<string>(type: "TEXT", maxLength: 30, nullable: true),
+                    Shift1Start = table.Column<string>(type: "TEXT", maxLength: 5, nullable: false),
+                    Shift1End = table.Column<string>(type: "TEXT", maxLength: 5, nullable: false),
+                    Shift2Start = table.Column<string>(type: "TEXT", maxLength: 5, nullable: true),
+                    Shift2End = table.Column<string>(type: "TEXT", maxLength: 5, nullable: true),
+                    ResponseRating = table.Column<string>(type: "TEXT", maxLength: 20, nullable: true),
+                    PaymentRating = table.Column<string>(type: "TEXT", maxLength: 20, nullable: true),
+                    Notes = table.Column<string>(type: "TEXT", maxLength: 1000, nullable: true),
+                    IsActive = table.Column<bool>(type: "INTEGER", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -165,19 +165,19 @@ namespace BookDistributionAPI.Migrations
                 name: "Invoices",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    InvoiceNumber = table.Column<int>(type: "int", nullable: false),
-                    InvoiceYear = table.Column<int>(type: "int", nullable: false),
-                    TermCode = table.Column<string>(type: "nvarchar(5)", maxLength: 5, nullable: false),
-                    Type = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
-                    LibraryId = table.Column<int>(type: "int", nullable: false),
-                    SemesterId = table.Column<int>(type: "int", nullable: false),
-                    Date = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    Id = table.Column<int>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    InvoiceNumber = table.Column<int>(type: "INTEGER", nullable: false),
+                    InvoiceYear = table.Column<int>(type: "INTEGER", nullable: false),
+                    TermCode = table.Column<string>(type: "TEXT", maxLength: 5, nullable: false),
+                    Type = table.Column<string>(type: "TEXT", maxLength: 20, nullable: false),
+                    LibraryId = table.Column<int>(type: "INTEGER", nullable: false),
+                    SemesterId = table.Column<int>(type: "INTEGER", nullable: false),
+                    Date = table.Column<DateTime>(type: "TEXT", nullable: false),
                     TotalAmount = table.Column<decimal>(type: "decimal(10,3)", nullable: false),
-                    PrintStatus = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
-                    ResponsibleName = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
-                    ResponsiblePhone = table.Column<string>(type: "nvarchar(30)", maxLength: 30, nullable: true)
+                    PrintStatus = table.Column<string>(type: "TEXT", maxLength: 20, nullable: false),
+                    ResponsibleName = table.Column<string>(type: "TEXT", maxLength: 100, nullable: true),
+                    ResponsiblePhone = table.Column<string>(type: "TEXT", maxLength: 30, nullable: true)
                 },
                 constraints: table =>
                 {
@@ -203,11 +203,11 @@ namespace BookDistributionAPI.Migrations
                 name: "LibraryBooks",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    LibraryId = table.Column<int>(type: "int", nullable: false),
-                    BookId = table.Column<int>(type: "int", nullable: false),
-                    Quantity = table.Column<int>(type: "int", nullable: false)
+                    Id = table.Column<int>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    LibraryId = table.Column<int>(type: "INTEGER", nullable: false),
+                    BookId = table.Column<int>(type: "INTEGER", nullable: false),
+                    Quantity = table.Column<int>(type: "INTEGER", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -228,16 +228,53 @@ namespace BookDistributionAPI.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "ReceiptVouchers",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    VoucherNumber = table.Column<int>(type: "INTEGER", nullable: false),
+                    VoucherYear = table.Column<int>(type: "INTEGER", nullable: false),
+                    LibraryId = table.Column<int>(type: "INTEGER", nullable: false),
+                    SemesterId = table.Column<int>(type: "INTEGER", nullable: true),
+                    Amount = table.Column<decimal>(type: "decimal(10,3)", nullable: false),
+                    PaymentMethod = table.Column<string>(type: "TEXT", maxLength: 20, nullable: false),
+                    ChequeNumber = table.Column<string>(type: "TEXT", maxLength: 50, nullable: true),
+                    BankName = table.Column<string>(type: "TEXT", maxLength: 100, nullable: true),
+                    Purpose = table.Column<string>(type: "TEXT", maxLength: 500, nullable: false),
+                    Date = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ReceiptVouchers", x => x.Id);
+                    table.CheckConstraint("CK_ReceiptVouchers_Amount_Positive", "[Amount] > 0");
+                    table.CheckConstraint("CK_ReceiptVouchers_PaymentMethod", "[PaymentMethod] IN ('cash', 'cheque')");
+                    table.ForeignKey(
+                        name: "FK_ReceiptVouchers_Libraries_LibraryId",
+                        column: x => x.LibraryId,
+                        principalTable: "Libraries",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_ReceiptVouchers_Semesters_SemesterId",
+                        column: x => x.SemesterId,
+                        principalTable: "Semesters",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "InvoiceItems",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    InvoiceId = table.Column<int>(type: "int", nullable: false),
-                    BookId = table.Column<int>(type: "int", nullable: false),
-                    BookName = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
-                    BookGrade = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
-                    Quantity = table.Column<int>(type: "int", nullable: false),
+                    Id = table.Column<int>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    InvoiceId = table.Column<int>(type: "INTEGER", nullable: false),
+                    BookId = table.Column<int>(type: "INTEGER", nullable: false),
+                    BookName = table.Column<string>(type: "TEXT", maxLength: 200, nullable: false),
+                    BookGrade = table.Column<string>(type: "TEXT", maxLength: 100, nullable: false),
+                    Quantity = table.Column<int>(type: "INTEGER", nullable: false),
                     UnitPrice = table.Column<decimal>(type: "decimal(10,3)", nullable: false),
                     Total = table.Column<decimal>(type: "decimal(10,3)", nullable: false)
                 },
@@ -274,10 +311,20 @@ namespace BookDistributionAPI.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
+                name: "IX_Books_SemesterId",
+                table: "Books",
+                column: "SemesterId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Books_SemesterId_Name_Grade",
                 table: "Books",
                 columns: new[] { "SemesterId", "Name", "Grade" },
                 unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Cities_GovernorateId",
+                table: "Cities",
+                column: "GovernorateId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Cities_GovernorateId_Name",
@@ -302,6 +349,16 @@ namespace BookDistributionAPI.Migrations
                 column: "InvoiceId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_Invoices_Date",
+                table: "Invoices",
+                column: "Date");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Invoices_LibraryId_InvoiceYear_InvoiceNumber",
+                table: "Invoices",
+                columns: new[] { "LibraryId", "InvoiceYear", "InvoiceNumber" });
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Invoices_LibraryId_SemesterId",
                 table: "Invoices",
                 columns: new[] { "LibraryId", "SemesterId" });
@@ -316,6 +373,11 @@ namespace BookDistributionAPI.Migrations
                 name: "IX_Invoices_SemesterId",
                 table: "Invoices",
                 column: "SemesterId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Invoices_SemesterId_Type",
+                table: "Invoices",
+                columns: new[] { "SemesterId", "Type" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_Libraries_CityId",
@@ -333,10 +395,41 @@ namespace BookDistributionAPI.Migrations
                 column: "BookId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_LibraryBooks_LibraryId",
+                table: "LibraryBooks",
+                column: "LibraryId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_LibraryBooks_LibraryId_BookId",
                 table: "LibraryBooks",
                 columns: new[] { "LibraryId", "BookId" },
                 unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ReceiptVouchers_Date",
+                table: "ReceiptVouchers",
+                column: "Date");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ReceiptVouchers_LibraryId_SemesterId",
+                table: "ReceiptVouchers",
+                columns: new[] { "LibraryId", "SemesterId" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ReceiptVouchers_SemesterId",
+                table: "ReceiptVouchers",
+                column: "SemesterId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ReceiptVouchers_VoucherYear_VoucherNumber",
+                table: "ReceiptVouchers",
+                columns: new[] { "VoucherYear", "VoucherNumber" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Semesters_AcademicYearId",
+                table: "Semesters",
+                column: "AcademicYearId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Semesters_AcademicYearId_Code",
@@ -356,6 +449,9 @@ namespace BookDistributionAPI.Migrations
 
             migrationBuilder.DropTable(
                 name: "LibraryBooks");
+
+            migrationBuilder.DropTable(
+                name: "ReceiptVouchers");
 
             migrationBuilder.DropTable(
                 name: "Invoices");

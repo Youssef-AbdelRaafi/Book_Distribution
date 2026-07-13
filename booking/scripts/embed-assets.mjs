@@ -7,7 +7,7 @@ const assetsDir = path.join(__dirname, '../src/assets');
 const publicAssetsDir = path.join(__dirname, '../public/assets');
 
 fs.mkdirSync(publicAssetsDir, { recursive: true });
-for (const file of ['logo.jpeg', 'signature_stamp.jpeg', 'stamp2.jpeg']) {
+for (const file of ['logo.png', 'signature_stamp.png', 'stamp2.png']) {
   fs.copyFileSync(path.join(assetsDir, file), path.join(publicAssetsDir, file));
 }
 
@@ -18,9 +18,9 @@ const content = `export interface AssetUrls {
 }
 
 export const ASSET_URLS: AssetUrls = {
-  logo: '/assets/logo.jpeg',
-  signatureStamp: '/assets/signature_stamp.jpeg',
-  seriesStamp: '/assets/stamp2.jpeg'
+  logo: '/assets/logo.png',
+  signatureStamp: '/assets/signature_stamp.png',
+  seriesStamp: '/assets/stamp2.png'
 };
 `;
 

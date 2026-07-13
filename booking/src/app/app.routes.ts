@@ -7,5 +7,5 @@ export const routes: Routes = [
   { path: 'login', component: LoginComponent },
   { path: '', redirectTo: 'single-page', pathMatch: 'full' },
   { path: 'single-page', component: SinglePageComponent, canActivate: [authGuard] },
-  { path: '**', redirectTo: 'single-page' }
+  { path: '**', redirectTo: 'login' }
 ];

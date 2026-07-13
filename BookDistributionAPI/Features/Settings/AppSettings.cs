@@ -14,7 +14,7 @@ public class SettingsDto
     [Required, StringLength(200)]
     public string BrandName { get; set; } = string.Empty;
 
-    [Required, StringLength(300)]
+    [Required, StringLength(1000)]
     public string Phones { get; set; } = string.Empty;
 
     [Required, StringLength(20)]
@@ -22,4 +22,10 @@ public class SettingsDto
 
     [Required, StringLength(20)]
     public string SubCurrency { get; set; } = string.Empty;
+
+    [StringLength(200)]
+    public string? OwnerSignatureName { get; set; }
+
+    [StringLength(50)]
+    public string? WhatsAppNumber { get; set; }
 }

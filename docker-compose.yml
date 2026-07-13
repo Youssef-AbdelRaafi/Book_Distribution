@@ -1,0 +1,28 @@
+services:
+  api:
+    build: .
+    container_name: book_distribution_app
+    ports:
+      - "8080:8080"
+    environment:
+      - TZ=Asia/Muscat
+      # JWT signing key (min 32 chars) — override via .env or shell
+      - Auth__JwtSigningKey=${JWT_SIGNING_KEY:-ChangeThisToASecretKeyOfAtLeast32Characters!}
+      # Admin password hash (PBKDF2 format) — override via .env or shell
+      - Auth__AdminPasswordHash=${ADMIN_PASSWORD_HASH}
+      # SQLite connection string (uses persistent volume)
+      - ConnectionStrings__DefaultConnection=Data Source=/app/data/app.db;Cache=Shared
+    volumes:
+      - book-data:/app/data
+      - book-backups:/app/backups
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/settings"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  book-data:
+  book-backups:

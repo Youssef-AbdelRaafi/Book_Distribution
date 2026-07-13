@@ -10,11 +10,7 @@ public class Invoice
     { 
         get
         {
-            // 2026 → "2026", 2027+ → "27", "28" etc.
-            var yearPrefix = InvoiceYear <= 2026 
-                ? InvoiceYear.ToString() 
-                : (InvoiceYear % 100).ToString();
-            return $"{yearPrefix}{TermCode}{InvoiceNumber}";
+            return $"{InvoiceYear}{TermCode}{InvoiceNumber}";
         }
     }
     public string Type { get; set; } = string.Empty; 

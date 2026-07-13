@@ -6,6 +6,9 @@ export interface InvoiceItem {
   quantity: number;
   unitPrice: number;
   total: number;
+  // تفصيل الجرد — يُستخدم في المخالصة
+  orderedQty?: number;
+  refundedQty?: number;
   // backward compat
   name?: string;
   grade?: string;
@@ -35,4 +38,35 @@ export interface Invoice {
   // backward compat
   region?: string;
   city?: string;
+}
+
+export interface ClearancePreviewItem {
+  bookId: number;
+  bookName: string;
+  bookGrade: string;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+  orderedQty?: number;
+  refundedQty?: number;
+}
+
+export interface ClearancePreview {
+  libraryId?: number;
+  libraryName: string;
+  governorateName: string;
+  cityName: string;
+  semesterId: number;
+  semesterName: string;
+  termCode: string;
+  totalAmount: number;
+  paidAmount: number;
+  responsibleName?: string;
+  responsiblePhone?: string;
+  items: ClearancePreviewItem[];
+}
+
+export interface BatchClearanceResult {
+  count: number;
+  invoices: Invoice[];
 }

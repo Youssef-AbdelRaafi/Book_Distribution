@@ -8,15 +8,25 @@
       </div>
       <span class="md:hidden text-sm font-bold text-primary">النظام</span>
     </div>
+    
+    <!-- Term Switcher -->
+    <div class="flex items-center gap-2 bg-surface-container-low px-3 py-1.5 rounded-lg border border-surface-container-high" *ngIf="currentYearName">
+      <span class="text-xs font-bold text-primary whitespace-nowrap">{{ currentYearName }}</span>
+      <div class="h-4 w-px bg-surface-container-highest"></div>
+      <select class="bg-transparent text-xs font-bold text-on-surface outline-none cursor-pointer" [value]="currentTermCode" (change)="onTermChange($event)">
+        <option value="A">الترم الأول</option>
+        <option value="B">الترم الثاني</option>
+      </select>
+    </div>
   </div>
   <div class="flex items-center gap-space-md text-on-surface-variant">
-    <button (click)="openHelp()" class="p-2 rounded-full hover:bg-surface-container transition-colors active:scale-95 duration-150" title="دليل الاستخدام">
+    <button type="button" (click)="openHelp()" class="p-2 rounded-full hover:bg-surface-container transition-colors active:scale-95 duration-150" title="دليل الاستخدام">
       <span class="material-symbols-outlined">help_outline</span>
     </button>
-    <button (click)="openSettings()" class="p-2 rounded-full hover:bg-surface-container transition-colors active:scale-95 duration-150" title="الإعدادات">
+    <button type="button" (click)="openSettings()" class="p-2 rounded-full hover:bg-surface-container transition-colors active:scale-95 duration-150" title="الإعدادات">
       <span class="material-symbols-outlined">settings</span>
     </button>
-    <button (click)="authService.logout()" class="p-2 rounded-full text-error hover:bg-error/10 transition-colors active:scale-95 duration-150" title="تسجيل الخروج">
+    <button type="button" (click)="authService.logout()" class="p-2 rounded-full text-error hover:bg-error/10 transition-colors active:scale-95 duration-150" title="تسجيل الخروج">
       <span class="material-symbols-outlined">logout</span>
     </button>
   </div>
@@ -29,7 +39,7 @@
       <h2 class="text-lg font-bold text-primary flex items-center gap-2">
         <span class="material-symbols-outlined">settings</span> الإعدادات
       </h2>
-      <button (click)="closeSettings()" class="text-on-surface-variant hover:text-error transition-colors">
+      <button type="button" (click)="closeSettings()" class="text-on-surface-variant hover:text-error transition-colors">
         <span class="material-symbols-outlined">close</span>
       </button>
     </div>
@@ -39,7 +49,7 @@
 
       <div class="flex items-center justify-between p-3 bg-surface-container-low rounded-lg border border-surface-container-high">
         <div class="font-medium text-sm">الوضع المظلم</div>
-        <button (click)="themeService.toggleDarkMode()" [ngClass]="themeService.isDarkMode() ? 'bg-primary' : 'bg-surface-variant'" class="w-10 h-5 rounded-full relative transition-colors shadow-inner">
+        <button type="button" (click)="themeService.toggleDarkMode()" [ngClass]="themeService.isDarkMode() ? 'bg-primary' : 'bg-surface-variant'" class="w-10 h-5 rounded-full relative transition-colors shadow-inner">
           <div class="w-4 h-4 bg-white rounded-full absolute top-0.5 transition-all shadow-sm" [ngClass]="themeService.isDarkMode() ? 'left-0.5' : 'right-0.5'"></div>
         </button>
       </div>
@@ -74,19 +84,29 @@
                 <input type="date" [(ngModel)]="editPrintSettings.term2Start" class="w-full bg-surface-container-lowest border border-outline-variant rounded px-2 py-1.5 text-xs focus:border-primary outline-none">
               </div>
             </div>
+            <div class="flex gap-2">
+              <div class="flex-1">
+                <label class="block text-[10px] text-on-surface-variant mb-1">اسم صاحب السلسلة</label>
+                <input type="text" [(ngModel)]="editPrintSettings.ownerSignatureName" class="w-full bg-surface-container-lowest border border-outline-variant rounded px-2 py-1.5 text-xs focus:border-primary outline-none">
+              </div>
+              <div class="flex-1">
+                <label class="block text-[10px] text-on-surface-variant mb-1">رقم الواتساب</label>
+                <input type="text" [(ngModel)]="editPrintSettings.whatsappNumber" class="w-full bg-surface-container-lowest border border-outline-variant rounded px-2 py-1.5 text-xs focus:border-primary outline-none">
+              </div>
+            </div>
           </div>
       </div>
 
       <div class="pt-2 mt-2 border-t border-surface-container-high">
         <div class="font-bold text-sm text-primary mb-3">ترتيب الأقسام</div>
         <div class="space-y-2">
-          <div *ngFor="let section of filteredEditSectionOrder; let i = index" class="flex justify-between items-center p-2 bg-surface-container-low border border-surface-container-high rounded text-sm font-medium text-text-heading shadow-sm">
+          <div *ngFor="let section of filteredEditSectionOrder; trackBy: trackByIndex; let i = index" class="flex justify-between items-center p-2 bg-surface-container-low border border-surface-container-high rounded text-sm font-medium text-text-heading shadow-sm">
             <span>{{ getSectionName(section) }}</span>
             <div class="flex items-center gap-1">
-              <button (click)="moveUp(section)" [disabled]="i === 0" class="p-1 rounded text-on-surface-variant hover:bg-surface-variant disabled:opacity-30 transition-colors">
+              <button type="button" (click)="moveUp(section)" [disabled]="i === 0" class="p-1 rounded text-on-surface-variant hover:bg-surface-variant disabled:opacity-30 transition-colors">
                 <span class="material-symbols-outlined text-[16px]">arrow_upward</span>
               </button>
-              <button (click)="moveDown(section)" [disabled]="i === filteredEditSectionOrder.length - 1" class="p-1 rounded text-on-surface-variant hover:bg-surface-variant disabled:opacity-30 transition-colors">
+              <button type="button" (click)="moveDown(section)" [disabled]="i === filteredEditSectionOrder.length - 1" class="p-1 rounded text-on-surface-variant hover:bg-surface-variant disabled:opacity-30 transition-colors">
                 <span class="material-symbols-outlined text-[16px]">arrow_downward</span>
               </button>
             </div>
@@ -97,19 +117,30 @@
       <div class="pt-2 mt-2 border-t border-surface-container-high">
         <div class="font-bold text-sm text-primary mb-3">إدارة العام الدراسي</div>
         <div class="space-y-2">
-           <button (click)="startNewYear()" class="w-full py-2 bg-error text-white rounded-lg text-sm font-medium hover:bg-error/90 transition-colors shadow-sm flex items-center justify-center gap-2">
+           <button type="button" (click)="startNewYear()" class="w-full py-2 bg-error text-white rounded-lg text-sm font-medium hover:bg-error/90 transition-colors shadow-sm flex items-center justify-center gap-2">
              <span class="material-symbols-outlined text-[18px]">event_busy</span>
              إغلاق سنة وبدء سنة جديدة
            </button>
            <p class="text-[10px] text-on-surface-variant text-center">سيتم إيقاف جميع الفصول السابقة وبدء عام جديد.</p>
+           
+           <div class="pt-2 border-t border-surface-container-high">
+             <label class="block text-[10px] text-on-surface-variant mb-1">الرجوع لسنة دراسية سابقة</label>
+             <select class="w-full bg-surface-container-lowest border border-outline-variant rounded px-2 py-1.5 text-xs focus:border-primary outline-none" (change)="activateYear($event)">
+               <option value="">اختر سنة دراسية...</option>
+                <option *ngFor="let year of allYears; trackBy: trackById" [value]="year.id">
+                  {{ year.name }} {{ year.isActive ? '(نشط)' : '' }}
+                </option>
+             </select>
+             <p class="text-[10px] text-on-surface-variant text-center mt-1">سيتم تفعيل السنة المختارة والفصل الأول منها.</p>
+           </div>
         </div>
       </div>
     </div>
     <div class="p-4 border-t border-surface-container-high bg-surface-container-low rounded-b-xl flex justify-end gap-2 shrink-0">
-      <button (click)="closeSettings()" class="px-4 py-2 border border-outline-variant rounded-lg text-sm font-medium text-on-surface-variant hover:bg-surface-container transition-colors">
+      <button type="button" (click)="closeSettings()" class="px-4 py-2 border border-outline-variant rounded-lg text-sm font-medium text-on-surface-variant hover:bg-surface-container transition-colors">
         إلغاء
       </button>
-      <button (click)="savePrintSettings()" class="px-4 py-2 bg-primary text-on-primary rounded-lg text-sm font-medium hover:bg-primary-container transition-colors shadow-sm">
+      <button type="button" (click)="savePrintSettings()" class="px-4 py-2 bg-primary text-on-primary rounded-lg text-sm font-medium hover:bg-primary-container transition-colors shadow-sm">
         حفظ الإعدادات
       </button>
     </div>
@@ -131,7 +162,7 @@
           <p class="text-xs text-on-surface-variant mt-0.5">خطوات العمل في النظام</p>
         </div>
       </div>
-      <button (click)="closeHelp()" class="text-on-surface-variant hover:bg-error/10 hover:text-error w-8 h-8 rounded-full flex items-center justify-center transition-colors">
+      <button type="button" (click)="closeHelp()" class="text-on-surface-variant hover:bg-error/10 hover:text-error w-8 h-8 rounded-full flex items-center justify-center transition-colors">
         <span class="material-symbols-outlined">close</span>
       </button>
     </div>
@@ -151,16 +182,16 @@
             <div class="absolute right-0 top-1 w-8 h-8 rounded-full bg-surface-container-highest border-4 border-surface-container-lowest flex items-center justify-center z-10">
               <span class="material-symbols-outlined text-[14px] text-on-surface-variant">store</span>
             </div>
-            <h4 class="font-bold text-text-heading text-sm">إضافة المكتبات</h4>
-            <p class="text-xs text-on-surface-variant mt-1 leading-relaxed">الخطوة الأولى طبيعياً هي إضافة وتعريف جميع المكتبات التي تتعامل معها. يمكنك إضافة بيانات المكتبة، المحافظة، المدينه، اسم المكتبه، اسم صاحبها لكتابته تلقائيا فى الفواتير التى يتم ارسالها لها، ساعات العمل كمرجع لتجنب ارسال الكتب.</p>
+            <h4 class="font-bold text-text-heading text-sm">المكتبات مضافة مسبقاً</h4>
+            <p class="text-xs text-on-surface-variant mt-1 leading-relaxed">تم تجهيز النظام وإضافة جميع المكتبات تلقائياً (من الـ Seed)، لذا لا حاجة لإضافتها من الصفر. يمكنك استعراض أو تعديل بياناتها كالمحافظة، المدينة، وأسماء المندوبين.</p>
           </div>
 
           <div class="relative pr-8">
             <div class="absolute right-0 top-1 w-8 h-8 rounded-full bg-surface-container-highest border-4 border-surface-container-lowest flex items-center justify-center z-10">
               <span class="material-symbols-outlined text-[14px] text-on-surface-variant">library_books</span>
             </div>
-            <h4 class="font-bold text-text-heading text-sm">إضافة وتكويد الكتب</h4>
-            <p class="text-xs text-on-surface-variant mt-1 leading-relaxed">قم بتعريف الكتب وإصدارات المناهج التي ستقوم ببيعها في النظام ليتم سحبها لاحقاً في الفواتير.</p>
+            <h4 class="font-bold text-text-heading text-sm">كتالوج الكتب جاهز</h4>
+            <p class="text-xs text-on-surface-variant mt-1 leading-relaxed">الكتب مضافة مسبقاً. عند بدء عام دراسي جديد، يتم نسخ نفس الكتالوج من العام السابق برصيد صفر تلقائياً. كل ما عليك فعله هو تحديث الكميات في المخزون.</p>
           </div>
 
           <div class="relative pr-8">

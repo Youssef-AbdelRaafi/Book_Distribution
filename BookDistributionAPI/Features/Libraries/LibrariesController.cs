@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using BookDistributionAPI.Common;
 using BookDistributionAPI.Data;
+using System.Threading;
 
 namespace BookDistributionAPI.Features.Libraries;
 
@@ -10,10 +11,17 @@ namespace BookDistributionAPI.Features.Libraries;
 public class LibrariesController : ControllerBase
 {
     private readonly AppDbContext _db;
-    public LibrariesController(AppDbContext db) => _db = db;
+    private readonly IWebHostEnvironment _env;
+    private readonly IAcademicYearHelper _academicYearHelper;
+    public LibrariesController(AppDbContext db, IWebHostEnvironment env, IAcademicYearHelper academicYearHelper)
+    {
+        _db = db;
+        _env = env;
+        _academicYearHelper = academicYearHelper;
+    }
 
     [HttpGet]
-    public async Task<IActionResult> GetAll()
+    public async Task<IActionResult> GetAll(CancellationToken cancellationToken)
     {
         var libraries = await _db.Libraries
             .Include(l => l.Governorate)
@@ -22,28 +30,28 @@ public class LibrariesController : ControllerBase
             .OrderBy(l => l.Governorate.Name)
             .ThenBy(l => l.Name)
             .Select(l => MapToDto(l))
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
         return Ok(ApiResponse<object>.Ok(libraries));
     }
 
     [HttpGet("{id}")]
-    public async Task<IActionResult> GetById(int id)
+    public async Task<IActionResult> GetById(int id, CancellationToken cancellationToken)
     {
         var lib = await _db.Libraries
             .Include(l => l.Governorate)
             .Include(l => l.City)
-            .FirstOrDefaultAsync(l => l.Id == id);
+            .FirstOrDefaultAsync(l => l.Id == id, cancellationToken);
         if (lib == null) return NotFound(ApiResponse<object>.Fail("المكتبة غير موجودة"));
         return Ok(ApiResponse<object>.Ok(MapToDto(lib)));
     }
 
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] CreateLibraryDto dto)
+    public async Task<IActionResult> Create([FromBody] CreateLibraryDto dto, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(dto.Name))
             return BadRequest(ApiResponse<object>.Fail("الرجاء إدخال اسم المكتبة"));
 
-        var validationError = await ValidateLocationAsync(dto.GovernorateId, dto.CityId);
+        var validationError = await ValidateLocationAsync(dto.GovernorateId, dto.CityId, cancellationToken);
         if (validationError != null)
             return BadRequest(ApiResponse<object>.Fail(validationError));
 
@@ -51,7 +59,7 @@ public class LibrariesController : ControllerBase
             l.IsActive &&
             l.GovernorateId == dto.GovernorateId &&
             l.CityId == dto.CityId &&
-            l.Name == dto.Name))
+            l.Name == dto.Name, cancellationToken))
             return Conflict(ApiResponse<object>.Fail("هذه المكتبة موجودة بالفعل في نفس الولاية"));
 
         var library = new Library
@@ -76,21 +84,21 @@ public class LibrariesController : ControllerBase
         };
 
         _db.Libraries.Add(library);
-        await _db.SaveChangesAsync();
+        await _db.SaveChangesAsync(cancellationToken);
 
-        await _db.Entry(library).Reference(l => l.Governorate).LoadAsync();
-        await _db.Entry(library).Reference(l => l.City).LoadAsync();
+        await _db.Entry(library).Reference(l => l.Governorate).LoadAsync(cancellationToken);
+        await _db.Entry(library).Reference(l => l.City).LoadAsync(cancellationToken);
 
         return Ok(ApiResponse<object>.Ok(MapToDto(library), "تم حفظ المكتبة بنجاح"));
     }
 
     [HttpPut("{id}")]
-    public async Task<IActionResult> Update(int id, [FromBody] UpdateLibraryDto dto)
+    public async Task<IActionResult> Update(int id, [FromBody] UpdateLibraryDto dto, CancellationToken cancellationToken)
     {
-        var lib = await _db.Libraries.FindAsync(id);
+        var lib = await _db.Libraries.FindAsync([id], cancellationToken);
         if (lib == null) return NotFound(ApiResponse<object>.Fail("المكتبة غير موجودة"));
 
-        var validationError = await ValidateLocationAsync(dto.GovernorateId, dto.CityId);
+        var validationError = await ValidateLocationAsync(dto.GovernorateId, dto.CityId, cancellationToken);
         if (validationError != null)
             return BadRequest(ApiResponse<object>.Fail(validationError));
 
@@ -99,7 +107,7 @@ public class LibrariesController : ControllerBase
             l.IsActive &&
             l.GovernorateId == dto.GovernorateId &&
             l.CityId == dto.CityId &&
-            l.Name == dto.Name))
+            l.Name == dto.Name, cancellationToken))
             return Conflict(ApiResponse<object>.Fail("هذه المكتبة موجودة بالفعل في نفس الولاية"));
 
         lib.Name = dto.Name;
@@ -119,60 +127,96 @@ public class LibrariesController : ControllerBase
         lib.PaymentRating = dto.PaymentRating;
         lib.Notes = dto.Notes;
 
-        await _db.SaveChangesAsync();
+        await _db.SaveChangesAsync(cancellationToken);
 
-        await _db.Entry(lib).Reference(l => l.Governorate).LoadAsync();
-        await _db.Entry(lib).Reference(l => l.City).LoadAsync();
+        await _db.Entry(lib).Reference(l => l.Governorate).LoadAsync(cancellationToken);
+        await _db.Entry(lib).Reference(l => l.City).LoadAsync(cancellationToken);
 
         return Ok(ApiResponse<object>.Ok(MapToDto(lib), "تم تحديث بيانات المكتبة بنجاح"));
     }
 
     [HttpPut("{id}/rating")]
-    public async Task<IActionResult> UpdateRating(int id, [FromBody] UpdateLibraryRatingDto dto)
+    public async Task<IActionResult> UpdateRating(int id, [FromBody] UpdateLibraryRatingDto dto, CancellationToken cancellationToken)
     {
-        var lib = await _db.Libraries.FindAsync(id);
+        var lib = await _db.Libraries.FindAsync([id], cancellationToken);
         if (lib == null) return NotFound(ApiResponse<object>.Fail("المكتبة غير موجودة"));
 
         lib.ResponseRating = dto.ResponseRating;
         lib.PaymentRating = dto.PaymentRating;
         lib.Notes = dto.Notes;
-        await _db.SaveChangesAsync();
+        await _db.SaveChangesAsync(cancellationToken);
 
         return Ok(ApiResponse<object>.Ok(true, "تم تحديث تقييم المكتبة"));
     }
 
-    [HttpDelete("{id}")]
-    public async Task<IActionResult> Delete(int id)
+    [HttpPost("{id}/logo")]
+    [RequestSizeLimit(5 * 1024 * 1024)]
+    public async Task<IActionResult> UploadLogo(int id, IFormFile file, CancellationToken cancellationToken)
     {
-        var lib = await _db.Libraries.FindAsync(id);
+        var lib = await _db.Libraries.FindAsync([id], cancellationToken);
+        if (lib == null) return NotFound(ApiResponse<object>.Fail("المكتبة غير موجودة"));
+
+        if (file == null || file.Length == 0)
+            return BadRequest(ApiResponse<object>.Fail("الرجاء اختيار صورة"));
+
+        var fileName = file.FileName;
+        if (string.IsNullOrEmpty(fileName))
+            return BadRequest(ApiResponse<object>.Fail("اسم الملف غير صالح"));
+
+        var ext = Path.GetExtension(fileName).ToLowerInvariant();
+        var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp" };
+        if (!allowedExtensions.Contains(ext))
+            return BadRequest(ApiResponse<object>.Fail("صيغة الملف غير مدعومة. الصيغ المسموحة: jpg, png, gif, webp"));
+
+        var uploadsDir = Path.Combine(_env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot"), "uploads", "logos");
+        Directory.CreateDirectory(uploadsDir);
+        var savedFileName = $"lib_{id}_{Guid.NewGuid()}{ext}";
+        var filePath = Path.Combine(uploadsDir, savedFileName);
+
+        await using (var stream = new FileStream(filePath, FileMode.Create))
+            await file.CopyToAsync(stream, cancellationToken);
+
+        var relativePath = $"/uploads/logos/{savedFileName}";
+        lib.Logo = relativePath;
+        await _db.SaveChangesAsync(cancellationToken);
+
+        return Ok(ApiResponse<object>.Ok(new { logo = relativePath }, "تم رفع الشعار بنجاح"));
+    }
+
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
+    {
+        var lib = await _db.Libraries.FindAsync([id], cancellationToken);
         if (lib == null) return NotFound(ApiResponse<object>.Fail("المكتبة غير موجودة"));
 
         lib.IsActive = false; 
-        await _db.SaveChangesAsync();
+        await _db.SaveChangesAsync(cancellationToken);
         return Ok(ApiResponse<object>.Ok(true, "تم حذف المكتبة بنجاح"));
     }
 
     [HttpGet("{id}/books")]
-    public async Task<IActionResult> GetLibraryBooks(int id, [FromQuery] int? semesterId)
+    public async Task<IActionResult> GetLibraryBooks(int id, [FromQuery] int? semesterId, CancellationToken cancellationToken)
     {
-        var lib = await _db.Libraries.FindAsync(id);
+        var lib = await _db.Libraries.FindAsync([id], cancellationToken);
         if (lib == null) return NotFound(ApiResponse<object>.Fail("المكتبة غير موجودة"));
 
         var query = _db.Books.AsQueryable();
         if (semesterId.HasValue)
+        {
             query = query.Where(b => b.SemesterId == semesterId.Value);
+        }
         else
         {
-            var activeSemester = await _db.Semesters.FirstOrDefaultAsync(s => s.IsActive);
-            if (activeSemester != null)
-                query = query.Where(b => b.SemesterId == activeSemester.Id);
+            var activeSemesterIds = await _academicYearHelper.GetActiveSemesterIdsAsync(cancellationToken);
+            if (activeSemesterIds.Count > 0)
+                query = query.Where(b => activeSemesterIds.Contains(b.SemesterId));
         }
 
-        var books = await query.OrderBy(b => b.Grade).ThenBy(b => b.Name).ToListAsync();
+        var books = await query.OrderBy(b => b.Grade).ThenBy(b => b.Name).ToListAsync(cancellationToken);
 
         var libraryBooks = await _db.LibraryBooks
             .Where(lb => lb.LibraryId == id)
-            .ToDictionaryAsync(lb => lb.BookId);
+            .ToDictionaryAsync(lb => lb.BookId, cancellationToken);
 
         var result = books.Select(b =>
         {
@@ -193,9 +237,9 @@ public class LibrariesController : ControllerBase
     }
 
     [HttpPut("{id}/books")]
-    public async Task<IActionResult> UpdateLibraryBooks(int id, [FromBody] Books.UpdateLibraryBooksDto dto)
+    public async Task<IActionResult> UpdateLibraryBooks(int id, [FromBody] Books.UpdateLibraryBooksDto dto, CancellationToken cancellationToken)
     {
-        var lib = await _db.Libraries.FindAsync(id);
+        var lib = await _db.Libraries.FindAsync([id], cancellationToken);
         if (lib == null) return NotFound(ApiResponse<object>.Fail("المكتبة غير موجودة"));
         if (!lib.IsActive) return BadRequest(ApiResponse<object>.Fail("لا يمكن تحديث كميات مكتبة غير نشطة"));
 
@@ -212,7 +256,7 @@ public class LibrariesController : ControllerBase
         var existingBookIds = await _db.Books
             .Where(b => bookIds.Contains(b.Id))
             .Select(b => b.Id)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         var missingBookIds = bookIds.Except(existingBookIds).ToList();
         if (missingBookIds.Count > 0)
@@ -220,7 +264,7 @@ public class LibrariesController : ControllerBase
 
         var existingLibraryBooks = await _db.LibraryBooks
             .Where(lb => lb.LibraryId == id && bookIds.Contains(lb.BookId))
-            .ToDictionaryAsync(lb => lb.BookId);
+            .ToDictionaryAsync(lb => lb.BookId, cancellationToken);
 
         foreach (var item in items)
         {
@@ -242,7 +286,7 @@ public class LibrariesController : ControllerBase
             }
         }
 
-        await _db.SaveChangesAsync();
+        await _db.SaveChangesAsync(cancellationToken);
         return Ok(ApiResponse<object>.Ok(true, "تم تحديث كميات المكتبة بنجاح"));
     }
 
@@ -270,11 +314,11 @@ public class LibrariesController : ControllerBase
         IsActive = l.IsActive
     };
 
-    private async Task<string?> ValidateLocationAsync(int governorateId, int cityId)
+    private async Task<string?> ValidateLocationAsync(int governorateId, int cityId, CancellationToken cancellationToken)
     {
         var city = await _db.Cities
             .AsNoTracking()
-            .FirstOrDefaultAsync(c => c.Id == cityId);
+            .FirstOrDefaultAsync(c => c.Id == cityId, cancellationToken);
 
         if (city == null)
             return "المدينة غير موجودة";

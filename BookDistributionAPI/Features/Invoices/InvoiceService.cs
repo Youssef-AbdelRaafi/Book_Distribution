@@ -1,4 +1,4 @@
-using System.Data;
+using System.Collections.Concurrent;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using BookDistributionAPI.Data;
@@ -13,9 +13,11 @@ public class InvoiceBusinessService
     private const string OrderType = "order";
     private const string RefundType = "refund";
     private const string ClearanceType = "clearance";
+    public const string ClearanceTermCode = "P";
     private const string PendingPrintStatus = "pending";
 
     private readonly AppDbContext _db;
+    private static readonly ConcurrentDictionary<string, SemaphoreSlim> _locks = new();
 
     public InvoiceBusinessService(AppDbContext db)
     {
@@ -23,21 +25,15 @@ public class InvoiceBusinessService
     }
 
     /// <summary>
-    /// Gets the current invoice year based on server time.
+    /// Gets the next sequential invoice number for a given library, year.
+    /// All invoice types share the same sequence per (library, year).
     /// </summary>
-    private static int GetCurrentInvoiceYear() => DateTime.UtcNow.Year;
-
-    /// <summary>
-    /// Gets the next sequential invoice number for a given library, year, and term code.
-    /// The sequence is per-library, per-year, per-termCode (A/B for orders+refunds, P for clearance).
-    /// </summary>
-    public async Task<int> GetNextInvoiceNumberAsync(int libraryId, int invoiceYear, string termCode)
+    public async Task<int> GetNextInvoiceNumberAsync(int libraryId, int invoiceYear, CancellationToken cancellationToken = default)
     {
         var maxNumber = await _db.Invoices
             .Where(i => i.LibraryId == libraryId 
-                     && i.InvoiceYear == invoiceYear 
-                     && i.TermCode == termCode)
-            .MaxAsync(i => (int?)i.InvoiceNumber) ?? 0;
+                     && i.InvoiceYear == invoiceYear)
+            .MaxAsync(i => (int?)i.InvoiceNumber, cancellationToken) ?? 0;
         return maxNumber + 1;
     }
 
@@ -46,40 +42,32 @@ public class InvoiceBusinessService
     /// </summary>
     public static string FormatDisplayNumber(int invoiceYear, string termCode, int invoiceNumber)
     {
-        var yearPrefix = invoiceYear <= 2026 
-            ? invoiceYear.ToString() 
-            : (invoiceYear % 100).ToString();
-        return $"{yearPrefix}{termCode}{invoiceNumber}";
+        return $"{invoiceYear}{termCode}{invoiceNumber}";
     }
 
-    public async Task<Invoice> CreateOrderAsync(CreateOrderDto dto)
+    public async Task<Invoice> CreateOrderAsync(CreateOrderDto dto, CancellationToken cancellationToken = default)
     {
         var requestedItems = NormalizeItems(dto.Items);
 
-        await using var transaction = await BeginInvoiceTransactionAsync(dto.SemesterId);
+        await using var transaction = await BeginInvoiceTransactionAsync(dto.SemesterId, cancellationToken);
 
-        var semester = await GetSemesterAsync(dto.SemesterId);
-        var library = await GetActiveLibraryAsync(dto.LibraryId);
-        await EnsureNoClearanceAsync(dto.LibraryId, dto.SemesterId);
+        var semester = await GetSemesterAsync(dto.SemesterId, cancellationToken);
+        var library = await GetActiveLibraryAsync(dto.LibraryId, cancellationToken);
+        await EnsureNoClearanceAsync(dto.LibraryId, dto.SemesterId, cancellationToken);
 
-        var books = await LoadBooksAsync(requestedItems.Keys, dto.SemesterId);
+        var books = await LoadBooksAsync(requestedItems.Keys, dto.SemesterId, cancellationToken);
         var invoiceItems = new List<InvoiceItem>();
         decimal totalAmount = 0;
 
         foreach (var (bookId, quantity) in requestedItems)
         {
-            var book = books[bookId];
+            if (!books.TryGetValue(bookId, out var book))
+                throw new InvalidOperationException($"الكتاب برقم {bookId} غير موجود");
 
             if (book.StockQuantity < quantity)
                 throw new InvalidOperationException($"المخزون غير كافٍ للكتاب: {book.Name} (المتوفر: {book.StockQuantity})");
 
-            var updatedRows = await _db.Books
-                .Where(b => b.Id == bookId && b.StockQuantity >= quantity)
-                .ExecuteUpdateAsync(setters => setters
-                    .SetProperty(b => b.StockQuantity, b => b.StockQuantity - quantity));
-
-            if (updatedRows != 1)
-                throw new InvalidOperationException($"المخزون غير كافٍ للكتاب: {book.Name}");
+            book.StockQuantity -= quantity;
 
             var lineTotal = quantity * book.Price;
             totalAmount += lineTotal;
@@ -92,43 +80,42 @@ public class InvoiceBusinessService
             library,
             OrderType,
             totalAmount,
-            invoiceItems);
+            invoiceItems,
+            cancellationToken);
 
         await transaction.CommitAsync();
         return invoice;
     }
 
-    public async Task<Invoice> CreateRefundAsync(CreateRefundDto dto)
+    public async Task<Invoice> CreateRefundAsync(CreateRefundDto dto, CancellationToken cancellationToken = default)
     {
         var requestedItems = NormalizeItems(dto.Items);
 
-        await using var transaction = await BeginInvoiceTransactionAsync(dto.SemesterId);
+        await using var transaction = await BeginInvoiceTransactionAsync(dto.SemesterId, cancellationToken);
 
-        var semester = await GetSemesterAsync(dto.SemesterId);
-        var library = await GetActiveLibraryAsync(dto.LibraryId);
-        await EnsureNoClearanceAsync(dto.LibraryId, dto.SemesterId);
+        var semester = await GetSemesterAsync(dto.SemesterId, cancellationToken);
+        var library = await GetActiveLibraryAsync(dto.LibraryId, cancellationToken);
+        await EnsureNoClearanceAsync(dto.LibraryId, dto.SemesterId, cancellationToken);
 
-        var books = await LoadBooksAsync(requestedItems.Keys, dto.SemesterId);
-        var refundableQuantities = await GetRefundableQuantitiesAsync(dto.LibraryId, dto.SemesterId);
+        var books = await LoadBooksAsync(requestedItems.Keys, dto.SemesterId, cancellationToken);
+        var refundableQuantities = await GetRefundableQuantitiesAsync(dto.LibraryId, dto.SemesterId, cancellationToken);
         
         // Get original sale prices via FIFO for accurate refund pricing
-        var originalPrices = await GetOriginalSalePricesAsync(dto.LibraryId, dto.SemesterId);
+        var originalPrices = await GetOriginalSalePricesAsync(dto.LibraryId, dto.SemesterId, cancellationToken);
         
         var invoiceItems = new List<InvoiceItem>();
         decimal totalAmount = 0;
 
         foreach (var (bookId, quantity) in requestedItems)
         {
-            var book = books[bookId];
+            if (!books.TryGetValue(bookId, out var book))
+                throw new InvalidOperationException($"الكتاب برقم {bookId} غير موجود");
             refundableQuantities.TryGetValue(bookId, out var availableToRefund);
 
             if (quantity > availableToRefund)
                 throw new InvalidOperationException($"لا يمكن استرجاع كمية أكبر من المشتراة ({availableToRefund}) للكتاب: {book.Name}");
 
-            await _db.Books
-                .Where(b => b.Id == bookId)
-                .ExecuteUpdateAsync(setters => setters
-                    .SetProperty(b => b.StockQuantity, b => b.StockQuantity + quantity));
+            book.StockQuantity += quantity;
 
             // Use original sale price (FIFO) instead of current book price
             var unitPrice = originalPrices.TryGetValue(bookId, out var origPrice) ? origPrice : book.Price;
@@ -143,23 +130,24 @@ public class InvoiceBusinessService
             library,
             RefundType,
             totalAmount,
-            invoiceItems);
+            invoiceItems,
+            cancellationToken);
 
         await transaction.CommitAsync();
         return invoice;
     }
 
-    public async Task<Invoice> CreateClearanceAsync(CreateClearanceDto dto)
+    public async Task<Invoice> CreateClearanceAsync(CreateClearanceDto dto, CancellationToken cancellationToken = default)
     {
-        await using var transaction = await BeginInvoiceTransactionAsync(dto.SemesterId);
+        await using var transaction = await BeginInvoiceTransactionAsync(dto.SemesterId, cancellationToken);
 
-        var semester = await GetSemesterAsync(dto.SemesterId);
-        var library = await GetLibraryForClearanceAsync(dto.LibraryId);
+        var semester = await GetSemesterAsync(dto.SemesterId, cancellationToken);
+        var library = await GetLibraryForClearanceAsync(dto.LibraryId, cancellationToken);
 
         if (await _db.Invoices.AnyAsync(i =>
             i.LibraryId == dto.LibraryId &&
             i.SemesterId == dto.SemesterId &&
-            i.Type == ClearanceType))
+            i.Type == ClearanceType, cancellationToken))
             throw new InvalidOperationException("تم إنشاء مخالصة لهذه المكتبة في هذا الفصل بالفعل");
 
         var libraryInvoices = await _db.Invoices
@@ -167,12 +155,19 @@ public class InvoiceBusinessService
             .Where(i => i.LibraryId == dto.LibraryId
                      && i.SemesterId == dto.SemesterId
                      && i.Type != ClearanceType)
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         if (libraryInvoices.Count == 0)
             throw new InvalidOperationException("لا توجد فواتير لإنشاء مخالصة لهذه المكتبة");
 
-        var invoiceItems = BuildClearanceItems(libraryInvoices, out var totalAmount);
+        var clearanceResults = BuildClearanceItems(libraryInvoices, out var totalAmount);
+        var invoiceItems = clearanceResults.Select(r => r.Item).ToList();
+
+        // Deduct any amounts already paid via receipt vouchers
+        var paidAmount = await _db.ReceiptVouchers
+            .Where(rv => rv.LibraryId == dto.LibraryId && rv.SemesterId == dto.SemesterId)
+            .SumAsync(rv => (decimal?)rv.Amount, cancellationToken) ?? 0;
+        totalAmount = Math.Max(totalAmount - paidAmount, 0);
 
         if (invoiceItems.Count == 0 || totalAmount <= 0)
             throw new InvalidOperationException("لا توجد مبالغ مستحقة لإنشاء مخالصة. قد تكون جميع الطلبات مرتجعة بالكامل");
@@ -182,52 +177,78 @@ public class InvoiceBusinessService
             library,
             ClearanceType,
             totalAmount,
-            invoiceItems);
+            invoiceItems,
+            cancellationToken);
 
         await transaction.CommitAsync();
         return invoice;
     }
 
-    public async Task<ClearanceBatchResultDto> CreateBatchClearancesAsync(int semesterId)
+    public async Task<ClearanceBatchResultDto> CreateBatchClearancesAsync(int semesterId, CancellationToken cancellationToken = default)
     {
-        await using var transaction = await BeginInvoiceTransactionAsync(semesterId);
+        await using var transaction = await BeginInvoiceTransactionAsync(semesterId, cancellationToken);
 
-        var semester = await GetSemesterAsync(semesterId);
+        var semester = await GetSemesterAsync(semesterId, cancellationToken);
         var libraryIds = await _db.Invoices
             .Where(i => i.SemesterId == semesterId && i.Type != ClearanceType)
             .Select(i => i.LibraryId)
             .Distinct()
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
+
+        var existingClearanceIds = await _db.Invoices
+            .Where(i => i.SemesterId == semesterId && i.Type == ClearanceType)
+            .Select(i => i.LibraryId)
+            .ToListAsync(cancellationToken);
+
+        var allLibraryInvoices = await _db.Invoices
+            .Include(i => i.Items)
+            .Where(i => i.SemesterId == semesterId && i.Type != ClearanceType)
+            .ToListAsync(cancellationToken);
+
+        var invoicesByLibrary = allLibraryInvoices.GroupBy(i => i.LibraryId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        var libraries = await _db.Libraries
+            .Where(l => libraryIds.Contains(l.Id))
+            .ToListAsync(cancellationToken);
+        var librariesById = libraries.ToDictionary(l => l.Id);
+
+        var paidAmounts = await _db.ReceiptVouchers
+            .Where(rv => rv.SemesterId == semesterId && libraryIds.Contains(rv.LibraryId))
+            .GroupBy(rv => rv.LibraryId)
+            .Select(g => new { LibraryId = g.Key, Paid = g.Sum(rv => (decimal?)rv.Amount) ?? 0 })
+            .ToDictionaryAsync(g => g.LibraryId, g => g.Paid, cancellationToken);
 
         var created = new List<Invoice>();
         decimal batchTotal = 0;
 
         foreach (var libraryId in libraryIds)
         {
-            if (await _db.Invoices.AnyAsync(i =>
-                i.LibraryId == libraryId &&
-                i.SemesterId == semesterId &&
-                i.Type == ClearanceType))
+            if (existingClearanceIds.Contains(libraryId))
                 continue;
 
-            var libraryInvoices = await _db.Invoices
-                .Include(i => i.Items)
-                .Where(i => i.LibraryId == libraryId
-                         && i.SemesterId == semesterId
-                         && i.Type != ClearanceType)
-                .ToListAsync();
+            if (!invoicesByLibrary.TryGetValue(libraryId, out var libraryInvoices) || libraryInvoices.Count == 0)
+                continue;
 
-            var invoiceItems = BuildClearanceItems(libraryInvoices, out var totalAmount);
+            var clearanceResults = BuildClearanceItems(libraryInvoices, out var totalAmount);
+            var invoiceItems = clearanceResults.Select(r => r.Item).ToList();
+
+            var paidAmount = paidAmounts.TryGetValue(libraryId, out var p) ? p : 0;
+            totalAmount = Math.Max(totalAmount - paidAmount, 0);
+
             if (invoiceItems.Count == 0 || totalAmount <= 0)
                 continue;
 
-            var library = await GetLibraryForClearanceAsync(libraryId);
+            if (!librariesById.TryGetValue(libraryId, out var library))
+                continue;
+
             var invoice = await CreateInvoiceAsync(
                 semester,
                 library,
                 ClearanceType,
                 totalAmount,
-                invoiceItems);
+                invoiceItems,
+                cancellationToken);
 
             created.Add(invoice);
             batchTotal += totalAmount;
@@ -238,32 +259,28 @@ public class InvoiceBusinessService
 
         await transaction.CommitAsync();
 
-        // Reload each clearance individually with its own print data
-        var loadedInvoices = new List<InvoiceDto>();
-        foreach (var c in created)
-        {
-            var loaded = await _db.Invoices
-                .Include(i => i.Items)
-                .Include(i => i.Library).ThenInclude(l => l.Governorate)
-                .Include(i => i.Library).ThenInclude(l => l.City)
-                .Include(i => i.Semester)
-                .FirstOrDefaultAsync(i => i.Id == c.Id);
+        var createdIds = created.Select(c => c.Id).ToList();
+        var loadedInvoices = await _db.Invoices
+            .Include(i => i.Items)
+            .Include(i => i.Library).ThenInclude(l => l.Governorate)
+            .Include(i => i.Library).ThenInclude(l => l.City)
+            .Include(i => i.Semester)
+            .Where(i => createdIds.Contains(i.Id))
+            .ToListAsync(cancellationToken);
 
-            if (loaded != null)
-                loadedInvoices.Add(ToDto(loaded));
-        }
+        var loadedDtos = loadedInvoices.Select(InvoiceBusinessService.ToDto).ToList();
 
         return new ClearanceBatchResultDto
         {
-            Count = loadedInvoices.Count,
+            Count = loadedDtos.Count,
             TotalAmount = batchTotal,
-            Invoices = loadedInvoices
+            Invoices = loadedDtos
         };
     }
 
-    public async Task<ClearancePreviewDto> GetClearancePreviewAsync(int? libraryId, int semesterId)
+    public async Task<ClearancePreviewDto> GetClearancePreviewAsync(int? libraryId, int semesterId, CancellationToken cancellationToken = default)
     {
-        var semester = await GetSemesterAsync(semesterId);
+        var semester = await GetSemesterAsync(semesterId, cancellationToken);
 
         var query = _db.Invoices
             .Include(i => i.Items)
@@ -274,8 +291,24 @@ public class InvoiceBusinessService
             query = query.Where(i => i.LibraryId == libraryId.Value);
         }
 
-        var libraryInvoices = await query.ToListAsync();
-        var invoiceItems = BuildClearanceItems(libraryInvoices, out var totalAmount);
+        var libraryInvoices = await query.ToListAsync(cancellationToken);
+        var clearanceResults = BuildClearanceItems(libraryInvoices, out var totalAmount);
+
+        // Get total paid via receipt vouchers for this library/semester
+        decimal paidAmount = 0;
+        if (libraryId.HasValue && libraryId.Value > 0)
+        {
+            paidAmount = await _db.ReceiptVouchers
+                .Where(rv => rv.LibraryId == libraryId.Value && rv.SemesterId == semesterId)
+                .SumAsync(rv => (decimal?)rv.Amount, cancellationToken) ?? 0;
+        }
+        else
+        {
+            var libraryIds = libraryInvoices.Select(i => i.LibraryId).Distinct().ToList();
+            paidAmount = await _db.ReceiptVouchers
+                .Where(rv => rv.SemesterId == semesterId && libraryIds.Contains(rv.LibraryId))
+                .SumAsync(rv => (decimal?)rv.Amount, cancellationToken) ?? 0;
+        }
 
         var dto = new ClearancePreviewDto
         {
@@ -283,15 +316,18 @@ public class InvoiceBusinessService
             SemesterName = semester.Name,
             TermCode = semester.Code,
             TotalAmount = totalAmount,
-            Items = invoiceItems.Select(ii => new InvoiceItemDto
+            PaidAmount = paidAmount,
+            Items = clearanceResults.Select(r => new InvoiceItemDto
             {
-                Id = ii.Id,
-                BookId = ii.BookId,
-                BookName = ii.BookName,
-                BookGrade = ii.BookGrade,
-                Quantity = ii.Quantity,
-                UnitPrice = ii.UnitPrice,
-                Total = ii.Total
+                Id = r.Item.Id,
+                BookId = r.Item.BookId,
+                BookName = r.Item.BookName,
+                BookGrade = r.Item.BookGrade,
+                Quantity = r.Item.Quantity,
+                UnitPrice = r.Item.UnitPrice,
+                Total = r.Item.Total,
+                OrderedQty = r.OrderedQty,
+                RefundedQty = r.RefundedQty
             }).ToList()
         };
 
@@ -300,7 +336,7 @@ public class InvoiceBusinessService
             var library = await _db.Libraries
                 .Include(l => l.Governorate)
                 .Include(l => l.City)
-                .FirstOrDefaultAsync(l => l.Id == libraryId.Value)
+                .FirstOrDefaultAsync(l => l.Id == libraryId.Value, cancellationToken)
                 ?? throw new InvalidOperationException("المكتبة غير موجودة");
 
             dto.LibraryId = library.Id;
@@ -318,7 +354,7 @@ public class InvoiceBusinessService
         return dto;
     }
 
-    public static InvoiceDto ToDto(Invoice inv)
+    internal static InvoiceDto ToDto(Invoice inv)
     {
         return new InvoiceDto
         {
@@ -352,11 +388,11 @@ public class InvoiceBusinessService
         };
     }
 
-    public async Task DeleteInvoiceAsync(int invoiceId)
+    public async Task DeleteInvoiceAsync(int invoiceId, CancellationToken cancellationToken = default)
     {
         var invoice = await _db.Invoices
             .Include(i => i.Items)
-            .FirstOrDefaultAsync(i => i.Id == invoiceId);
+            .FirstOrDefaultAsync(i => i.Id == invoiceId, cancellationToken);
 
         if (invoice == null)
             throw new InvalidOperationException("الفاتورة غير موجودة");
@@ -364,16 +400,16 @@ public class InvoiceBusinessService
         if (invoice.Type == ClearanceType)
             throw new InvalidOperationException("لا يمكن حذف فاتورة المخالصة لحماية السجلات المحاسبية");
 
-        await using var transaction = await BeginInvoiceTransactionAsync(invoice.SemesterId);
+        await using var transaction = await BeginInvoiceTransactionAsync(invoice.SemesterId, cancellationToken);
 
         if (invoice.Type != ClearanceType)
         {
-            await EnsureNoClearanceAsync(invoice.LibraryId, invoice.SemesterId);
+            await EnsureNoClearanceAsync(invoice.LibraryId, invoice.SemesterId, cancellationToken);
         }
 
         if (invoice.Type == OrderType)
         {
-            var refundableQuantities = await GetRefundableQuantitiesAsync(invoice.LibraryId, invoice.SemesterId);
+            var refundableQuantities = await GetRefundableQuantitiesAsync(invoice.LibraryId, invoice.SemesterId, cancellationToken);
             foreach (var item in invoice.Items)
             {
                 refundableQuantities.TryGetValue(item.BookId, out var available);
@@ -382,86 +418,95 @@ public class InvoiceBusinessService
             }
         }
 
+        Dictionary<int, Book>? booksForRefund = null;
         if (invoice.Type == RefundType)
         {
-            // Check stock before deleting a refund (it would reduce stock)
+            var bookIds = invoice.Items.Select(i => i.BookId).ToList();
+            booksForRefund = await _db.Books
+                .Where(b => bookIds.Contains(b.Id))
+                .ToDictionaryAsync(b => b.Id, cancellationToken);
+
             foreach (var item in invoice.Items)
             {
-                var book = await _db.Books.FindAsync(item.BookId);
-                if (book != null && book.StockQuantity < item.Quantity)
+                if (booksForRefund.TryGetValue(item.BookId, out var book) && book.StockQuantity < item.Quantity)
                     throw new InvalidOperationException($"لا يمكن حذف المرتجع: المخزون الحالي للكتاب «{book.Name}» ({book.StockQuantity}) أقل من كمية المرتجع ({item.Quantity})");
             }
         }
 
+        // Batch stock restoration in-memory, then single SaveChangesAsync
+        var affectedBookIds = invoice.Items.Select(i => i.BookId).ToList();
+        var booksToUpdate = await _db.Books
+            .Where(b => affectedBookIds.Contains(b.Id))
+            .ToDictionaryAsync(b => b.Id, cancellationToken);
+
         foreach (var item in invoice.Items)
         {
+            if (!booksToUpdate.TryGetValue(item.BookId, out var book))
+                continue;
+
             if (invoice.Type == OrderType)
-            {
-                await _db.Books
-                    .Where(b => b.Id == item.BookId)
-                    .ExecuteUpdateAsync(setters => setters
-                        .SetProperty(b => b.StockQuantity, b => b.StockQuantity + item.Quantity));
-            }
+                book.StockQuantity += item.Quantity;
             else if (invoice.Type == RefundType)
-            {
-                await _db.Books
-                    .Where(b => b.Id == item.BookId)
-                    .ExecuteUpdateAsync(setters => setters
-                        .SetProperty(b => b.StockQuantity, b => b.StockQuantity - item.Quantity));
-            }
+                book.StockQuantity -= item.Quantity;
         }
 
         _db.Invoices.Remove(invoice);
-        await _db.SaveChangesAsync();
+        await _db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync();
     }
 
-    private async Task<IDbContextTransaction> BeginInvoiceTransactionAsync(int semesterId)
+    private async Task<TransactionWithLock> BeginInvoiceTransactionAsync(int semesterId, CancellationToken cancellationToken = default)
     {
-        var transaction = await _db.Database.BeginTransactionAsync(IsolationLevel.Serializable);
-        await AcquireTransactionLockAsync($"invoice-semester:{semesterId}", transaction);
-        return transaction;
+        var lockKey = $"invoice-semester:{semesterId}";
+        var semaphore = _locks.GetOrAdd(lockKey, _ => new SemaphoreSlim(1, 1));
+        await semaphore.WaitAsync(cancellationToken);
+        try
+        {
+            var transaction = await _db.Database.BeginTransactionAsync(System.Data.IsolationLevel.RepeatableRead, cancellationToken);
+            return new TransactionWithLock(transaction, semaphore);
+        }
+        catch
+        {
+            semaphore.Release();
+            throw;
+        }
     }
 
-    private async Task AcquireTransactionLockAsync(string resource, IDbContextTransaction transaction)
+    private sealed class TransactionWithLock : IAsyncDisposable
     {
-        var connection = _db.Database.GetDbConnection();
-        await using var command = connection.CreateCommand();
-        command.Transaction = transaction.GetDbTransaction();
-        command.CommandText = """
-            DECLARE @result int;
-            EXEC @result = sp_getapplock
-                @Resource = @resource,
-                @LockMode = 'Exclusive',
-                @LockOwner = 'Transaction',
-                @LockTimeout = @timeout;
-            SELECT @result;
-            """;
+        private readonly IDbContextTransaction _transaction;
+        private readonly SemaphoreSlim _semaphore;
+        private bool _disposed;
 
-        var resourceParameter = command.CreateParameter();
-        resourceParameter.ParameterName = "@resource";
-        resourceParameter.Value = resource;
-        command.Parameters.Add(resourceParameter);
+        public TransactionWithLock(IDbContextTransaction transaction, SemaphoreSlim semaphore)
+        {
+            _transaction = transaction;
+            _semaphore = semaphore;
+        }
 
-        var timeoutParameter = command.CreateParameter();
-        timeoutParameter.ParameterName = "@timeout";
-        timeoutParameter.Value = 10000;
-        command.Parameters.Add(timeoutParameter);
+        public async ValueTask DisposeAsync()
+        {
+            if (_disposed) return;
+            _disposed = true;
+            await _transaction.DisposeAsync();
+            _semaphore.Release();
+        }
 
-        var result = Convert.ToInt32(await command.ExecuteScalarAsync());
-        if (result < 0)
-            throw new InvalidOperationException("تعذر قفل عملية الفاتورة. الرجاء المحاولة مرة أخرى");
+        public Task CommitAsync(CancellationToken ct = default) => _transaction.CommitAsync(ct);
+        public Task RollbackAsync(CancellationToken ct = default) => _transaction.RollbackAsync(ct);
     }
 
-    private async Task<Semester> GetSemesterAsync(int semesterId)
+    private async Task<Semester> GetSemesterAsync(int semesterId, CancellationToken cancellationToken = default)
     {
-        return await _db.Semesters.FindAsync(semesterId)
+        return await _db.Semesters
+            .Include(s => s.AcademicYear)
+            .FirstOrDefaultAsync(s => s.Id == semesterId, cancellationToken)
             ?? throw new InvalidOperationException("الفصل الدراسي غير موجود");
     }
 
-    private async Task<Library> GetActiveLibraryAsync(int libraryId)
+    private async Task<Library> GetActiveLibraryAsync(int libraryId, CancellationToken cancellationToken = default)
     {
-        var library = await _db.Libraries.FindAsync(libraryId)
+        var library = await _db.Libraries.FindAsync(new object[] { libraryId }, cancellationToken)
             ?? throw new InvalidOperationException("المكتبة غير موجودة");
 
         if (!library.IsActive)
@@ -470,29 +515,29 @@ public class InvoiceBusinessService
         return library;
     }
 
-    private async Task<Library> GetLibraryForClearanceAsync(int libraryId)
+    private async Task<Library> GetLibraryForClearanceAsync(int libraryId, CancellationToken cancellationToken = default)
     {
-        return await _db.Libraries.FindAsync(libraryId)
+        return await _db.Libraries.FindAsync(new object[] { libraryId }, cancellationToken)
             ?? throw new InvalidOperationException("المكتبة غير موجودة");
     }
 
-    private async Task EnsureNoClearanceAsync(int libraryId, int semesterId)
+    private async Task EnsureNoClearanceAsync(int libraryId, int semesterId, CancellationToken cancellationToken = default)
     {
         var hasClearance = await _db.Invoices.AnyAsync(i =>
             i.LibraryId == libraryId &&
             i.SemesterId == semesterId &&
-            i.Type == ClearanceType);
+            i.Type == ClearanceType, cancellationToken);
 
         if (hasClearance)
             throw new InvalidOperationException("لا يمكن إنشاء طلب أو مرتجع بعد إصدار المخالصة النهائية");
     }
 
-    private async Task<Dictionary<int, Book>> LoadBooksAsync(IEnumerable<int> bookIds, int semesterId)
+    private async Task<Dictionary<int, Book>> LoadBooksAsync(IEnumerable<int> bookIds, int semesterId, CancellationToken cancellationToken = default)
     {
         var ids = bookIds.ToList();
         var books = await _db.Books
             .Where(b => ids.Contains(b.Id))
-            .ToDictionaryAsync(b => b.Id);
+            .ToDictionaryAsync(b => b.Id, cancellationToken);
 
         var missingIds = ids.Except(books.Keys).ToList();
         if (missingIds.Count > 0)
@@ -509,42 +554,44 @@ public class InvoiceBusinessService
         return books;
     }
 
-    private async Task<Dictionary<int, int>> GetRefundableQuantitiesAsync(int libraryId, int semesterId)
+    private async Task<Dictionary<int, int>> GetRefundableQuantitiesAsync(int libraryId, int semesterId, CancellationToken cancellationToken = default)
     {
-        var invoices = await _db.Invoices
-            .Include(i => i.Items)
-            .Where(i => i.LibraryId == libraryId && i.SemesterId == semesterId)
-            .ToListAsync();
+        var orderQtys = await _db.Invoices
+            .Where(i => i.LibraryId == libraryId && i.SemesterId == semesterId && i.Type == OrderType)
+            .SelectMany(i => i.Items)
+            .GroupBy(item => item.BookId)
+            .Select(g => new { BookId = g.Key, Qty = g.Sum(item => item.Quantity) })
+            .ToDictionaryAsync(x => x.BookId, x => x.Qty, cancellationToken);
 
-        return invoices
-            .Where(i => i.Type is OrderType or RefundType)
-            .SelectMany(i => i.Items.Select(item => new { i.Type, item.BookId, item.Quantity }))
-            .GroupBy(x => x.BookId)
-            .ToDictionary(
-                g => g.Key,
-                g => g.Where(x => x.Type == OrderType).Sum(x => x.Quantity)
-                   - g.Where(x => x.Type == RefundType).Sum(x => x.Quantity));
+        var refundQtys = await _db.Invoices
+            .Where(i => i.LibraryId == libraryId && i.SemesterId == semesterId && i.Type == RefundType)
+            .SelectMany(i => i.Items)
+            .GroupBy(item => item.BookId)
+            .Select(g => new { BookId = g.Key, Qty = g.Sum(item => item.Quantity) })
+            .ToDictionaryAsync(x => x.BookId, x => x.Qty, cancellationToken);
+
+        var result = new Dictionary<int, int>();
+        foreach (var (bookId, qty) in orderQtys)
+            result[bookId] = qty - refundQtys.GetValueOrDefault(bookId, 0);
+        foreach (var (bookId, qty) in refundQtys)
+            result.TryAdd(bookId, -qty);
+        return result;
     }
 
     /// <summary>
     /// Gets original sale prices using FIFO from order invoices.
     /// Returns the first (earliest) sale price for each book.
     /// </summary>
-    private async Task<Dictionary<int, decimal>> GetOriginalSalePricesAsync(int libraryId, int semesterId)
+    private async Task<Dictionary<int, decimal>> GetOriginalSalePricesAsync(int libraryId, int semesterId, CancellationToken cancellationToken = default)
     {
-        var orderItems = await _db.Invoices
-            .Where(i => i.LibraryId == libraryId && i.SemesterId == semesterId && i.Type == OrderType)
-            .OrderBy(i => i.Date)
-            .SelectMany(i => i.Items)
-            .ToListAsync();
+        var priceData = await _db.InvoiceItems
+            .Where(ii => ii.Invoice.LibraryId == libraryId && ii.Invoice.SemesterId == semesterId && ii.Invoice.Type == OrderType)
+            .Select(ii => new { ii.BookId, ii.UnitPrice, ii.Invoice.Date })
+            .ToListAsync(cancellationToken);
 
-        var prices = new Dictionary<int, decimal>();
-        foreach (var item in orderItems)
-        {
-            // First sale price wins (FIFO)
-            if (!prices.ContainsKey(item.BookId))
-                prices[item.BookId] = item.UnitPrice;
-        }
+        var prices = priceData
+            .GroupBy(x => x.BookId)
+            .ToDictionary(g => g.Key, g => g.OrderBy(x => x.Date).Select(x => x.UnitPrice).First());
         return prices;
     }
 
@@ -553,16 +600,21 @@ public class InvoiceBusinessService
         Library library,
         string type,
         decimal totalAmount,
-        List<InvoiceItem> invoiceItems)
+        List<InvoiceItem> invoiceItems,
+        CancellationToken cancellationToken = default)
     {
-        var invoiceYear = GetCurrentInvoiceYear();
+        if (semester.AcademicYear == null)
+            throw new InvalidOperationException($"Academic year not loaded for semester {semester.Id}");
+        var yearPart = semester.AcademicYear.Name.Split('-')[0];
+        if (!int.TryParse(yearPart, out var invoiceYear))
+            throw new InvalidOperationException($"Invalid academic year format: {semester.AcademicYear.Name}");
         
         // Determine the term code for the invoice number:
         // - Orders and refunds use the semester code (A/B)
         // - Clearance uses "P"
-        var termCode = type == ClearanceType ? "P" : semester.Code;
+        var termCode = type == ClearanceType ? ClearanceTermCode : semester.Code;
         
-        var nextNumber = await GetNextInvoiceNumberAsync(library.Id, invoiceYear, termCode);
+        var nextNumber = await GetNextInvoiceNumberAsync(library.Id, invoiceYear, cancellationToken);
         var invoice = new Invoice
         {
             InvoiceNumber = nextNumber,
@@ -580,7 +632,7 @@ public class InvoiceBusinessService
         };
 
         _db.Invoices.Add(invoice);
-        await _db.SaveChangesAsync();
+        await _db.SaveChangesAsync(cancellationToken);
         return invoice;
     }
 
@@ -622,30 +674,35 @@ public class InvoiceBusinessService
         };
     }
 
-    private static List<InvoiceItem> BuildClearanceItems(List<Invoice> libraryInvoices, out decimal totalAmount)
+    private static List<(InvoiceItem Item, int OrderedQty, int RefundedQty)> BuildClearanceItems(List<Invoice> libraryInvoices, out decimal totalAmount)
     {
-        var summaries = new Dictionary<(int BookId, decimal Price), ClearanceSummary>();
+        var summaries = new Dictionary<int, ClearanceSummary>();
 
         foreach (var invoice in libraryInvoices)
         {
             foreach (var item in invoice.Items)
             {
-                var key = (item.BookId, item.UnitPrice);
-                if (!summaries.TryGetValue(key, out var summary))
+                if (!summaries.TryGetValue(item.BookId, out var summary))
                 {
-                    summary = new ClearanceSummary(item.BookId, item.BookName, item.BookGrade, item.UnitPrice);
-                    summaries[key] = summary;
+                    summary = new ClearanceSummary(item.BookId, item.BookName, item.BookGrade);
+                    summaries[item.BookId] = summary;
                 }
 
                 if (invoice.Type == OrderType)
+                {
                     summary.OrderedQty += item.Quantity;
+                    summary.TotalOrderCost += item.Total;
+                }
                 else if (invoice.Type == RefundType)
+                {
                     summary.RefundedQty += item.Quantity;
+                    summary.TotalRefundCost += item.Total;
+                }
             }
         }
 
         totalAmount = 0;
-        var items = new List<InvoiceItem>();
+        var items = new List<(InvoiceItem, int, int)>();
 
         foreach (var summary in summaries.Values)
         {
@@ -653,18 +710,19 @@ public class InvoiceBusinessService
             if (netQty <= 0)
                 continue;
 
-            var lineTotal = netQty * summary.Price;
+            var avgPrice = (summary.TotalOrderCost - summary.TotalRefundCost) / netQty;
+            var lineTotal = netQty * avgPrice;
             totalAmount += lineTotal;
 
-            items.Add(new InvoiceItem
+            items.Add((new InvoiceItem
             {
                 BookId = summary.BookId,
                 BookName = summary.Name,
                 BookGrade = summary.Grade,
                 Quantity = netQty,
-                UnitPrice = summary.Price,
+                UnitPrice = avgPrice,
                 Total = lineTotal
-            });
+            }, summary.OrderedQty, summary.RefundedQty));
         }
 
         return items;
@@ -672,18 +730,18 @@ public class InvoiceBusinessService
 
     private sealed class ClearanceSummary
     {
-        public ClearanceSummary(int bookId, string name, string grade, decimal price)
+        public ClearanceSummary(int bookId, string name, string grade)
         {
             BookId = bookId;
             Name = name;
             Grade = grade;
-            Price = price;
         }
 
         public int BookId { get; }
         public string Name { get; }
         public string Grade { get; }
-        public decimal Price { get; }
+        public decimal TotalOrderCost { get; set; }
+        public decimal TotalRefundCost { get; set; }
         public int OrderedQty { get; set; }
         public int RefundedQty { get; set; }
     }

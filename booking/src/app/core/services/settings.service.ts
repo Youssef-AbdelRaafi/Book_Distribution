@@ -1,13 +1,18 @@
 import { Injectable, signal, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, catchError, of, tap, throwError } from 'rxjs';
+import { Observable, of, throwError } from 'rxjs';
+import { catchError, tap } from 'rxjs/operators';
+import { ToastService } from './toast.service';
 import { environment } from '../../../environments/environment';
+import { ApiResponse } from '../models/api-response.model';
 
 export interface PrintSettings {
   brandName: string;
   phones: string;
   mainCurrency: string;
   subCurrency: string;
+  ownerSignatureName: string;
+  whatsappNumber: string;
   term1Start?: string;
   term2Start?: string;
 }
@@ -23,6 +28,7 @@ export interface SemesterInfo {
 @Injectable({ providedIn: 'root' })
 export class SettingsService {
   private http = inject(HttpClient);
+  private toast = inject(ToastService);
   private apiUrl = `${environment.apiUrl}/settings`;
   private semesterUrl = `${environment.apiUrl}/semesters`;
 
@@ -32,7 +38,9 @@ export class SettingsService {
     brandName: 'سلسلة تدريبات كامبريدج في الفيزياء',
     phones: 'إدارة المبيعات: هاتف: 91913020 - 98877925',
     mainCurrency: 'R.O.',
-    subCurrency: 'Bz'
+    subCurrency: 'Bz',
+    ownerSignatureName: 'مدحت محمد عبد الستار',
+    whatsappNumber: '91913020'
   };
 
   printSettings = signal<PrintSettings>(this.loadSettings());
@@ -73,41 +81,49 @@ export class SettingsService {
   }
 
   fetchSettings(): void {
-    this.http.get<any>(this.apiUrl).pipe(
+    this.http.get<ApiResponse<Record<string, unknown>>>(this.apiUrl).pipe(
       tap(res => {
-        const data = res.data || res;
+        const data = res.data as unknown as Record<string, string>;
         if (data) {
           const settings: PrintSettings = {
-            brandName: data.brandName || this.defaultSettings.brandName,
-            phones: data.phones || this.defaultSettings.phones,
-            mainCurrency: data.mainCurrency || this.defaultSettings.mainCurrency,
-            subCurrency: data.subCurrency || this.defaultSettings.subCurrency
+            brandName: data['brandName'] || this.defaultSettings.brandName,
+            phones: data['phones'] || this.defaultSettings.phones,
+            mainCurrency: data['mainCurrency'] || this.defaultSettings.mainCurrency,
+            subCurrency: data['subCurrency'] || this.defaultSettings.subCurrency,
+            ownerSignatureName: data['ownerSignatureName'] || this.defaultSettings.ownerSignatureName,
+            whatsappNumber: data['whatsappNumber'] || this.defaultSettings.whatsappNumber
           };
           this.printSettings.set(settings);
           localStorage.setItem(this.STORAGE_KEY, JSON.stringify(settings));
         }
       }),
-      catchError(() => of(null))
+      catchError(error => {
+        this.toast.show('تعذر تحميل الإعدادات', 'error');
+        return of(null);
+      })
     ).subscribe();
   }
 
   fetchSemesters(): void {
-    this.http.get<any>(this.semesterUrl).pipe(
+    this.http.get<ApiResponse<SemesterInfo[]>>(this.semesterUrl).pipe(
       tap(res => {
-        const data = res.data || res;
+        const data = res.data;
         if (Array.isArray(data)) {
           this.allSemesters.set(data);
-          const active = data.find((s: any) => s.isActive) ?? data[0];
+          const active = data.find((s: SemesterInfo) => s.isActive) ?? data[0];
           if (active) this.activeSemester.set(active);
         }
       }),
-      catchError(() => of(null))
+      catchError(error => {
+        this.toast.show('تعذر تحميل الفصول الدراسية', 'error');
+        return of(null);
+      })
     ).subscribe();
   }
 
   getCurrentTerm(): string {
     const active = this.activeSemester();
-    return active?.name || 'الأول';
+    return active?.name || 'الفصل الأول';
   }
 
   getActiveTermCode(): string {
@@ -115,25 +131,24 @@ export class SettingsService {
     return active?.code || 'A';
   }
 
-  getActiveSemesterId(): number {
+  getActiveSemesterId(): number | null {
     const active = this.activeSemester();
-    return active?.id ?? this.allSemesters().find(s => s.isActive)?.id ?? 0;
+    return active?.id ?? this.allSemesters().find(s => s.isActive)?.id ?? null;
   }
 
-  activateSemester(semesterId: number): Observable<any> {
-    return this.http.put<any>(`${this.semesterUrl}/${semesterId}/activate`, {}).pipe(
-      tap(() => {
-        this.allSemesters.update(list =>
-          list.map(s => ({ ...s, isActive: s.id === semesterId }))
-        );
-        const activated = this.allSemesters().find(s => s.id === semesterId);
-        if (activated) this.activeSemester.set(activated);
-        this.fetchSemesters();
-      })
+  activateSemester(semesterId: number): Observable<ApiResponse<unknown>> {
+    return this.http.put<ApiResponse<unknown>>(`${this.semesterUrl}/${semesterId}/activate`, {}).pipe(
+    tap(() => {
+      this.allSemesters.update(list =>
+        list.map(s => ({ ...s, isActive: s.id === semesterId }))
+      );
+      const activated = this.allSemesters().find(s => s.id === semesterId);
+      if (activated) this.activeSemester.set(activated);
+    })
     );
   }
 
-  activateSemesterByCode(code: string): Observable<any> {
+  activateSemesterByCode(code: string): Observable<ApiResponse<unknown>> {
     const semester = this.resolveSemesterByCode(code);
     if (!semester) {
       return throwError(() => ({ error: { message: 'الفصل الدراسي غير موجود لهذا العام' } }));
@@ -141,8 +156,8 @@ export class SettingsService {
     return this.activateSemester(semester.id);
   }
 
-  startNewYear(startYear: number): Observable<any> {
-    return this.http.post<any>(`${this.semesterUrl}/start-new-year`, { startYear }).pipe(
+  startNewYear(startYear: number): Observable<ApiResponse<unknown>> {
+    return this.http.post<ApiResponse<unknown>>(`${this.semesterUrl}/start-new-year`, { startYear }).pipe(
       tap(() => {
         this.fetchSemesters();
       })
@@ -150,27 +165,30 @@ export class SettingsService {
   }
 
   private resolveSemesterByCode(code: string): SemesterInfo | undefined {
+    const matches = this.allSemesters().filter(s => s.code === code);
+    if (matches.length === 0) return undefined;
+
     const active = this.activeSemester();
     const yearName = active?.academicYearName;
-    const matches = this.allSemesters().filter(s => s.code === code);
-
     if (yearName) {
       const sameYear = matches.find(s => s.academicYearName === yearName);
       if (sameYear) return sameYear;
     }
 
-    return matches[0];
+    return matches.sort((a, b) => b.academicYearName.localeCompare(a.academicYearName))[0];
   }
 
-  /** @deprecated Use activateSemester or activateSemesterByCode */
-  setActiveSemester(semesterId: number): void {
-    this.activateSemester(semesterId).subscribe();
-  }
-
-  updatePrintSettings(settings: PrintSettings) {
-    this.printSettings.set(settings);
-    localStorage.setItem(this.STORAGE_KEY, JSON.stringify(settings));
-    this.http.put(this.apiUrl, settings).subscribe();
+  updatePrintSettings(settings: PrintSettings): Observable<ApiResponse<unknown>> {
+    return this.http.put<ApiResponse<unknown>>(this.apiUrl, settings).pipe(
+      tap(() => {
+        this.printSettings.set(settings);
+        localStorage.setItem(this.STORAGE_KEY, JSON.stringify(settings));
+      }),
+      catchError(error => {
+        this.toast.show('تعذر حفظ إعدادات الطباعة', 'error');
+        return throwError(() => error);
+      })
+    );
   }
 
   updateSectionOrder(order: string[]) {

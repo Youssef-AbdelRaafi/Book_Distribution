@@ -3,6 +3,7 @@ import { SettingsService } from './settings.service';
 import { InventoryService } from './inventory.service';
 import { LibraryService } from './library.service';
 import { InvoiceService } from './invoice.service';
+import { ReceiptVoucherService } from './receipt-voucher.service';
 
 @Injectable({ providedIn: 'root' })
 export class AppDataService {
@@ -10,6 +11,7 @@ export class AppDataService {
   private inventoryService = inject(InventoryService);
   private libraryService = inject(LibraryService);
   private invoiceService = inject(InvoiceService);
+  private receiptVoucherService = inject(ReceiptVoucherService);
 
   loadAuthenticatedData(): void {
     this.settingsService.reloadAfterAuth();
@@ -17,5 +19,6 @@ export class AppDataService {
     this.libraryService.fetchLibraries();
     this.libraryService.fetchGovernorates();
     this.invoiceService.fetchInvoices();
+    this.receiptVoucherService.fetchVouchers();
   }
 }

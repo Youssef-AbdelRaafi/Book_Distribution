@@ -28,12 +28,12 @@ public sealed class ApiExceptionMiddleware
         }
         catch (InvalidOperationException ex)
         {
-            _logger.LogWarning(ex, "Business rule violation.");
+            _logger.LogWarning(0, ex, "Business rule violation: {Message}", ex.Message);
             await WriteErrorAsync(context, HttpStatusCode.BadRequest, ex.Message);
         }
         catch (DbUpdateException ex)
         {
-            _logger.LogWarning(ex, "Database update failed.");
+            _logger.LogWarning(1, ex, "Database constraint violation: {Message}", ex.InnerException?.Message ?? ex.Message);
             await WriteErrorAsync(context, HttpStatusCode.BadRequest, "البيانات المرسلة غير صحيحة أو مرتبطة بسجلات أخرى");
         }
         catch (Exception ex)

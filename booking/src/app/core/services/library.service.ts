@@ -1,12 +1,17 @@
 import { Injectable, inject, signal } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { BehaviorSubject, Observable, catchError, of, tap } from 'rxjs';
 import { Library, Governorate } from '../models/library.model';
+import { ApiResponse } from '../models/api-response.model';
+import { ToastService } from './toast.service';
 import { environment } from '../../../environments/environment';
+
+import { ActivityPayload } from '../models/activity.model';
 
 @Injectable({ providedIn: 'root' })
 export class LibraryService {
   private http = inject(HttpClient);
+  private toast = inject(ToastService);
   private apiUrl = `${environment.apiUrl}/libraries`;
   private govUrl = `${environment.apiUrl}/governorates`;
 
@@ -16,66 +21,113 @@ export class LibraryService {
   governorates = signal<Governorate[]>([]);
 
   fetchLibraries(): void {
-    this.http.get<any>(this.apiUrl).pipe(
+    this.http.get<ApiResponse<Library[]>>(this.apiUrl).pipe(
       tap(res => {
-        const data = res.data || res;
-        this.librariesSubject.next(Array.isArray(data) ? data : []);
+        this.librariesSubject.next(Array.isArray(res.data) ? res.data : []);
       }),
       catchError(error => {
-        console.error('API Error fetching libraries', error);
-        return of([]);
+        this.toast.show('تعذر تحميل المكتبات', 'error');
+        return of({ data: [], success: false } as ApiResponse<Library[]>);
       })
     ).subscribe();
   }
 
   fetchGovernorates(): void {
-    this.http.get<any>(this.govUrl).pipe(
+    this.http.get<ApiResponse<Governorate[]>>(this.govUrl).pipe(
       tap(res => {
-        const data = res.data || res;
-        this.governorates.set(Array.isArray(data) ? data : []);
+        this.governorates.set(Array.isArray(res.data) ? res.data : []);
       }),
       catchError(error => {
-        console.error('API Error fetching governorates', error);
-        return of([]);
+        this.toast.show('تعذر تحميل المحافظات', 'error');
+        return of({ data: [], success: false } as ApiResponse<Governorate[]>);
       })
     ).subscribe();
   }
 
-  addLibrary(lib: Partial<Library>): Observable<any> {
-    return this.http.post<any>(this.apiUrl, lib).pipe(
+  private prependLibrary(lib: Library): void {
+    this.librariesSubject.next([lib, ...this.librariesSubject.value]);
+  }
+
+  private replaceLibrary(id: number, lib: Library): void {
+    this.librariesSubject.next(
+      this.librariesSubject.value.map(l => l.id === id ? lib : l)
+    );
+  }
+
+  private removeLibrary(id: number): void {
+    this.librariesSubject.next(
+      this.librariesSubject.value.filter(l => l.id !== id)
+    );
+  }
+
+  addLibrary(lib: Partial<Library>): Observable<ApiResponse<Library>> {
+    return this.http.post<ApiResponse<Library>>(this.apiUrl, lib).pipe(
+      tap(res => {
+        const created = res.data;
+        if (created?.id) this.prependLibrary(created);
+      })
+    );
+  }
+
+  updateLibrary(id: number, lib: Partial<Library>): Observable<ApiResponse<Library>> {
+    return this.http.put<ApiResponse<Library>>(`${this.apiUrl}/${id}`, lib).pipe(
+      tap(res => {
+        const updated = res.data;
+        if (updated?.id) this.replaceLibrary(id, updated);
+      })
+    );
+  }
+
+  updateRating(id: number, rating: { responseRating?: string; paymentRating?: string; notes?: string }): Observable<ApiResponse<unknown>> {
+    return this.http.put<ApiResponse<unknown>>(`${this.apiUrl}/${id}/rating`, rating).pipe(
       tap(() => this.fetchLibraries())
     );
   }
 
-  updateLibrary(id: number, lib: Partial<Library>): Observable<any> {
-    return this.http.put<any>(`${this.apiUrl}/${id}`, lib).pipe(
+  deleteLibrary(id: number): Observable<ApiResponse<unknown>> {
+    return this.http.delete<ApiResponse<unknown>>(`${this.apiUrl}/${id}`).pipe(
+      tap(() => this.removeLibrary(id))
+    );
+  }
+
+  getLibraryBooks(libraryId: number, semesterId?: number): Observable<ApiResponse<unknown>> {
+    let params = new HttpParams();
+    if (semesterId) params = params.set('semesterId', semesterId.toString());
+    return this.http.get<ApiResponse<unknown>>(`${this.apiUrl}/${libraryId}/books`, { params });
+  }
+
+  updateLibraryBooks(libraryId: number, books: { bookId: number; quantity: number }[]): Observable<ApiResponse<unknown>> {
+    return this.http.put<ApiResponse<unknown>>(`${this.apiUrl}/${libraryId}/books`, { items: books });
+  }
+
+  uploadLogo(id: number, file: File): Observable<ApiResponse<unknown>> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return this.http.post<ApiResponse<unknown>>(`${this.apiUrl}/${id}/logo`, formData).pipe(
       tap(() => this.fetchLibraries())
     );
   }
 
-  updateRating(id: number, rating: { responseRating?: string; paymentRating?: string; notes?: string }): Observable<any> {
-    return this.http.put<any>(`${this.apiUrl}/${id}/rating`, rating).pipe(
-      tap(() => this.fetchLibraries())
-    );
+  executeCompensation(activity: { type?: string; payload?: ActivityPayload }) {
+    const payload = activity?.payload;
+    if (!payload) return;
+    if (activity.type === 'ADD' && payload.id) {
+      this.deleteLibrary(payload.id).subscribe({ error: () => {} });
+    } else if (activity.type === 'DELETE' && payload) {
+      this.addLibrary(payload as unknown as Library).subscribe({ error: () => {} });
+    } else if (activity.type === 'UPDATE' && payload?.id && payload?.previous) {
+      this.updateLibrary(payload.id, payload.previous as unknown as Partial<Library>).subscribe({ error: () => {} });
+    }
   }
-
-  deleteLibrary(id: number): Observable<any> {
-    return this.http.delete<any>(`${this.apiUrl}/${id}`).pipe(
-      tap(() => this.fetchLibraries())
-    );
+  executeRedo(activity: { type?: string; payload?: ActivityPayload }) {
+    const payload = activity?.payload;
+    if (!payload) return;
+    if (activity.type === 'ADD' && payload) {
+      this.addLibrary(payload as unknown as Library).subscribe({ error: () => {} });
+    } else if (activity.type === 'DELETE' && payload?.id) {
+      this.deleteLibrary(payload.id).subscribe({ error: () => {} });
+    } else if (activity.type === 'UPDATE' && payload?.id && payload?.current) {
+      this.updateLibrary(payload.id, payload.current as unknown as Partial<Library>).subscribe({ error: () => {} });
+    }
   }
-
-  getLibraryBooks(libraryId: number, semesterId?: number): Observable<any> {
-    let params: any = {};
-    if (semesterId) params.semesterId = semesterId.toString();
-    return this.http.get<any>(`${this.apiUrl}/${libraryId}/books`, { params });
-  }
-
-  updateLibraryBooks(libraryId: number, books: { bookId: number; quantity: number }[]): Observable<any> {
-    return this.http.put<any>(`${this.apiUrl}/${libraryId}/books`, { items: books });
-  }
-
-  // Backward compat
-  executeCompensation(activity: any) {}
-  executeRedo(activity: any) {}
 }

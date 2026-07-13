@@ -1,0 +1,12 @@
+export const LS_AUTH_TOKEN = 'auth_token';
+export const LS_AUTH_EXPIRES_AT = 'auth_expires_at';
+export const LS_DARK_MODE = 'darkMode';
+export const LS_DASH_ANALYSIS_COLLAPSED = 'dash_analysisCollapsed';
+export const LS_DASH_CLASSIC_MODE = 'dash_classicMode';
+export const LS_INV_FORCE_SHOW_BTN = 'inv_force_show_btn';
+export const LS_INV_FORM_COLLAPSED = 'inv_formCollapsed';
+export const LS_INV_HISTORY_COLLAPSED = 'inv_historyCollapsed';
+export const LS_INV_IS_MERGED = 'inv_isMerged';
+export const LS_INVNT_LIST_COLLAPSED = 'invnt_listCollapsed';
+export const LS_LIB_ADD_FORM_COLLAPSED = 'lib_addFormCollapsed';
+export const LS_LIB_LIST_COLLAPSED = 'lib_listCollapsed';

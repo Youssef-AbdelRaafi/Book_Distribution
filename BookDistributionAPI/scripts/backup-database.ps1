@@ -1,32 +1,37 @@
-# نسخ احتياطي أسبوعي لقاعدة بيانات العميل
-# شغّله من Task Scheduler كل أسبوع، أو يدوياً:
-#   powershell -ExecutionPolicy Bypass -File backup-database.ps1
-
 param(
-    [string]$Server = "localhost",
-    [string]$Database = "BookDistributionDB",
-    [string]$BackupDir = "$env:USERPROFILE\Documents\BookDistributionBackups"
+    [string]$DataDir = "/app/data",
+    [string]$BackupDir = "/app/backups",
+    [string]$DbName = "app.db",
+    [int]$RetentionDays = 30
 )
 
-$ErrorActionPreference = "Stop"
-New-Item -ItemType Directory -Force -Path $BackupDir | Out-Null
+$timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+$dbPath = Join-Path $DataDir $DbName
+$backupFile = Join-Path $BackupDir "bookdistribution_$timestamp.db"
 
-$timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
-$backupFile = Join-Path $BackupDir "$Database-$timestamp.bak"
+if (-not (Test-Path $BackupDir)) {
+    New-Item -ItemType Directory -Path $BackupDir -Force | Out-Null
+}
 
-Write-Host "جاري النسخ الاحتياطي إلى: $backupFile"
-
-sqlcmd -Q "BACKUP DATABASE [$Database] TO DISK = N'$backupFile' WITH INIT, COMPRESSION, STATS = 10"
-
-if ($LASTEXITCODE -ne 0) {
-    Write-Error "فشل النسخ الاحتياطي. تأكد من تثبيت SQL Server وتشغيله."
+if (-not (Test-Path $dbPath)) {
+    Write-Error "Database not found at $dbPath"
     exit 1
 }
 
-# احتفظ بآخر 8 نسخ فقط
-Get-ChildItem $BackupDir -Filter "$Database-*.bak" |
-    Sort-Object LastWriteTime -Descending |
-    Select-Object -Skip 8 |
-    Remove-Item -Force
+# Use sqlite3 .backup command for safe online backup
+try {
+    $backupFileAbs = (Resolve-Path $BackupDir).Path + "\bookdistribution_$timestamp.db"
+    & "sqlite3" $dbPath ".backup '$backupFileAbs'"
+    Write-Output "Backup created: $backupFileAbs ($((Get-Item $backupFileAbs).Length / 1MB -as [int]) MB)"
+}
+catch {
+    Write-Error "sqlite3 not found. Falling back to file copy."
+    Copy-Item -Path $dbPath -Destination $backupFile -Force
+}
 
-Write-Host "تم النسخ الاحتياطي بنجاح."
+# Compress old backups
+$oldBackups = Get-ChildItem -Path $BackupDir -Filter "*.db" | Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-$RetentionDays) }
+foreach ($old in $oldBackups) {
+    Remove-Item -Path $old.FullName -Force
+    Write-Output "Removed old backup: $($old.Name)"
+}

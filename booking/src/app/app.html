@@ -15,9 +15,21 @@
   </div>
 </div>
 
+<!-- Global Confirm Dialog -->
+<div *ngIf="confirmService.state() as confirm" class="fixed inset-0 z-[10000] flex items-center justify-center bg-black/40 print:hidden"
+     (click.self)="confirm.resolve(false)">
+  <div class="bg-surface-primary rounded-2xl shadow-2xl border border-surface-container-high p-6 w-full max-w-md mx-4 animate-in fade-in zoom-in-95 duration-200">
+    <p class="text-text-heading text-base leading-relaxed whitespace-pre-line">{{ confirm.message }}</p>
+    <div class="flex justify-end gap-3 mt-6">
+      <button type="button" (click)="confirm.resolve(false)" class="px-5 py-2.5 border border-outline-variant rounded-lg text-sm font-medium text-on-surface-variant hover:bg-surface-container transition-colors">إلغاء</button>
+      <button type="button" (click)="confirm.resolve(true)" class="px-5 py-2.5 bg-primary text-on-primary rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors">تأكيد</button>
+    </div>
+  </div>
+</div>
+
 <!-- Global Toasts Container -->
 <div class="fixed top-4 left-1/2 -translate-x-1/2 z-[9999] flex flex-col gap-2 pointer-events-none w-full max-w-sm px-4 print:hidden">
-  <div *ngFor="let toast of toastService.toasts()" 
+  <div *ngFor="let toast of toastService.toasts(); trackBy: trackById" 
        class="pointer-events-auto flex items-center justify-between p-4 rounded-lg shadow-lg border animate-in fade-in slide-in-from-top-4"
        [ngClass]="{
          'bg-surface-container-lowest border-success text-success': toast.type === 'success',
@@ -30,7 +42,7 @@
       </span>
       <span class="text-sm font-medium">{{ toast.message }}</span>
     </div>
-    <button (click)="toastService.remove(toast.id)" class="text-on-surface-variant hover:text-on-surface transition-colors">
+    <button type="button" (click)="toastService.remove(toast.id)" class="text-on-surface-variant hover:text-on-surface transition-colors">
       <span class="material-symbols-outlined text-[18px]">close</span>
     </button>
   </div>

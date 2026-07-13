@@ -10,5 +10,6 @@ export const authGuard: CanActivateFn = (route, state) => {
     return true;
   }
 
+  sessionStorage.setItem('returnUrl', state.url);
   return router.parseUrl('/login');
 };

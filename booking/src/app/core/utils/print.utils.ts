@@ -23,29 +23,33 @@ export function printWhenImagesReady(
       printed = true;
       const previousTitle = document.title;
       document.title = ' ';
-      
+
       const appRoot = document.querySelector('app-root') as HTMLElement;
       const originalParent = container.parentElement;
       const originalNextSibling = container.nextSibling;
-      
-      if (appRoot && originalParent) {
-        document.body.appendChild(container);
-        appRoot.style.display = 'none';
-      }
 
-      window.print();
-
-      if (appRoot && originalParent) {
-        if (originalNextSibling) {
-          originalParent.insertBefore(container, originalNextSibling);
-        } else {
-          originalParent.appendChild(container);
+      try {
+        if (appRoot && originalParent) {
+          document.body.appendChild(container);
+          appRoot.style.display = 'none';
         }
-        appRoot.style.display = '';
-      }
 
-      document.title = previousTitle;
-      onAfterPrint?.();
+        window.print();
+      } finally {
+        if (appRoot && originalParent) {
+          try {
+            if (originalNextSibling) {
+              originalParent.insertBefore(container, originalNextSibling);
+            } else {
+              originalParent.appendChild(container);
+            }
+          } catch { /* container may have been removed */ }
+          appRoot.style.display = '';
+        }
+
+        document.title = previousTitle;
+        onAfterPrint?.();
+      }
     };
 
     if (pending.length === 0) {

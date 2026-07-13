@@ -1,44 +1,62 @@
-import { Component, inject, Input, computed, signal } from '@angular/core';
+import { Component, inject, Input, computed, signal, DestroyRef, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { toSignal } from '@angular/core/rxjs-interop';
+import { toSignal, takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { InventoryService } from '../../core/services/inventory.service';
 import { InvoiceService } from '../../core/services/invoice.service';
+import { ReceiptVoucherService } from '../../core/services/receipt-voucher.service';
 import { LibraryService } from '../../core/services/library.service';
 import { SettingsService } from '../../core/services/settings.service';
 import { ToastService } from '../../core/services/toast.service';
 import { Invoice } from '../../core/models/invoice.model';
+import { Book } from '../../core/models/inventory.model';
+import { LS_DASH_ANALYSIS_COLLAPSED, LS_DASH_CLASSIC_MODE } from '../../core/constants/local-storage-keys';
 
 @Component({
   selector: 'app-dashboard',
+  changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './dashboard.html'
 })
 export class DashboardComponent {
   @Input() isCompact = false;
-
+  trackById = (i: number, item: any) => item?.id ?? i;
+  trackByIndex = (i: number) => i;
   private inventoryService = inject(InventoryService);
   private invoicesService = inject(InvoiceService);
+  private receiptVoucherService = inject(ReceiptVoucherService);
   private libraryService = inject(LibraryService);
   public settingsService = inject(SettingsService);
   private toast = inject(ToastService);
+  private destroyRef = inject(DestroyRef);
+
+  classicUnitLabel = computed(() => {
+    const mode = this.classicDisplayMode();
+    if (mode === 'revenue') return this.settingsService.printSettings().mainCurrency;
+    if (mode === 'quantity') return 'كتاب';
+    return 'مكتبة';
+  });
 
   onTermCodeChange(code: string) {
-    this.settingsService.activateSemesterByCode(code).subscribe({
+    this.settingsService.activateSemesterByCode(code).pipe(
+      takeUntilDestroyed(this.destroyRef)
+    ).subscribe({
       next: () => this.toast.show('تم تنشيط الفصل الدراسي', 'success'),
       error: (err) => this.toast.show(err.error?.message || 'تعذر تغيير الفصل الدراسي', 'error')
     });
   }
 
-  isAnalysisCollapsed = signal(localStorage.getItem('dash_analysisCollapsed') === 'true');
-  isClassicMode = signal(localStorage.getItem('dash_classicMode') !== 'false');
+  isAnalysisCollapsed = signal(localStorage.getItem(LS_DASH_ANALYSIS_COLLAPSED) === 'true');
+  isClassicMode = signal(localStorage.getItem(LS_DASH_CLASSIC_MODE) !== 'false');
   classicDisplayMode = signal<'libraries' | 'revenue' | 'quantity'>('libraries');
-  
+  private readonly LOW_STOCK_THRESHOLD = 150;
+  private readonly CRITICAL_STOCK_THRESHOLD = 200;
+
   toggleClassicMode(event: Event) {
     event.stopPropagation();
     this.isClassicMode.set(!this.isClassicMode());
-    localStorage.setItem('dash_classicMode', String(this.isClassicMode()));
+    localStorage.setItem(LS_DASH_CLASSIC_MODE, String(this.isClassicMode()));
   }
 
   // Convert Observables to Signals
@@ -48,23 +66,24 @@ export class DashboardComponent {
 
   toggleAnalysis() {
     this.isAnalysisCollapsed.set(!this.isAnalysisCollapsed());
-    localStorage.setItem('dash_analysisCollapsed', String(this.isAnalysisCollapsed()));
+    localStorage.setItem(LS_DASH_ANALYSIS_COLLAPSED, String(this.isAnalysisCollapsed()));
   }
 
   // 1. Top Stats
   stats = computed(() => {
-    const invs: any[] = this.invoices();
-    const invt: any[] = this.inventory();
-    const libs: any[] = this.libraries();
+    const invs: Invoice[] = this.invoices();
+    const vouchers = this.receiptVoucherService.vouchers$();
+    const invt: Book[] = this.inventory();
+    const libs = this.libraries();
 
     let totalRevenue = 0;
     let totalCollected = 0;
     let totalItemsSold = 0;
 
-    invs.forEach((inv: any) => {
+    invs.forEach(inv => {
       let invTotal = 0;
       let invQty = 0;
-      inv.items.forEach((item: any) => {
+      inv.items?.forEach(item => {
         invTotal += (item.total || 0);
         invQty += (item.quantity || 0);
       });
@@ -80,10 +99,15 @@ export class DashboardComponent {
       }
     });
 
+    // Add receipt voucher amounts to collected
+    vouchers.forEach(v => {
+      totalCollected += v.amount || 0;
+    });
+
     return {
       totalLibraries: libs.length,
-      totalItems: invt.reduce((sum: any, item: any) => sum + (item.stockQuantity || 0), 0),
-      lowStockCount: invt.filter((item: any) => (item.stockQuantity || 0) < 150).length,
+      totalItems: invt.reduce((sum, item) => sum + (item.stockQuantity || 0), 0),
+      lowStockCount: invt.filter(item => (item.stockQuantity || 0) < this.LOW_STOCK_THRESHOLD).length,
       totalInvoices: invs.length,
       totalRevenue,
       totalCollected,
@@ -93,19 +117,28 @@ export class DashboardComponent {
 
   // 2. Pending Balances (أين أموالي؟)
   pendingBalances = computed(() => {
-    const invs: any[] = this.invoices();
+    const invs: Invoice[] = this.invoices();
+    const vouchers = this.receiptVoucherService.vouchers$();
     const libMap = new Map<string, { ordered: number, refunded: number, cleared: number, balance: number }>();
 
-    invs.forEach((inv: any) => {
+    invs.forEach(inv => {
       if (!inv.libraryName) return;
       if (!libMap.has(inv.libraryName)) libMap.set(inv.libraryName, { ordered: 0, refunded: 0, cleared: 0, balance: 0 });
       
       const stats = libMap.get(inv.libraryName)!;
-      let invTotal = inv.totalAmount || 0;
+      const invTotal = inv.totalAmount || 0;
       
       if (inv.type === 'order') stats.ordered += invTotal;
       else if (inv.type === 'refund') stats.refunded += invTotal;
       else if (inv.type === 'clearance') stats.cleared += invTotal;
+    });
+
+    // Subtract receipt voucher amounts from each library's balance
+    vouchers.forEach(v => {
+      const libName = v.libraryName || '';
+      if (!libName || !libMap.has(libName)) return;
+      const stats = libMap.get(libName)!;
+      stats.cleared += v.amount || 0;
     });
 
     return Array.from(libMap.entries())
@@ -120,22 +153,22 @@ export class DashboardComponent {
 
   // 3. Critical Stock (ماذا يجب أن أطبع؟)
   criticalStock = computed(() => {
-    const invt: any[] = this.inventory();
-    const invs: any[] = this.invoices();
+    const invt: Book[] = this.inventory();
+    const invs: Invoice[] = this.invoices();
     
     // Calculate total sold for each item to know its demand
     const demandMap = new Map<number, number>();
-    invs.forEach((inv: any) => {
-      if (inv.type === 'order') {
-        inv.items.forEach((item: any) => {
-          demandMap.set(item.bookId!, (demandMap.get(item.bookId!) || 0) + (item.quantity || 0));
+    invs.forEach(inv => {
+      if (inv.type === 'order' && inv.items) {
+        inv.items.forEach(item => {
+          demandMap.set(item.bookId, (demandMap.get(item.bookId) || 0) + (item.quantity || 0));
         });
       }
     });
 
     return invt
-      .filter((item: any) => (item.stockQuantity || 0) < 200) // Less than 200 in stock
-      .map((item: any) => ({
+      .filter(item => (item.stockQuantity || 0) < this.CRITICAL_STOCK_THRESHOLD)
+      .map(item => ({
         name: item.name,
         remaining: item.stockQuantity || 0,
         demand: demandMap.get(item.id) || 0
@@ -146,12 +179,12 @@ export class DashboardComponent {
 
   // 4. Most Refunded (ما هي المشكلة؟)
   mostRefunded = computed(() => {
-    const invs: any[] = this.invoices();
+    const invs: Invoice[] = this.invoices();
     const refundMap = new Map<string, number>();
 
-    invs.forEach((inv: any) => {
-      if (inv.type === 'refund') {
-        inv.items.forEach((item: any) => {
+    invs.forEach(inv => {
+      if (inv.type === 'refund' && inv.items) {
+        inv.items.forEach(item => {
           const key = item.bookName || 'غير محدد';
           refundMap.set(key, (refundMap.get(key) || 0) + (item.quantity || 0));
         });
@@ -166,12 +199,12 @@ export class DashboardComponent {
 
   // 5. Chart Data: Sales by Term (متى نبيع أكثر؟)
   chartData = computed(() => {
-    const invs: any[] = this.invoices();
+    const invs: Invoice[] = this.invoices();
     const termMap = new Map<string, number>();
 
-    invs.forEach((inv: any) => {
+    invs.forEach(inv => {
       const term = inv.termCode || 'A';
-      inv.items.forEach((item: any) => {
+      inv.items?.forEach(item => {
         if (inv.type === 'order') termMap.set(term, (termMap.get(term) || 0) + (item.total || 0));
         if (inv.type === 'refund') termMap.set(term, (termMap.get(term) || 0) - (item.total || 0));
       });
@@ -206,11 +239,11 @@ export class DashboardComponent {
   // --- Classic Analytics Mode Data ---
   
   classicChartData = computed(() => {
-    const invs: any[] = this.invoices();
+    const invs: Invoice[] = this.invoices();
     const mode = this.classicDisplayMode();
     const yearMap = new Map<number, number | Set<string>>();
 
-    invs.forEach((inv: any) => {
+    invs.forEach(inv => {
       const year = new Date(inv.date || new Date()).getFullYear();
       
       if (mode === 'libraries') {
@@ -218,7 +251,7 @@ export class DashboardComponent {
         (yearMap.get(year) as Set<string>).add(inv.libraryName || 'غير محدد');
       } else {
         let val = 0;
-        inv.items.forEach((item: any) => {
+        inv.items?.forEach(item => {
           if (mode === 'revenue') {
             if (inv.type === 'order') val += (item.total || 0);
             if (inv.type === 'refund') val -= (item.total || 0);
@@ -228,14 +261,6 @@ export class DashboardComponent {
           }
         });
         yearMap.set(year, (yearMap.get(year) as number || 0) + val);
-      }
-    });
-
-    // Ensure we have some base years to look like the image if empty
-    const currentYear = new Date().getFullYear();
-    [currentYear - 2, currentYear - 1, currentYear, currentYear + 1].forEach(y => {
-      if (!yearMap.has(y)) {
-        yearMap.set(y, mode === 'libraries' ? new Set<string>() : 0);
       }
     });
 
@@ -259,22 +284,22 @@ export class DashboardComponent {
 
     return {
       bars,
-      hasData: true 
+      hasData: bars.length > 0 
     };
   });
 
   classicTableData = computed(() => {
-    const invs: any[] = this.invoices();
+    const invs: Invoice[] = this.invoices();
     const mode = this.classicDisplayMode();
     
     // Group by Year and Term
     const groupMap = new Map<string, { year: number, term: string, ordered: number, refunded: number, net: number, libSales: Map<string, number> }>();
 
-    invs.forEach((inv: any) => {
+    invs.forEach(inv => {
       const year = new Date(inv.date || new Date()).getFullYear();
-      const term = inv.termCode === 'B'
+      const term = inv.termCode === 'B' || inv.semesterName === 'الفصل الثاني'
         ? 'الترم الثاني'
-        : inv.termCode === 'A'
+        : inv.termCode === 'A' || inv.semesterName === 'الفصل الأول'
           ? 'الترم الأول'
           : (inv.semesterName || 'غير محدد');
       const key = `${year}-${term}`;
@@ -286,7 +311,7 @@ export class DashboardComponent {
         const group = groupMap.get(key)!;
         const libName = inv.libraryName || 'غير محدد';
 
-      inv.items.forEach((item: any) => {
+      inv.items?.forEach(item => {
         const qty = item.quantity || 0;
         const total = item.total || 0;
         const metric = mode === 'revenue' ? total : qty;

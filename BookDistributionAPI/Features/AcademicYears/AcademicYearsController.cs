@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using BookDistributionAPI.Common;
 using BookDistributionAPI.Data;
+using System.Threading;
 
 namespace BookDistributionAPI.Features.AcademicYears;
 
@@ -13,37 +14,51 @@ public class AcademicYearsController : ControllerBase
     public AcademicYearsController(AppDbContext db) => _db = db;
 
     [HttpGet]
-    public async Task<IActionResult> GetAll()
+    public async Task<IActionResult> GetAll(CancellationToken cancellationToken)
     {
         var years = await _db.AcademicYears
-            .Include(a => a.Semesters)
             .OrderByDescending(a => a.IsActive)
             .ThenByDescending(a => a.Id)
-            .ToListAsync();
+            .Select(a => new
+            {
+                a.Id,
+                a.Name,
+                a.IsActive,
+                Semesters = a.Semesters.Select(s => new { s.Id, s.Name, s.Code, s.IsActive })
+            })
+            .ToListAsync(cancellationToken);
         return Ok(ApiResponse<object>.Ok(years));
     }
 
     [HttpGet("active")]
-    public async Task<IActionResult> GetActive()
+    public async Task<IActionResult> GetActive(CancellationToken cancellationToken)
     {
         var year = await _db.AcademicYears
             .Include(a => a.Semesters)
-            .FirstOrDefaultAsync(a => a.IsActive);
+            .FirstOrDefaultAsync(a => a.IsActive, cancellationToken);
         if (year == null) return NotFound(ApiResponse<object>.Fail("لا يوجد عام دراسي نشط"));
-        return Ok(ApiResponse<object>.Ok(year));
+
+        var dto = new
+        {
+            year.Id,
+            year.Name,
+            year.IsActive,
+            Semesters = year.Semesters.Select(s => new { s.Id, s.Name, s.Code, s.IsActive })
+        };
+        return Ok(ApiResponse<object>.Ok(dto));
     }
 
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] CreateAcademicYearDto dto)
+    public async Task<IActionResult> Create([FromBody] CreateAcademicYearDto dto, CancellationToken cancellationToken)
     {
-        if (await _db.AcademicYears.AnyAsync(a => a.Name == dto.Name))
+        if (await _db.AcademicYears.AnyAsync(a => a.Name == dto.Name, cancellationToken))
             return Conflict(ApiResponse<object>.Fail("العام الدراسي موجود بالفعل"));
 
-        await using var transaction = await _db.Database.BeginTransactionAsync();
+        await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
 
         await _db.AcademicYears
             .Where(y => y.IsActive)
-            .ExecuteUpdateAsync(y => y.SetProperty(x => x.IsActive, false));
+            .ExecuteUpdateAsync(y => y.SetProperty(x => x.IsActive, false), cancellationToken);
 
         var year = new AcademicYear
         {
@@ -52,15 +67,45 @@ public class AcademicYearsController : ControllerBase
         };
 
         _db.AcademicYears.Add(year);
-        await _db.SaveChangesAsync();
+        await _db.SaveChangesAsync(cancellationToken);
 
         _db.Semesters.AddRange(
-            new Semesters.Semester { AcademicYearId = year.Id, Name = "الأول", Code = "A", IsActive = true },
-            new Semesters.Semester { AcademicYearId = year.Id, Name = "الثاني", Code = "B", IsActive = false }
+            new Semesters.Semester { AcademicYearId = year.Id, Name = "الفصل الأول", Code = "A", IsActive = true },
+            new Semesters.Semester { AcademicYearId = year.Id, Name = "الفصل الثاني", Code = "B", IsActive = false }
         );
-        await _db.SaveChangesAsync();
-        await transaction.CommitAsync();
+        await _db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
-        return Ok(ApiResponse<object>.Ok(year, "تم إنشاء العام الدراسي بنجاح"));
+        return Ok(ApiResponse<object>.Ok(new { year.Id, year.Name, year.IsActive }, "تم إنشاء العام الدراسي بنجاح"));
+    }
+
+    [HttpPut("{id}/activate")]
+    public async Task<IActionResult> Activate(int id, CancellationToken cancellationToken)
+    {
+        var year = await _db.AcademicYears
+            .Include(a => a.Semesters)
+            .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
+        
+        if (year == null)
+            return NotFound(ApiResponse<object>.Fail("العام الدراسي غير موجود"));
+
+        await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
+
+        await _db.AcademicYears.ExecuteUpdateAsync(y => y.SetProperty(x => x.IsActive, false), cancellationToken);
+        await _db.Semesters.ExecuteUpdateAsync(s => s.SetProperty(x => x.IsActive, false), cancellationToken);
+
+        year.IsActive = true;
+        await _db.SaveChangesAsync(cancellationToken);
+
+        var firstSemester = year.Semesters.FirstOrDefault();
+        if (firstSemester != null)
+        {
+            firstSemester.IsActive = true;
+            await _db.SaveChangesAsync(cancellationToken);
+        }
+
+        await transaction.CommitAsync(cancellationToken);
+
+        return Ok(ApiResponse<object>.Ok(new { year.Id, year.Name, year.IsActive }, $"تم تفعيل العام الدراسي {year.Name} بنجاح"));
     }
 }

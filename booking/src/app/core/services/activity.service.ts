@@ -1,5 +1,5 @@
 import { Injectable, signal, inject } from '@angular/core';
-import { Activity } from '../models/activity.model';
+import { Activity, ActivityPayload } from '../models/activity.model';
 import { InventoryService } from './inventory.service';
 import { LibraryService } from './library.service';
 
@@ -10,6 +10,7 @@ export class ActivityService {
   private activitiesSignal = signal<Activity[]>([]);
   public readonly activities$ = this.activitiesSignal.asReadonly();
   private readonly storageKey = 'activity_log';
+  private readonly maxActivities = 200;
   private inventoryService = inject(InventoryService);
   private libraryService = inject(LibraryService);
 
@@ -28,9 +29,9 @@ export class ActivityService {
     }
   }
 
-  logActivity(action: string, details: string, type?: 'ADD' | 'UPDATE' | 'DELETE' | 'GENERAL', payload?: any) {
+  logActivity(action: string, details: string, type?: 'ADD' | 'UPDATE' | 'DELETE' | 'GENERAL', payload?: ActivityPayload) {
     const newActivity: Activity = {
-      id: Math.random().toString(36).substring(2, 9),
+      id: crypto.randomUUID?.() ?? (Date.now().toString(36) + Math.random().toString(36).slice(2, 10)),
       action,
       details,
       timestamp: new Date().toISOString(),
@@ -39,7 +40,7 @@ export class ActivityService {
       status: 'active'
     };
     
-    const updated = [newActivity, ...this.activitiesSignal()];
+    const updated = [newActivity, ...this.activitiesSignal()].slice(0, this.maxActivities);
     this.activitiesSignal.set(updated);
     localStorage.setItem(this.storageKey, JSON.stringify(updated));
   }
@@ -52,9 +53,9 @@ export class ActivityService {
       
       // Execute compensation
       if (activity.type && activity.payload) {
-        if (activity.payload.entity === 'library') {
+        if (activity.payload?.entity === 'library') {
           this.libraryService.executeCompensation(activity);
-        } else {
+        } else if (activity.payload?.entity === 'inventory' || !activity.payload?.entity) {
           this.inventoryService.executeCompensation(activity);
         }
       }
@@ -75,9 +76,9 @@ export class ActivityService {
       
       // Execute redo
       if (activity.type && activity.payload) {
-        if (activity.payload.entity === 'library') {
+        if (activity.payload?.entity === 'library') {
           this.libraryService.executeRedo(activity);
-        } else {
+        } else if (activity.payload?.entity === 'inventory' || !activity.payload?.entity) {
           this.inventoryService.executeRedo(activity);
         }
       }

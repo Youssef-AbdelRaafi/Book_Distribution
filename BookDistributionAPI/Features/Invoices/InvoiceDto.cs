@@ -33,6 +33,9 @@ public class InvoiceItemDto
     public int Quantity { get; set; }
     public decimal UnitPrice { get; set; }
     public decimal Total { get; set; }
+    // تفصيل الجرد — يُستخدم في المخالصة فقط
+    public int? OrderedQty { get; set; }
+    public int? RefundedQty { get; set; }
 }
 
 public class CreateOrderDto
@@ -83,7 +86,7 @@ public class ClearanceBatchResultDto
 
 public class ClearancePreviewDto
 {
-    public int LibraryId { get; set; }
+    public int? LibraryId { get; set; }
     public string LibraryName { get; set; } = string.Empty;
     public string GovernorateName { get; set; } = string.Empty;
     public string CityName { get; set; } = string.Empty;
@@ -91,6 +94,7 @@ public class ClearancePreviewDto
     public string SemesterName { get; set; } = string.Empty;
     public string TermCode { get; set; } = string.Empty;
     public decimal TotalAmount { get; set; }
+    public decimal PaidAmount { get; set; }
     public string? ResponsibleName { get; set; }
     public string? ResponsiblePhone { get; set; }
     public List<InvoiceItemDto> Items { get; set; } = new();

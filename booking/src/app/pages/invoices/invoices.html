@@ -28,7 +28,7 @@
               <label class="block text-xs font-medium text-on-surface-variant mb-1.5">المحافظة</label>
               <select [(ngModel)]="selectedGovernorateId" (ngModelChange)="onGovernorateChange()" class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2.5 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all appearance-none cursor-pointer">
                 <option [ngValue]="0">كل المحافظات</option>
-                <option *ngFor="let gov of libraryService.governorates()" [ngValue]="gov.id">{{ gov.name }}</option>
+                <option *ngFor="let gov of libraryService.governorates(); trackBy: trackById" [ngValue]="gov.id">{{ gov.name }}</option>
               </select>
             </div>
 
@@ -36,7 +36,7 @@
               <label class="block text-xs font-medium text-on-surface-variant mb-1.5">المدينة</label>
               <select [(ngModel)]="selectedCityId" (ngModelChange)="onCityChange()" class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2.5 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all appearance-none cursor-pointer">
                 <option [ngValue]="0">كل المدن</option>
-                <option *ngFor="let city of filteredCities()" [ngValue]="city.id">{{ city.name }}</option>
+                <option *ngFor="let city of filteredCities(); trackBy: trackById" [ngValue]="city.id">{{ city.name }}</option>
               </select>
             </div>
 
@@ -53,7 +53,7 @@
             <div>
               <label class="block text-xs font-medium text-on-surface-variant mb-1.5">الفصل الدراسي</label>
               <select [ngModel]="invoiceSemesterId()" (ngModelChange)="invoiceSemesterId.set($event); onInvoiceSemesterChange()" class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2.5 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all appearance-none cursor-pointer">
-                <option *ngFor="let sem of settingsService.allSemesters()" [ngValue]="sem.id">{{ sem.name }}</option>
+                <option *ngFor="let sem of activeYearSemesters()" [ngValue]="sem.id">{{ sem.name }}</option>
               </select>
             </div>
             <div>
@@ -83,7 +83,7 @@
                         {{ gradeGroup.grade }}
                       </td>
                     </tr>
-                    <tr *ngFor="let item of gradeGroup.items" class="hover:bg-surface-container transition-colors group">
+                    <tr *ngFor="let item of gradeGroup.items; trackBy: trackByBookId" class="hover:bg-surface-container transition-colors group">
                       <td class="py-3 px-4 text-on-surface">
                          {{ item.name }}
                       </td>
@@ -114,17 +114,17 @@
 
           <!-- Transaction Actions -->
           <div class="flex flex-wrap gap-3">
-             <button (click)="processOrder()" class="flex-1 bg-primary text-on-primary py-3 px-4 rounded-xl font-medium hover:bg-primary-container shadow-sm transition-all flex items-center justify-center gap-2 group">
+             <button type="button" (click)="processOrder()" class="flex-1 bg-primary text-on-primary py-3 px-4 rounded-xl font-medium hover:bg-primary-container shadow-sm transition-all flex items-center justify-center gap-2 group">
               <span class="material-symbols-outlined text-[20px] group-hover:scale-110 transition-transform">shopping_cart_checkout</span>
               صرف كمية للمكتبة
             </button>
-            <button (click)="processRefund()" class="flex-1 bg-surface-primary border-2 border-error text-error py-3 px-4 rounded-xl font-medium hover:bg-error hover:text-white transition-all flex items-center justify-center gap-2 group">
+            <button type="button" (click)="processRefund()" class="flex-1 bg-surface-primary border-2 border-error text-error py-3 px-4 rounded-xl font-medium hover:bg-error hover:text-white transition-all flex items-center justify-center gap-2 group">
               <span class="material-symbols-outlined text-[20px] group-hover:-translate-y-1 transition-transform">assignment_return</span>
               مرتجع من المكتبة
             </button>
-            <button (click)="onAddInventoryBook()" class="flex-1 bg-surface-primary border-2 border-secondary text-secondary py-3 px-4 rounded-xl font-medium hover:bg-secondary hover:text-white transition-all flex items-center justify-center gap-2 group">
+            <button type="button" (click)="onAddInventoryBook()" class="flex-1 bg-surface-primary border-2 border-secondary text-secondary py-3 px-4 rounded-xl font-medium hover:bg-secondary hover:text-white transition-all flex items-center justify-center gap-2 group">
               <span class="material-symbols-outlined text-[20px] group-hover:scale-110 transition-transform">library_add</span>
-              إضافة للمخزون
+              إضافة كتاب جديد للمخزون
             </button>
           </div>
         </div>
@@ -151,6 +151,7 @@
                 <option value="order">طلبيات (صرف)</option>
                 <option value="refund">مسترجعات</option>
                 <option value="clearance">مخالصات</option>
+                <option value="receipt_voucher">سندات قبض</option>
               </select>
               <select [(ngModel)]="filterTime" class="bg-surface-primary border border-outline-variant rounded-md px-2 py-1.5 text-xs focus:border-primary outline-none">
                 <option value="all">كل الأوقات</option>
@@ -164,38 +165,38 @@
             <div class="grid grid-cols-2 gap-2">
               <select [(ngModel)]="filterGovernorateId" (ngModelChange)="onFilterGovernorateChange()" class="bg-surface-primary border border-outline-variant rounded-md px-2 py-1.5 text-xs focus:border-primary outline-none">
                 <option [ngValue]="0">كل المحافظات</option>
-                <option *ngFor="let gov of libraryService.governorates()" [ngValue]="gov.id">{{ gov.name }}</option>
+                <option *ngFor="let gov of libraryService.governorates(); trackBy: trackById" [ngValue]="gov.id">{{ gov.name }}</option>
               </select>
               <select [(ngModel)]="filterCityId" (ngModelChange)="onFilterCityChange()" class="bg-surface-primary border border-outline-variant rounded-md px-2 py-1.5 text-xs focus:border-primary outline-none">
                 <option [ngValue]="0">كل المدن</option>
-                <option *ngFor="let city of filterHistoryCities()" [ngValue]="city.id">{{ city.name }}</option>
+                <option *ngFor="let city of filterHistoryCities(); trackBy: trackById" [ngValue]="city.id">{{ city.name }}</option>
               </select>
             </div>
             
             <select [(ngModel)]="filterLibraryId" class="w-full bg-surface-primary border border-outline-variant rounded-md px-2 py-1.5 text-xs focus:border-primary outline-none">
               <option [ngValue]="0">كل المكتبات</option>
-              <option *ngFor="let lib of filterHistoryLibraries()" [ngValue]="lib.id">{{ lib.name }}</option>
+              <option *ngFor="let lib of filterHistoryLibraries(); trackBy: trackById" [ngValue]="lib.id">{{ lib.name }}</option>
             </select>
           </div>
 
           <!-- History List -->
           <div class="flex-1 overflow-y-auto custom-scrollbar pr-1 space-y-3 min-h-[300px] max-h-[600px]">
-            <div *ngFor="let inv of filteredInvoices()" class="bg-surface-container-lowest border border-outline-variant rounded-xl p-4 hover:border-primary transition-all shadow-sm hover:shadow-md relative overflow-hidden group">
+            <div *ngFor="let inv of filteredInvoices(); trackBy: trackById" class="bg-surface-container-lowest border border-outline-variant rounded-xl p-4 hover:border-primary transition-all shadow-sm hover:shadow-md relative overflow-hidden group">
               <!-- Type Indicator Strip -->
-              <div class="absolute right-0 top-0 bottom-0 w-1.5" [ngClass]="inv.type === 'order' ? 'bg-primary' : inv.type === 'refund' ? 'bg-error' : 'bg-secondary'"></div>
+              <div class="absolute right-0 top-0 bottom-0 w-1.5" [ngClass]="getTypeColor(inv.type)"></div>
               
               <div class="flex justify-between items-start mb-2 pl-1 pr-2">
                 <div>
                   <div class="flex items-center gap-2">
-                    <span class="text-xs font-bold px-2 py-0.5 rounded-full" [ngClass]="inv.type === 'order' ? 'bg-primary/10 text-primary' : inv.type === 'refund' ? 'bg-error/10 text-error' : 'bg-secondary/10 text-secondary'">
-                      {{ inv.type === 'order' ? 'طلبية بيع' : inv.type === 'refund' ? 'مرتجع' : 'مخالصة' }}
+                    <span class="text-xs font-bold px-2 py-0.5 rounded-full" [ngClass]="getTypeBadgeClass(inv.type)">
+                      {{ getTypeLabel(inv.type) }}
                     </span>
                     <span class="text-[10px] text-on-surface-variant font-mono">#{{ inv.displayNumber || inv.invoiceNumber }}</span>
                   </div>
                   <h4 class="font-bold text-text-heading mt-1.5 text-sm">{{ inv.libraryName }}</h4>
                 </div>
                 <div class="text-left">
-                  <div class="font-bold font-mono" [ngClass]="inv.type === 'order' ? 'text-primary' : inv.type === 'refund' ? 'text-error' : 'text-secondary'">
+                  <div class="font-bold font-mono" [ngClass]="getTypeAmountColor(inv.type)">
                     {{ inv.totalAmount | number:'1.3-3' }} R.O.
                   </div>
                   <div class="text-[10px] text-on-surface-variant mt-0.5">{{ inv.date | date:'short' }}</div>
@@ -204,14 +205,14 @@
               
               <div class="text-xs text-on-surface-variant flex items-center gap-3 mt-3 pt-3 border-t border-surface-container-high pr-2">
                 <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">map</span> {{ inv.governorateName }} - {{ inv.cityName }}</span>
-                <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">category</span> {{ inv.items.length }} مواد</span>
+                <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">category</span> {{ inv.items?.length }} مواد</span>
               </div>
               
               <div class="mt-3 flex gap-2 pr-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button (click)="retryPrint(inv)" class="flex-1 text-xs font-medium py-1.5 rounded bg-surface-container-high hover:bg-surface-variant text-on-surface transition-colors flex items-center justify-center gap-1">
+                <button type="button" (click)="retryPrint(inv)" class="flex-1 text-xs font-medium py-1.5 rounded bg-surface-container-high hover:bg-surface-variant text-on-surface transition-colors flex items-center justify-center gap-1">
                   <span class="material-symbols-outlined text-[14px]">print</span> طباعة مجدداً
                 </button>
-                <button *ngIf="inv.type !== 'clearance'" (click)="deleteInvoice(inv, $event)" class="text-xs font-medium py-1.5 px-3 rounded bg-error/10 hover:bg-error/20 text-error transition-colors flex items-center justify-center gap-1" title="حذف الفاتورة">
+                <button type="button" *ngIf="inv.type !== 'clearance'" (click)="deleteInvoice(inv, $event)" class="text-xs font-medium py-1.5 px-3 rounded bg-error/10 hover:bg-error/20 text-error transition-colors flex items-center justify-center gap-1" title="حذف الفاتورة">
                   <span class="material-symbols-outlined text-[14px]">delete</span>
                 </button>
               </div>
@@ -231,12 +232,12 @@
 </ng-container>
 
 <!-- Print Layout -->
-<div *ngIf="invoiceToPrint()" class="print-page invoice-print-page w-full bg-white text-black p-4" dir="rtl" style="font-family: 'Times New Roman', serif;">
+<div *ngIf="invoiceToPrint() && invoiceToPrint()?.type !== 'receipt_voucher'" class="print-page invoice-print-page w-full bg-white text-black p-4" dir="rtl" style="font-family: 'Traditional Arabic', 'Amiri', 'Times New Roman', serif;">
   <!-- Header -->
   <div class="flex flex-col mb-2">
     <!-- Title -->
-    <div class="text-center text-[28px] font-bold mb-4 mt-2">
-      <span class="text-black">{{ invoiceToPrint()?.type === 'order' ? 'فاتورة رقم' : invoiceToPrint()?.type === 'refund' ? 'مرتجع رقم' : 'مخالصة رقم' }}</span>
+    <div class="text-center text-[22px] font-bold mb-3 mt-1">
+      <span class="text-black">{{ getPrintTypeLabel(invoiceToPrint()?.type) }}</span>
       <span class="text-[#d32f2f] mr-2">({{ getInvoiceDisplayNumber(invoiceToPrint()) }})</span>
     </div>
     
@@ -244,47 +245,46 @@
     <div class="flex justify-between items-end mb-2">
       <!-- Right: Logo -->
       <div>
-        <img [src]="assetUrls.logo" class="h-16 object-contain" alt="Logo">
+        <img [src]="assetUrls.logo" class="h-14 object-contain" alt="Logo">
       </div>
       <!-- Left: Phone -->
-      <div class="text-[18px] pb-1 font-bold">
-        <span style="border-bottom: 2px solid black; padding-bottom: 2px;">إدارة المبيعات: هاتف:</span>
-        <span class="mr-2 inline-block" dir="ltr">{{ getPhoneNumbersOnly(settingsService.printSettings().phones) }}</span>
+      <div class="text-[14px] pb-1 font-bold text-black">
+        <span>{{ settingsService.printSettings().phones }}</span>
       </div>
     </div>
     
     <!-- Client & Date Box -->
-    <div class="border-2 border-black flex items-stretch font-bold text-[18px]">
-      <div class="flex-grow py-1 px-4 text-right">
+    <div class="border-2 border-black flex items-stretch font-bold text-[14px]">
+      <div class="flex-grow py-1 px-3 text-right">
         الفاضل/ <span class="text-[#d32f2f]">{{ invoiceToPrint()?.libraryName }}</span> - {{ invoiceToPrint()?.governorateName }}
       </div>
-      <div class="py-1 px-6 whitespace-nowrap flex items-center justify-center">
+      <div class="py-1 px-4 whitespace-nowrap flex items-center justify-center">
         التاريخ: {{ invoiceToPrint()?.date | date:'yyyy/M/d' }}
       </div>
     </div>
   </div>
 
   <!-- Table -->
-  <table class="w-full border-collapse border border-black text-center text-[15px]">
+  <table class="w-full border-collapse border border-black text-center text-[13px]">
     <thead class="bg-[#dcedc8] text-black">
       <tr>
-        <th class="border border-black p-1 w-12 font-normal">م</th>
+        <th class="border border-black p-1 w-10 font-normal">م</th>
         <th class="border border-black p-1 w-1/3 font-normal">
           <div>التفاصيل</div>
-          <div class="text-[12px]">Description</div>
+          <div class="text-[11px]">Description</div>
         </th>
         <th class="border border-black p-1 font-normal">
           <div>الكمية</div>
-          <div class="text-[12px]">Qty</div>
+          <div class="text-[11px]">Qty</div>
         </th>
-        <th class="border border-black p-0 font-normal">
+        <th class="border border-black p-0 font-normal text-[12px]">
           <div class="border-b border-black p-1">السعر Rate</div>
           <div class="flex">
             <div class="flex-1 p-1 border-l border-black">Bz</div>
             <div class="flex-1 p-1">R.O.</div>
           </div>
         </th>
-        <th class="border border-black p-0 font-normal">
+        <th class="border border-black p-0 font-normal text-[12px]">
           <div class="border-b border-black p-1">المبلغ Amount</div>
           <div class="flex">
             <div class="flex-1 p-1 border-l border-black">Bz</div>
@@ -294,36 +294,36 @@
       </tr>
     </thead>
     <tbody>
-      <ng-container *ngFor="let group of getPrintGroups(invoiceToPrint())">
+      <ng-container *ngFor="let group of getPrintGroups(invoiceToPrint()); trackBy: trackByIndex">
         <tr class="bg-[#90caf9]">
-          <td colspan="5" class="border border-black p-1 font-bold text-white text-lg">
+          <td colspan="5" class="border border-black p-1 font-bold text-white text-[14px]">
             {{ group.grade }}
           </td>
         </tr>
-        <tr *ngFor="let item of group.items; let i = index">
+        <tr *ngFor="let item of group.items; trackBy: trackById; let i = index">
           <td class="border border-black p-1">{{ item.globalIndex }}</td>
           <td class="border border-black p-1 text-right pr-2 font-bold">{{ item.bookName }}</td>
           <td class="border border-black p-1">{{ item.quantity }}</td>
-          <td class="border border-black p-0 font-bold">
-            <div class="flex h-full min-h-[30px]">
-              <div class="flex-1 p-1 border-l border-black">{{ (((item.unitPrice || 0) * 1000) % 1000).toString().padStart(3, '0') }}</div>
-              <div class="flex-1 p-1">{{ Math.floor(item.unitPrice || 0) }}</div>
+           <td class="border border-black p-0 font-bold">
+            <div class="flex h-full min-h-[24px]">
+              <div class="flex-1 p-0.5 border-l border-black">{{ formatAmountBaisa(item.unitPrice) }}</div>
+              <div class="flex-1 p-0.5">{{ formatAmountRials(item.unitPrice) }}</div>
             </div>
           </td>
           <td class="border border-black p-0 font-bold">
-            <div class="flex h-full min-h-[30px]">
-              <div class="flex-1 p-1 border-l border-black">{{ (((item.total || 0) * 1000) % 1000).toString().padStart(3, '0') }}</div>
-              <div class="flex-1 p-1">{{ Math.floor(item.total || 0) }}</div>
+            <div class="flex h-full min-h-[24px]">
+              <div class="flex-1 p-0.5 border-l border-black">{{ formatAmountBaisa(item.total) }}</div>
+              <div class="flex-1 p-0.5">{{ formatAmountRials(item.total) }}</div>
             </div>
           </td>
         </tr>
       </ng-container>
       <tr>
-        <td colspan="4" class="border border-black p-2 text-left font-bold text-lg">الإجمالي الكلي</td>
-        <td class="border border-black p-0 font-bold text-lg text-[#d32f2f] bg-[#fff9c4]">
-          <div class="flex h-full min-h-[35px]">
-            <div class="flex-1 p-1 border-l border-black">{{ (((invoiceToPrint()?.totalAmount || 0) * 1000) % 1000).toString().padStart(3, '0') }}</div>
-            <div class="flex-1 p-1">{{ Math.floor(invoiceToPrint()?.totalAmount || 0) }}</div>
+        <td colspan="4" class="border border-black p-1 text-left font-bold text-[14px]">الإجمالي الكلي</td>
+        <td class="border border-black p-0 font-bold text-[14px] text-[#d32f2f] bg-[#fff9c4]">
+          <div class="flex h-full min-h-[28px]">
+            <div class="flex-1 p-0.5 border-l border-black">{{ formatAmountBaisa(invoiceToPrint()?.totalAmount ?? 0) }}</div>
+            <div class="flex-1 p-0.5">{{ formatAmountRials(invoiceToPrint()?.totalAmount ?? 0) }}</div>
           </div>
         </td>
       </tr>
@@ -332,7 +332,141 @@
 
   <!-- قسم التوقيع والختم -->
   <app-invoice-print-footer
-    [responsibleName]="invoiceToPrint()?.responsibleName || getLibraryResponsible(invoiceToPrint()?.libraryName || '').name"
-    [responsiblePhone]="invoiceToPrint()?.responsiblePhone || getLibraryResponsible(invoiceToPrint()?.libraryName || '').phone">
+    [responsibleName]="invoiceToPrint()?.responsibleName || getLibraryResponsible(invoiceToPrint()?.libraryId || 0).name"
+    [responsiblePhone]="invoiceToPrint()?.responsiblePhone || getLibraryResponsible(invoiceToPrint()?.libraryId || 0).phone">
   </app-invoice-print-footer>
+</div>
+
+<!-- ==================== Receipt Voucher Print Layout ==================== -->
+<div *ngIf="invoiceToPrint()?.type === 'receipt_voucher'" class="print-page receipt-voucher-print-page w-full bg-white text-black p-6" dir="ltr" style="font-family: 'Traditional Arabic', 'Amiri', 'Times New Roman', serif;">
+
+  <!-- Logo & Brand Header -->
+  <div class="flex justify-between items-start mb-4">
+    <!-- Logo (Left) -->
+    <div class="flex-shrink-0">
+      <img [src]="assetUrls.logo" class="h-24 object-contain" alt="Logo">
+    </div>
+    <!-- Info (Right) -->
+    <div class="text-right text-[18px] font-bold text-black" dir="rtl" style="font-family: sans-serif;">
+      <div>{{ settingsService.printSettings().phones }}</div>
+      <div>سلطنة عمان</div>
+      <div>التاريخ: {{ invoiceToPrint()?.date | date:'yyyy/MM/dd' }}</div>
+    </div>
+  </div>
+
+  <!-- Title -->
+  <div class="flex justify-center mb-5">
+    <div class="border-[2px] border-[#1a237e] rounded-xl px-10 py-2 text-center min-w-[240px]">
+      <h2 class="text-[26px] font-bold text-black leading-tight" dir="rtl">سند قبض</h2>
+      <h2 class="text-[16px] font-bold text-[#1a237e]">Receipt Voucher</h2>
+    </div>
+  </div>
+
+  <!-- Voucher Body -->
+  <div class="text-[15px] font-bold space-y-4 mt-4">
+
+    <!-- Row 1: Received From -->
+    <div class="flex items-baseline">
+      <span class="text-[15px] font-normal" dir="ltr">Received with thanks from Mr./Ms./</span>
+      <span class="flex-grow border-b-[2px] border-dashed border-black mx-2 text-center text-[#d32f2f] text-[16px] pb-1 font-bold" dir="rtl">
+        {{ invoiceToPrint()?.libraryName }}
+      </span>
+      <span class="whitespace-nowrap text-[17px] font-bold text-[#1a237e]" dir="rtl">استلمنا من الفاضل/ة</span>
+    </div>
+
+    <!-- Row 2: Amount -->
+    <div class="flex items-baseline">
+      <span class="text-[15px] font-normal" dir="ltr">The sum of Omani Rials.</span>
+      <span class="flex-grow border-b-[2px] border-dashed border-black mx-2 text-center text-[16px] pb-1 font-bold" dir="rtl">
+        <span class="text-black">{{ (invoiceToPrint()?.amount || invoiceToPrint()?.totalAmount) | number:'1.3-3' }}</span>
+      </span>
+      <span class="whitespace-nowrap text-[17px] font-bold text-[#1a237e]" dir="rtl">مبلغاً وقدره</span>
+    </div>
+
+    <!-- Row 3: Date & Payment Method -->
+    <div class="flex items-baseline">
+      <span class="text-[15px] font-normal" dir="ltr">By Cash/Cheque No.</span>
+      <span class="flex-grow border-b-[2px] border-dashed border-black mx-2 text-center text-[16px] pb-1 font-sans" dir="rtl">
+        {{ invoiceToPrint()?.paymentMethod === 'cheque' ? invoiceToPrint()?.chequeNumber : '✓' }}
+      </span>
+      <span class="whitespace-nowrap text-[17px] font-bold text-[#1a237e]" dir="rtl">نقداً/شيك رقم</span>
+      
+      <span class="text-[15px] font-normal ml-8" dir="ltr">Date</span>
+      <span class="flex-grow border-b-[2px] border-dashed border-black mx-2 text-center text-[16px] pb-1 font-sans" dir="ltr">
+        {{ invoiceToPrint()?.date | date:'yyyy/MM/dd' }}
+      </span>
+      <span class="whitespace-nowrap text-[17px] font-bold text-[#1a237e]" dir="rtl">التاريخ:</span>
+    </div>
+
+    <!-- Row 4: Bank -->
+    <div class="flex items-baseline">
+      <span class="text-[15px] font-normal" dir="ltr">Bank</span>
+      <span class="flex-grow border-b-[2px] border-dashed border-black mx-2 text-center text-[16px] pb-1 font-bold" dir="rtl">
+        {{ invoiceToPrint()?.bankName || '—' }}
+      </span>
+      <span class="whitespace-nowrap text-[17px] font-bold text-[#1a237e]" dir="rtl">على بنك</span>
+    </div>
+
+    <!-- Row 5: Purpose -->
+    <div class="flex items-baseline">
+      <span class="text-[15px] font-normal" dir="ltr">Being the settlement of</span>
+      <span class="flex-grow border-b-[2px] border-dashed border-black mx-2 text-center text-[16px] pb-1 font-bold" dir="rtl">
+        {{ invoiceToPrint()?.purpose }}
+      </span>
+      <span class="whitespace-nowrap text-[17px] font-bold text-[#1a237e]" dir="rtl">وذلك عن</span>
+    </div>
+
+  </div>
+
+  <!-- Footer Section -->
+  <div class="flex justify-between items-end mt-8" style="padding-bottom: 60px;">
+    
+    <!-- Amount Box -->
+    <div class="w-[22%]">
+      <table class="w-full border-collapse border border-black text-center text-[13px] font-bold" dir="ltr">
+        <thead>
+          <tr>
+            <th class="border border-black py-1 font-bold text-[12px]">ريال R.O.</th>
+            <th class="border border-black py-1 font-bold text-[12px]">بيسة B.s</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="border border-black py-1 text-[14px] font-sans">{{ formatAmountRials(invoiceToPrint()?.amount || invoiceToPrint()?.totalAmount || 0) }}</td>
+            <td class="border border-black py-1 text-[14px] font-sans">{{ formatAmountBaisa(invoiceToPrint()?.amount || invoiceToPrint()?.totalAmount || 0) }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Receiver Sign -->
+    <div class="w-[25%] text-center">
+      <div class="flex justify-center gap-4 text-[13px] mb-2">
+        <span class="font-normal">Receiver's Sign</span>
+        <span class="font-bold">توقيع المستلم</span>
+      </div>
+      <div class="border-b-[2px] border-dashed border-black mx-2"></div>
+    </div>
+
+    <!-- Manager Sign -->
+    <div class="w-[38%] text-center">
+      <div class="flex justify-center gap-4 text-[13px] mb-2">
+        <span class="font-normal">Manager</span>
+        <span class="font-bold">المدير</span>
+      </div>
+      <div class="border-b-[2px] border-dashed border-black mx-2 mb-3"></div>
+      
+      <!-- Stamps below manager -->
+      <div class="flex justify-end items-center" dir="ltr">
+        <img [src]="assetUrls.seriesStamp" class="h-[100px] w-[100px] object-contain opacity-90 mix-blend-multiply" alt="ختم">
+        <img [src]="assetUrls.signatureStamp" class="h-14 object-contain -ml-8 mb-3 opacity-90 mix-blend-multiply" alt="توقيع">
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Voucher Number Footer -->
+  <div class="text-left text-[12px] text-gray-400 font-sans" dir="ltr">
+    Voucher No: {{ invoiceToPrint()?.displayNumber }}
+  </div>
 </div>
