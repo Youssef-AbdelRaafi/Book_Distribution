@@ -7,6 +7,7 @@ using BookDistributionAPI.Features.Books;
 using BookDistributionAPI.Features.Invoices;
 using BookDistributionAPI.Features.Settings;
 using BookDistributionAPI.Features.ReceiptVouchers;
+using BookDistributionAPI.Features.Users;
 
 namespace BookDistributionAPI.Data;
 
@@ -25,6 +26,7 @@ public class AppDbContext : DbContext
     public DbSet<InvoiceItem> InvoiceItems => Set<InvoiceItem>();
     public DbSet<AppSetting> AppSettings => Set<AppSetting>();
     public DbSet<ReceiptVoucher> ReceiptVouchers => Set<ReceiptVoucher>();
+    public DbSet<User> Users => Set<User>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -383,5 +385,22 @@ public class AppDbContext : DbContext
 
         modelBuilder.Entity<ReceiptVoucher>()
             .HasIndex(rv => rv.Date);
+
+        // ---- User ----
+        modelBuilder.Entity<User>()
+            .HasIndex(u => u.Username)
+            .IsUnique();
+
+        modelBuilder.Entity<User>()
+            .Property(u => u.Username)
+            .HasMaxLength(100);
+
+        modelBuilder.Entity<User>()
+            .Property(u => u.Role)
+            .HasMaxLength(50);
+
+        modelBuilder.Entity<User>()
+            .Property(u => u.PasswordHash)
+            .HasMaxLength(500);
     }
 }

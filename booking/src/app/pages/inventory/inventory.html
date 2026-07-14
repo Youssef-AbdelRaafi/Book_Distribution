@@ -30,17 +30,17 @@
           <span class="material-symbols-outlined text-[16px]">edit</span> {{ isEditMode() ? 'إنهاء' : 'تعديل' }}
         </button>
         <!-- Subject Filter -->
-        <select [(ngModel)]="selectedSubject" class="bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-1.5 text-sm text-on-surface focus:border-primary focus:ring-1 focus:ring-primary outline-none appearance-none cursor-pointer">
+        <select [(ngModel)]="selectedSubject" (ngModelChange)="onFilterChange()" class="bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-1.5 text-sm text-on-surface focus:border-primary focus:ring-1 focus:ring-primary outline-none appearance-none cursor-pointer">
           <option *ngFor="let sub of subjectsList(); trackBy: trackByIndex" [value]="sub">{{ sub }}</option>
         </select>
 
         <!-- Grade Filter -->
-        <select [(ngModel)]="selectedGrade" class="bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-1.5 text-sm text-on-surface focus:border-primary focus:ring-1 focus:ring-primary outline-none appearance-none cursor-pointer">
+        <select [(ngModel)]="selectedGrade" (ngModelChange)="onFilterChange()" class="bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-1.5 text-sm text-on-surface focus:border-primary focus:ring-1 focus:ring-primary outline-none appearance-none cursor-pointer">
           <option *ngFor="let grade of gradesList(); trackBy: trackByIndex" [value]="grade">{{ grade }}</option>
         </select>
 
         <!-- Term Filter -->
-        <select [(ngModel)]="selectedTerm" class="bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-1.5 text-sm text-on-surface focus:border-primary focus:ring-1 focus:ring-primary outline-none appearance-none cursor-pointer">
+        <select [(ngModel)]="selectedTerm" (ngModelChange)="onFilterChange()" class="bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-1.5 text-sm text-on-surface focus:border-primary focus:ring-1 focus:ring-primary outline-none appearance-none cursor-pointer">
           <option value="كل الأترام">كل الفصول</option>
           <option value="الفصل الأول">الفصل الأول</option>
           <option value="الفصل الثاني">الفصل الثاني</option>

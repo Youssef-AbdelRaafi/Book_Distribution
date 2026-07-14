@@ -13,7 +13,6 @@ public class InvoiceBusinessService
     private const string OrderType = "order";
     private const string RefundType = "refund";
     private const string ClearanceType = "clearance";
-    public const string ClearanceTermCode = "P";
     private const string PendingPrintStatus = "pending";
 
     private readonly AppDbContext _db;
@@ -26,12 +25,13 @@ public class InvoiceBusinessService
 
     /// <summary>
     /// Gets the next sequential invoice number for a given library, year.
-    /// All invoice types share the same sequence per (library, year).
+    /// All invoice types share the same sequence per (library, semester).
     /// </summary>
-    public async Task<int> GetNextInvoiceNumberAsync(int libraryId, int invoiceYear, CancellationToken cancellationToken = default)
+    public async Task<int> GetNextInvoiceNumberAsync(int libraryId, int semesterId, int invoiceYear, CancellationToken cancellationToken = default)
     {
         var maxNumber = await _db.Invoices
-            .Where(i => i.LibraryId == libraryId 
+            .Where(i => i.LibraryId == libraryId
+                     && i.SemesterId == semesterId
                      && i.InvoiceYear == invoiceYear)
             .MaxAsync(i => (int?)i.InvoiceNumber, cancellationToken) ?? 0;
         return maxNumber + 1;
@@ -189,8 +189,13 @@ public class InvoiceBusinessService
         await using var transaction = await BeginInvoiceTransactionAsync(semesterId, cancellationToken);
 
         var semester = await GetSemesterAsync(semesterId, cancellationToken);
+        var activeLibIds = await _db.Libraries
+            .Where(l => l.IsActive)
+            .Select(l => l.Id)
+            .ToListAsync(cancellationToken);
+
         var libraryIds = await _db.Invoices
-            .Where(i => i.SemesterId == semesterId && i.Type != ClearanceType)
+            .Where(i => i.SemesterId == semesterId && i.Type != ClearanceType && activeLibIds.Contains(i.LibraryId))
             .Select(i => i.LibraryId)
             .Distinct()
             .ToListAsync(cancellationToken);
@@ -202,7 +207,7 @@ public class InvoiceBusinessService
 
         var allLibraryInvoices = await _db.Invoices
             .Include(i => i.Items)
-            .Where(i => i.SemesterId == semesterId && i.Type != ClearanceType)
+            .Where(i => i.SemesterId == semesterId && i.Type != ClearanceType && activeLibIds.Contains(i.LibraryId))
             .ToListAsync(cancellationToken);
 
         var invoicesByLibrary = allLibraryInvoices.GroupBy(i => i.LibraryId)
@@ -282,9 +287,14 @@ public class InvoiceBusinessService
     {
         var semester = await GetSemesterAsync(semesterId, cancellationToken);
 
+        var activeLibIds = await _db.Libraries
+            .Where(l => l.IsActive)
+            .Select(l => l.Id)
+            .ToListAsync(cancellationToken);
+
         var query = _db.Invoices
             .Include(i => i.Items)
-            .Where(i => i.SemesterId == semesterId && i.Type != ClearanceType);
+            .Where(i => i.SemesterId == semesterId && i.Type != ClearanceType && activeLibIds.Contains(i.LibraryId));
 
         if (libraryId.HasValue && libraryId.Value > 0)
         {
@@ -517,8 +527,13 @@ public class InvoiceBusinessService
 
     private async Task<Library> GetLibraryForClearanceAsync(int libraryId, CancellationToken cancellationToken = default)
     {
-        return await _db.Libraries.FindAsync(new object[] { libraryId }, cancellationToken)
+        var library = await _db.Libraries.FindAsync(new object[] { libraryId }, cancellationToken)
             ?? throw new InvalidOperationException("المكتبة غير موجودة");
+
+        if (!library.IsActive)
+            throw new InvalidOperationException("لا يمكن إنشاء مخالصة لمكتبة محذوفة");
+
+        return library;
     }
 
     private async Task EnsureNoClearanceAsync(int libraryId, int semesterId, CancellationToken cancellationToken = default)
@@ -609,12 +624,9 @@ public class InvoiceBusinessService
         if (!int.TryParse(yearPart, out var invoiceYear))
             throw new InvalidOperationException($"Invalid academic year format: {semester.AcademicYear.Name}");
         
-        // Determine the term code for the invoice number:
-        // - Orders and refunds use the semester code (A/B)
-        // - Clearance uses "P"
-        var termCode = type == ClearanceType ? ClearanceTermCode : semester.Code;
+        var termCode = semester.Code;
         
-        var nextNumber = await GetNextInvoiceNumberAsync(library.Id, invoiceYear, cancellationToken);
+        var nextNumber = await GetNextInvoiceNumberAsync(library.Id, semester.Id, invoiceYear, cancellationToken);
         var invoice = new Invoice
         {
             InvoiceNumber = nextNumber,

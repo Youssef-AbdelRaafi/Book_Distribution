@@ -8,8 +8,6 @@ services:
       - TZ=Asia/Muscat
       # JWT signing key (min 32 chars) — override via .env or shell
       - Auth__JwtSigningKey=${JWT_SIGNING_KEY:-ChangeThisToASecretKeyOfAtLeast32Characters!}
-      # Admin password hash (PBKDF2 format) — override via .env or shell
-      - Auth__AdminPasswordHash=${ADMIN_PASSWORD_HASH}
       # SQLite connection string (uses persistent volume)
       - ConnectionStrings__DefaultConnection=Data Source=/app/data/app.db;Cache=Shared
     volumes:

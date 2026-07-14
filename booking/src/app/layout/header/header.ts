@@ -8,6 +8,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ThemeService } from '../../core/services/theme.service';
 import { SettingsService, PrintSettings } from '../../core/services/settings.service';
 import { AuthService } from '../../core/services/auth.service';
+import { ActivityService } from '../../core/services/activity.service';
 import { ASSET_URLS } from '../../core/constants/asset-urls';
 import { AppDataService } from '../../core/services/app-data.service';
 import { ToastService } from '../../core/services/toast.service';
@@ -24,12 +25,14 @@ import { LS_INV_IS_MERGED } from '../../core/constants/local-storage-keys';
 })
 export class HeaderComponent implements OnInit {
   isSettingsOpen = false;
+  isActivityLogOpen = false;
   trackById = (i: number, item: any) => item?.id ?? i;
   trackByIndex = (i: number) => i;
   isHelpOpen = false;
   themeService = inject(ThemeService);
   settingsService = inject(SettingsService);
   authService = inject(AuthService);
+  activityService = inject(ActivityService);
   router = inject(Router);
   appDataService = inject(AppDataService);
   http = inject(HttpClient);
@@ -73,7 +76,60 @@ export class HeaderComponent implements OnInit {
   editPrintSettings: PrintSettings = { ...this.settingsService.printSettings() };
   editSectionOrder: string[] = [...this.settingsService.sectionOrder()];
 
+  changePasswordData = {
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  };
 
+  changePassword() {
+    const { currentPassword, newPassword, confirmPassword } = this.changePasswordData;
+
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      this.toast.show('الرجاء إدخال جميع الحقول', 'error');
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      this.toast.show('يجب أن تكون كلمة المرور الجديدة 6 أحرف على الأقل', 'error');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      this.toast.show('كلمة المرور الجديدة وتأكيدها غير متطابقين', 'error');
+      return;
+    }
+
+    this.authService.changePassword(currentPassword, newPassword).pipe(
+      takeUntilDestroyed(this.destroyRef)
+    ).subscribe({
+      next: () => {
+        this.toast.show('تم تغيير كلمة المرور بنجاح', 'success');
+        this.changePasswordData = { currentPassword: '', newPassword: '', confirmPassword: '' };
+      },
+      error: (err: any) => {
+        this.toast.show(err.error?.message || 'حدث خطأ أثناء تغيير كلمة المرور', 'error');
+      }
+    });
+  }
+
+
+
+  openActivityLog() {
+    this.isActivityLogOpen = true;
+  }
+
+  closeActivityLog() {
+    this.isActivityLogOpen = false;
+  }
+
+  undoActivity(activityId: string) {
+    this.activityService.undoActivity(activityId);
+  }
+
+  redoActivity(activityId: string) {
+    this.activityService.redoActivity(activityId);
+  }
 
   openHelp() {
     this.isHelpOpen = true;

@@ -1,4 +1,4 @@
-import { Component, inject, Input, computed, signal, DestroyRef, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject, Input, computed, signal, effect, DestroyRef, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { toSignal, takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -53,6 +53,20 @@ export class DashboardComponent {
   private readonly LOW_STOCK_THRESHOLD = 150;
   private readonly CRITICAL_STOCK_THRESHOLD = 200;
 
+  filterTermCode = signal<string>('');
+
+  filteredInvoices = computed(() => {
+    const term = this.filterTermCode();
+    if (!term) return this.invoices();
+    return this.invoices().filter(inv => inv.termCode === term);
+  });
+
+  constructor() {
+    effect(() => {
+      this.filterTermCode.set(this.settingsService.getActiveTermCode());
+    });
+  }
+
   toggleClassicMode(event: Event) {
     event.stopPropagation();
     this.isClassicMode.set(!this.isClassicMode());
@@ -71,7 +85,7 @@ export class DashboardComponent {
 
   // 1. Top Stats
   stats = computed(() => {
-    const invs: Invoice[] = this.invoices();
+    const invs: Invoice[] = this.filteredInvoices();
     const vouchers = this.receiptVoucherService.vouchers$();
     const invt: Book[] = this.inventory();
     const libs = this.libraries();
@@ -117,7 +131,7 @@ export class DashboardComponent {
 
   // 2. Pending Balances (أين أموالي؟)
   pendingBalances = computed(() => {
-    const invs: Invoice[] = this.invoices();
+    const invs: Invoice[] = this.filteredInvoices();
     const vouchers = this.receiptVoucherService.vouchers$();
     const libMap = new Map<string, { ordered: number, refunded: number, cleared: number, balance: number }>();
 
@@ -154,7 +168,7 @@ export class DashboardComponent {
   // 3. Critical Stock (ماذا يجب أن أطبع؟)
   criticalStock = computed(() => {
     const invt: Book[] = this.inventory();
-    const invs: Invoice[] = this.invoices();
+    const invs: Invoice[] = this.filteredInvoices();
     
     // Calculate total sold for each item to know its demand
     const demandMap = new Map<number, number>();
@@ -179,7 +193,7 @@ export class DashboardComponent {
 
   // 4. Most Refunded (ما هي المشكلة؟)
   mostRefunded = computed(() => {
-    const invs: Invoice[] = this.invoices();
+    const invs: Invoice[] = this.filteredInvoices();
     const refundMap = new Map<string, number>();
 
     invs.forEach(inv => {
@@ -199,7 +213,7 @@ export class DashboardComponent {
 
   // 5. Chart Data: Sales by Term (متى نبيع أكثر؟)
   chartData = computed(() => {
-    const invs: Invoice[] = this.invoices();
+    const invs: Invoice[] = this.filteredInvoices();
     const termMap = new Map<string, number>();
 
     invs.forEach(inv => {
@@ -239,7 +253,7 @@ export class DashboardComponent {
   // --- Classic Analytics Mode Data ---
   
   classicChartData = computed(() => {
-    const invs: Invoice[] = this.invoices();
+    const invs: Invoice[] = this.filteredInvoices();
     const mode = this.classicDisplayMode();
     const yearMap = new Map<number, number | Set<string>>();
 
@@ -289,7 +303,7 @@ export class DashboardComponent {
   });
 
   classicTableData = computed(() => {
-    const invs: Invoice[] = this.invoices();
+    const invs: Invoice[] = this.filteredInvoices();
     const mode = this.classicDisplayMode();
     
     // Group by Year and Term

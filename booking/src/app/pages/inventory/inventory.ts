@@ -41,6 +41,12 @@ export class InventoryComponent {
     localStorage.setItem(LS_INVNT_LIST_COLLAPSED, String(this.isListCollapsed()));
   }
 
+  onFilterChange() {
+    if (this.isListCollapsed()) {
+      this.toggleList();
+    }
+  }
+
   isEditMode = signal(false);
   draftPrice = signal<number | null>(null);
 

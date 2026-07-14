@@ -42,9 +42,9 @@
 
             <div>
               <label class="block text-xs font-medium text-on-surface-variant mb-1.5">المكتبة</label>
-              <select [(ngModel)]="selectedLibraryId" class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2.5 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all appearance-none cursor-pointer">
+              <select [(ngModel)]="selectedLibraryId" (ngModelChange)="onLibraryChange()" class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2.5 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all appearance-none cursor-pointer">
                 <option [ngValue]="0">اختر المكتبة...</option>
-                <option *ngFor="let lib of filteredLibraries()" [ngValue]="lib.id">{{ lib.name }}</option>
+                <option *ngFor="let lib of filteredLibraries()" [ngValue]="lib.id">{{ lib.name }} — {{ lib.governorateName }} / {{ lib.cityName }}</option>
               </select>
             </div>
           </div>
@@ -162,7 +162,11 @@
               </select>
             </div>
             
-            <div class="grid grid-cols-2 gap-2">
+            <div class="grid grid-cols-3 gap-2">
+              <select [(ngModel)]="filterSemesterId" class="bg-surface-primary border border-outline-variant rounded-md px-2 py-1.5 text-xs focus:border-primary outline-none">
+                <option [ngValue]="0">كل الترم</option>
+                <option *ngFor="let sem of activeYearSemesters(); trackBy: trackById" [ngValue]="sem.id">{{ sem.name }}</option>
+              </select>
               <select [(ngModel)]="filterGovernorateId" (ngModelChange)="onFilterGovernorateChange()" class="bg-surface-primary border border-outline-variant rounded-md px-2 py-1.5 text-xs focus:border-primary outline-none">
                 <option [ngValue]="0">كل المحافظات</option>
                 <option *ngFor="let gov of libraryService.governorates(); trackBy: trackById" [ngValue]="gov.id">{{ gov.name }}</option>
@@ -209,6 +213,9 @@
               </div>
               
               <div class="mt-3 flex gap-2 pr-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button type="button" (click)="viewInvoice(inv)" class="flex-1 text-xs font-medium py-1.5 rounded bg-primary/10 hover:bg-primary/20 text-primary transition-colors flex items-center justify-center gap-1">
+                  <span class="material-symbols-outlined text-[14px]">visibility</span> عرض
+                </button>
                 <button type="button" (click)="retryPrint(inv)" class="flex-1 text-xs font-medium py-1.5 rounded bg-surface-container-high hover:bg-surface-variant text-on-surface transition-colors flex items-center justify-center gap-1">
                   <span class="material-symbols-outlined text-[14px]">print</span> طباعة مجدداً
                 </button>
@@ -230,6 +237,135 @@
 </div>
 
 </ng-container>
+
+<!-- Preview Modal -->
+<div *ngIf="previewInvoice()" class="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 print:hidden p-4" (click)="closePreview()">
+  <div class="bg-surface-container-lowest rounded-xl shadow-lg w-full max-w-4xl max-h-[90vh] flex flex-col" (click)="$event.stopPropagation()">
+    <!-- Header -->
+    <div class="flex justify-between items-center p-5 border-b border-surface-container-high">
+      <div class="flex items-center gap-3">
+        <span class="material-symbols-outlined text-[24px]" [ngClass]="previewInvoice()?.type === 'receipt_voucher' ? 'text-[#1a237e]' : (previewInvoice()?.type === 'refund' ? 'text-error' : 'text-primary')">receipt_long</span>
+        <h2 class="text-lg font-bold text-on-surface">
+          {{ getTypeLabel(previewInvoice()?.type) }}
+          <span class="text-on-surface-variant font-mono">#{{ previewInvoice()?.displayNumber || previewInvoice()?.invoiceNumber }}</span>
+        </h2>
+      </div>
+      <button type="button" (click)="closePreview()" class="text-on-surface-variant hover:text-error transition-colors">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+
+    <!-- Body -->
+    <div class="flex-1 overflow-y-auto p-5 custom-scrollbar">
+      <!-- Invoice Info -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+        <div class="p-3 bg-surface-container-low rounded-lg">
+          <div class="text-xs text-on-surface-variant mb-1">المكتبة</div>
+          <div class="font-bold text-sm">{{ previewInvoice()?.libraryName }}</div>
+        </div>
+        <div class="p-3 bg-surface-container-low rounded-lg">
+          <div class="text-xs text-on-surface-variant mb-1">المحافظة / المدينة</div>
+          <div class="font-bold text-sm">{{ previewInvoice()?.governorateName || previewInvoice()?.region }} - {{ previewInvoice()?.cityName || previewInvoice()?.city }}</div>
+        </div>
+        <div class="p-3 bg-surface-container-low rounded-lg">
+          <div class="text-xs text-on-surface-variant mb-1">التاريخ</div>
+          <div class="font-bold text-sm">{{ previewInvoice()?.date | date:'yyyy/M/d' }}</div>
+        </div>
+        <div class="p-3 bg-surface-container-low rounded-lg">
+          <div class="text-xs text-on-surface-variant mb-1">الفصل الدراسي</div>
+          <div class="font-bold text-sm">{{ previewInvoice()?.semesterName }}</div>
+        </div>
+      </div>
+
+      <!-- Line items (for order/refund/clearance) -->
+      <ng-container *ngIf="previewInvoice()?.type !== 'receipt_voucher'">
+        <div *ngFor="let group of getPrintGroups(previewInvoice()); trackBy: trackByIndex" class="mb-5">
+          <h3 class="text-md font-bold text-secondary mb-2 pb-2 border-b border-surface-container-high">{{ group.grade }}</h3>
+          <table class="w-full text-sm text-right">
+            <thead class="text-xs text-on-surface-variant bg-surface-container-low">
+              <tr>
+                <th class="px-3 py-2 rounded-r-lg font-medium w-10">م</th>
+                <th class="px-3 py-2 font-medium">الكتاب</th>
+                <th class="px-3 py-2 font-medium text-center">الكمية</th>
+                <th class="px-3 py-2 font-medium text-left">السعر</th>
+                <th class="px-3 py-2 rounded-l-lg font-medium text-left">الإجمالي</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let item of group.items; trackBy: trackById; let i = index" class="border-b border-surface-container last:border-0 hover:bg-surface-container-lowest transition-colors">
+                <td class="px-3 py-2 text-center text-on-surface-variant">{{ item.globalIndex }}</td>
+                <td class="px-3 py-2 font-medium text-on-surface">{{ item.bookName }}</td>
+                <td class="px-3 py-2 text-center font-bold">{{ item.quantity }}</td>
+                <td class="px-3 py-2 text-left font-mono text-on-surface-variant">{{ item.unitPrice | number:'1.3-3' }}</td>
+                <td class="px-3 py-2 text-left font-bold text-primary">{{ item.total | number:'1.3-3' }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div *ngIf="previewInvoice()?.items?.length === 0" class="text-center text-on-surface-variant py-8">
+          لا توجد أصناف في هذه الفاتورة
+        </div>
+
+        <!-- Total -->
+        <div class="flex justify-end mt-4">
+          <div class="p-4 bg-primary/5 border border-primary/20 rounded-lg min-w-[250px]">
+            <div class="text-xs text-on-surface-variant mb-1">الإجمالي الكلي</div>
+            <div class="text-xl font-bold text-primary">{{ previewInvoice()?.totalAmount | number:'1.3-3' }} R.O.</div>
+          </div>
+        </div>
+      </ng-container>
+
+      <!-- Receipt Voucher details -->
+      <div *ngIf="previewInvoice()?.type === 'receipt_voucher'" class="space-y-3">
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+          <div class="p-4 bg-surface-container-low rounded-lg border border-outline-variant">
+            <div class="text-xs text-on-surface-variant mb-1">المبلغ</div>
+            <div class="text-lg font-bold text-[#1a237e]">{{ previewInvoice()?.amount | number:'1.3-3' }} R.O.</div>
+          </div>
+          <div class="p-4 bg-surface-container-low rounded-lg border border-outline-variant">
+            <div class="text-xs text-on-surface-variant mb-1">طريقة الدفع</div>
+            <div class="font-bold">{{ previewInvoice()?.paymentMethod === 'cheque' ? 'شيك' : 'نقداً' }}</div>
+          </div>
+          <div class="p-4 bg-surface-container-low rounded-lg border border-outline-variant">
+            <div class="text-xs text-on-surface-variant mb-1">تاريخ السند</div>
+            <div class="font-bold">{{ previewInvoice()?.date | date:'yyyy/M/d' }}</div>
+          </div>
+          <div *ngIf="previewInvoice()?.paymentMethod === 'cheque'" class="p-4 bg-surface-container-low rounded-lg border border-outline-variant">
+            <div class="text-xs text-on-surface-variant mb-1">رقم الشيك</div>
+            <div class="font-bold">{{ previewInvoice()?.chequeNumber }}</div>
+          </div>
+          <div *ngIf="previewInvoice()?.paymentMethod === 'cheque'" class="p-4 bg-surface-container-low rounded-lg border border-outline-variant">
+            <div class="text-xs text-on-surface-variant mb-1">البنك</div>
+            <div class="font-bold">{{ previewInvoice()?.bankName }}</div>
+          </div>
+          <div class="p-4 bg-surface-container-low rounded-lg border border-outline-variant md:col-span-2">
+            <div class="text-xs text-on-surface-variant mb-1">الغرض</div>
+            <div class="font-bold">{{ previewInvoice()?.purpose }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="p-5 border-t border-surface-container-high bg-surface-container-low rounded-b-xl">
+      <div class="flex justify-between items-center">
+        <div class="text-sm text-on-surface-variant">
+          <span *ngIf="previewInvoice()?.type !== 'receipt_voucher'">{{ previewInvoice()?.items?.length || 0 }} مواد</span>
+          <span *ngIf="previewInvoice()?.type === 'receipt_voucher'">رقم السند: {{ previewInvoice()?.displayNumber || previewInvoice()?.voucherNumber }}</span>
+        </div>
+        <div class="flex gap-3">
+          <button type="button" (click)="closePreview()" class="px-5 py-2.5 border border-outline-variant rounded-lg text-sm font-medium text-on-surface-variant hover:bg-surface-container transition-colors">
+            إغلاق
+          </button>
+          <button type="button" (click)="printInvoice(previewInvoice()); closePreview()" class="px-5 py-2.5 bg-secondary text-on-secondary rounded-lg text-sm font-medium hover:bg-on-secondary-fixed-variant transition-colors flex items-center gap-2">
+            <span class="material-symbols-outlined text-[20px]">print</span> طباعة
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- Print Layout -->
 <div *ngIf="invoiceToPrint() && invoiceToPrint()?.type !== 'receipt_voucher'" class="print-page invoice-print-page w-full bg-white text-black p-4" dir="rtl" style="font-family: 'Traditional Arabic', 'Amiri', 'Times New Roman', serif;">

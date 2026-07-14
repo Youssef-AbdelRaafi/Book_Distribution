@@ -20,6 +20,9 @@
     </div>
   </div>
   <div class="flex items-center gap-space-md text-on-surface-variant">
+    <button type="button" (click)="openActivityLog()" class="p-2 rounded-full hover:bg-surface-container transition-colors active:scale-95 duration-150 relative" title="سجل الأحداث">
+      <span class="material-symbols-outlined">history</span>
+    </button>
     <button type="button" (click)="openHelp()" class="p-2 rounded-full hover:bg-surface-container transition-colors active:scale-95 duration-150" title="دليل الاستخدام">
       <span class="material-symbols-outlined">help_outline</span>
     </button>
@@ -31,6 +34,52 @@
     </button>
   </div>
 </header>
+
+<!-- Activity Log Modal -->
+<div *ngIf="isActivityLogOpen" class="fixed inset-0 z-[999] flex items-center justify-center bg-black/50 p-4">
+  <div class="bg-surface-container-lowest rounded-xl shadow-lg w-full max-w-lg max-h-[90vh] flex flex-col">
+    <div class="flex justify-between items-center p-4 border-b border-surface-container-high shrink-0">
+      <h2 class="text-lg font-bold text-primary flex items-center gap-2">
+        <span class="material-symbols-outlined">history</span> سجل الأحداث
+      </h2>
+      <div class="flex items-center gap-2">
+        <button type="button" (click)="activityService.clearHistory()" class="text-xs text-error hover:bg-error/10 px-2 py-1 rounded transition-colors">مسح الكل</button>
+        <button type="button" (click)="closeActivityLog()" class="text-on-surface-variant hover:text-error transition-colors">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+    </div>
+    <div class="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-2">
+      <div *ngIf="activityService.activities$().length === 0" class="text-center text-on-surface-variant py-10 flex flex-col items-center gap-2">
+        <span class="material-symbols-outlined text-4xl opacity-50">history_toggle_off</span>
+        <p class="text-sm">لا توجد أحداث مسجلة حتى الآن</p>
+      </div>
+      <div *ngFor="let activity of activityService.activities$(); trackBy: trackById" class="p-3 rounded-lg border transition-all" [ngClass]="activity.status === 'undone' ? 'bg-surface-container-low border-surface-container-high opacity-60' : 'bg-surface-container-lowest border-surface-container-high hover:border-primary'">
+        <div class="flex justify-between items-start gap-2">
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full shrink-0" [ngClass]="activity.status === 'undone' ? 'bg-on-surface-variant' : activity.type === 'ADD' ? 'bg-success' : activity.type === 'DELETE' ? 'bg-error' : activity.type === 'UPDATE' ? 'bg-warning' : 'bg-info'"></span>
+              <span class="text-sm font-bold text-text-heading truncate">{{ activity.action }}</span>
+              <span *ngIf="activity.status === 'undone'" class="text-[10px] bg-surface-variant text-on-surface-variant px-1.5 py-0.5 rounded">ملغي</span>
+            </div>
+            <p class="text-xs text-on-surface-variant mt-0.5 line-clamp-2">{{ activity.details }}</p>
+            <p class="text-[10px] text-on-surface-variant/60 mt-1">{{ activity.timestamp | date:'dd/MM/yyyy hh:mm a' }}</p>
+          </div>
+          <div class="flex gap-1 shrink-0" *ngIf="activity.status === 'active'">
+            <button type="button" (click)="undoActivity(activity.id)" class="p-1.5 rounded text-xs bg-surface-container-high hover:bg-warning/20 hover:text-warning transition-colors" title="تراجع">
+              <span class="material-symbols-outlined text-[16px]">undo</span>
+            </button>
+          </div>
+          <div class="flex gap-1 shrink-0" *ngIf="activity.status === 'undone'">
+            <button type="button" (click)="redoActivity(activity.id)" class="p-1.5 rounded text-xs bg-surface-container-high hover:bg-success/20 hover:text-success transition-colors" title="إعادة">
+              <span class="material-symbols-outlined text-[16px]">redo</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- Settings Modal -->
 <div *ngIf="isSettingsOpen" class="fixed inset-0 z-[999] flex items-center justify-center bg-black/50 p-4">
@@ -53,6 +102,27 @@
           <div class="w-4 h-4 bg-white rounded-full absolute top-0.5 transition-all shadow-sm" [ngClass]="themeService.isDarkMode() ? 'left-0.5' : 'right-0.5'"></div>
         </button>
       </div>
+      <div class="pt-2 mt-2 border-t border-surface-container-high">
+        <div class="font-bold text-sm text-primary mb-3">تغيير كلمة المرور</div>
+        <div class="space-y-3">
+          <div>
+            <label class="block text-[10px] text-on-surface-variant mb-1">كلمة المرور الحالية</label>
+            <input type="password" [(ngModel)]="changePasswordData.currentPassword" class="w-full bg-surface-container-lowest border border-outline-variant rounded px-2 py-1.5 text-xs focus:border-primary outline-none">
+          </div>
+          <div>
+            <label class="block text-[10px] text-on-surface-variant mb-1">كلمة المرور الجديدة</label>
+            <input type="password" [(ngModel)]="changePasswordData.newPassword" class="w-full bg-surface-container-lowest border border-outline-variant rounded px-2 py-1.5 text-xs focus:border-primary outline-none">
+          </div>
+          <div>
+            <label class="block text-[10px] text-on-surface-variant mb-1">تأكيد كلمة المرور الجديدة</label>
+            <input type="password" [(ngModel)]="changePasswordData.confirmPassword" class="w-full bg-surface-container-lowest border border-outline-variant rounded px-2 py-1.5 text-xs focus:border-primary outline-none">
+          </div>
+          <button type="button" (click)="changePassword()" class="w-full py-2 bg-primary text-on-primary rounded-lg text-sm font-medium hover:bg-primary-container transition-colors shadow-sm">
+            تغيير كلمة المرور
+          </button>
+        </div>
+      </div>
+
       <div class="pt-2 mt-2 border-t border-surface-container-high">
         <div class="font-bold text-sm text-primary mb-3">إعدادات الطباعة</div>
         <div class="space-y-3">

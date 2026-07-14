@@ -6,26 +6,18 @@ public sealed class AuthOptions
 {
     public const string SectionName = "Auth";
 
-    public string AdminUsername { get; set; } = "admin";
-    public string? AdminPasswordHash { get; set; }
     public string JwtIssuer { get; set; } = "BookDistributionAPI";
     public string JwtAudience { get; set; } = "BookDistributionClient";
     public string JwtSigningKey { get; set; } = string.Empty;
-    public int TokenMinutes { get; set; } = 480;
+    public int TokenMinutes { get; set; } = 10080;
 
     public void Validate()
     {
-        if (string.IsNullOrWhiteSpace(AdminUsername))
-            throw new InvalidOperationException("Auth:AdminUsername is required.");
-
-        if (string.IsNullOrWhiteSpace(AdminPasswordHash))
-            throw new InvalidOperationException("Configure Auth:AdminPasswordHash.");
-
         if (string.IsNullOrWhiteSpace(JwtSigningKey) || JwtSigningKey.Length < 32)
             throw new InvalidOperationException("Auth:JwtSigningKey must be at least 32 characters.");
 
-        if (TokenMinutes < 15 || TokenMinutes > 1440)
-            throw new InvalidOperationException("Auth:TokenMinutes must be between 15 and 1440.");
+        if (TokenMinutes < 15 || TokenMinutes > 43200)
+            throw new InvalidOperationException("Auth:TokenMinutes must be between 15 and 43200.");
     }
 }
 

@@ -56,6 +56,10 @@ export class AuthService {
     return this.http.post<LoginResponse>(`${this.apiUrl}/login`, { username, password });
   }
 
+  changePassword(currentPassword: string, newPassword: string): Observable<any> {
+    return this.http.post(`${this.apiUrl}/change-password`, { currentPassword, newPassword });
+  }
+
   handleLoginResponse(res: any): void {
     const response = res.data || res;
     if (!response.success || !response.token || !response.expiresAt) {

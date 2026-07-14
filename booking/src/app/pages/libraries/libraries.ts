@@ -1,6 +1,7 @@
 import { Component, computed, signal, inject, ChangeDetectorRef, Input, DestroyRef, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { BehaviorSubject, combineLatest } from 'rxjs';
 import { switchMap, filter, map, of } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { LibraryService } from '../../core/services/library.service';
@@ -71,8 +72,16 @@ export class LibrariesComponent {
   editLibraryNotes = '';
   editResponsibleName = '';
   editResponsiblePhone = '';
+  editOwnerName = '';
+  editOwnerPhone = '';
+  editLandlinePhone = '';
+  editShift1Start = '08:00';
+  editShift1End = '13:00';
+  editShift2Start = '16:00';
+  editShift2End = '22:00';
   libraryInvoices = signal<any[]>([]);
-  libraryVouchers = signal<ReceiptVoucher[]>([]); 
+  libraryVouchers = signal<ReceiptVoucher[]>([]);
+  expandedInvoiceId = signal<number | null>(null);
 
   // Receipt Voucher Modal State
   isReceiptVoucherModalOpen = false;
@@ -93,6 +102,28 @@ export class LibrariesComponent {
 
   isListCollapsed = signal(localStorage.getItem(LS_LIB_LIST_COLLAPSED) === 'true');
   isListEditMode = signal(false);
+  searchTerm = '';
+  private searchTerm$ = new BehaviorSubject<string>('');
+
+  filteredLibraries$ = combineLatest([
+    this.searchTerm$,
+    this.libraryService.libraries$
+  ]).pipe(
+    map(([term, libs]) => {
+      const t = term.trim().toLowerCase();
+      if (!t) return libs;
+      return libs.filter(l =>
+        l.name.toLowerCase().includes(t) ||
+        (l.governorateName || l.region || '').toLowerCase().includes(t) ||
+        (l.cityName || l.city || '').toLowerCase().includes(t)
+      );
+    })
+  );
+
+  onSearchTermChange(term: string) {
+    this.searchTerm = term;
+    this.searchTerm$.next(term);
+  }
 
   toggleList() {
     this.isListCollapsed.set(!this.isListCollapsed());
@@ -105,7 +136,66 @@ export class LibrariesComponent {
   clearancePaidAmount = signal<number>(0);
   clearanceDate = new Date().toLocaleDateString('ar-SA', { calendar: 'gregory' });
   currentClearanceNumber = signal<string>('');
+  clearanceSearchTerm = signal('');
+  clearanceGradeFilter = signal('');
+
+  filteredClearanceItems = computed(() => {
+    const term = this.clearanceSearchTerm().trim().toLowerCase();
+    const gradeFilter = this.clearanceGradeFilter();
+    return this.clearanceItems()
+      .map(group => ({
+        grade: group.grade,
+        items: group.items.filter(item => {
+          if (term && !item.name.toLowerCase().includes(term)) return false;
+          if (gradeFilter && item.grade !== gradeFilter) return false;
+          return true;
+        })
+      }))
+      .filter(group => group.items.length > 0);
+  });
+
+  clearanceGradeList = computed(() => {
+    return ['كل الصفوف', ...new Set(this.clearanceItems().map(g => g.grade))];
+  });
+
+  clearanceToPrint = signal<any | null>(null);
+
+  getInvoiceDisplayNumber(invoice: any): string {
+    if (!invoice) return '';
+    if (invoice.displayNumber) return invoice.displayNumber;
+    return `${invoice.invoiceNumber ?? ''}${invoice.termCode ?? ''}`;
+  }
+
+  getPrintTypeLabel(type: string | undefined): string {
+    switch (type) {
+      case 'order': return 'فاتورة رقم';
+      case 'refund': return 'مرتجع رقم';
+      default: return 'مخالصة رقم';
+    }
+  }
+
+  getPrintGroups(invoice: any): { grade: string, items: any[] }[] {
+    if (!invoice) return [];
+    const groupsMap = new Map<string, any[]>();
+    (invoice.items || []).forEach((item: any, index: number) => {
+      const grade = item.bookGrade || 'أخرى';
+      if (!groupsMap.has(grade)) groupsMap.set(grade, []);
+      groupsMap.get(grade)!.push({ ...item, globalIndex: index + 1 });
+    });
+    return Array.from(groupsMap.entries()).map(([grade, items]) => ({ grade, items }));
+  }
+
   clearanceBatchInvoices = signal<Invoice[]>([]);
+  showBatchClearanceView = signal(false);
+  batchSearchTerm = signal('');
+  expandedBatchCard = signal<number | null>(null);
+
+  filteredBatchClearances = computed(() => {
+    const term = this.batchSearchTerm().trim().toLowerCase();
+    return this.clearanceBatchInvoices().filter(inv =>
+      !term || inv.libraryName?.toLowerCase().includes(term)
+    );
+  });
 
   Math = Math;
   formatAmountRials = formatAmountRials;
@@ -132,16 +222,18 @@ export class LibrariesComponent {
       takeUntilDestroyed(this.destroyRef)
     ).subscribe(items => {
       this.librariesList.set(items);
-      this.cdr.detectChanges();
+      this.cdr.markForCheck();
     });
 
   }
 
-  // Filtered cities based on selected governorate
+  // Filtered cities based on selected governorate — only cities that have libraries
   filteredCities() {
     const govs = this.libraryService.governorates();
     const gov = govs.find(g => g.id === Number(this.selectedGovernorateId));
-    return gov?.cities || [];
+    if (!gov) return [];
+    const cityIdsWithLibraries = new Set(this.librariesList().map(l => l.cityId));
+    return gov.cities.filter(c => cityIdsWithLibraries.has(c.id));
   }
 
   onGovernorateChange() {
@@ -198,6 +290,13 @@ export class LibrariesComponent {
     this.editLibraryNotes = lib.notes || '';
     this.editResponsibleName = lib.responsibleName || '';
     this.editResponsiblePhone = lib.responsiblePhone || '';
+    this.editOwnerName = lib.ownerName || '';
+    this.editOwnerPhone = lib.ownerPhone || '';
+    this.editLandlinePhone = lib.landlinePhone || '';
+    this.editShift1Start = lib.shift1Start || '08:00';
+    this.editShift1End = lib.shift1End || '13:00';
+    this.editShift2Start = lib.shift2Start || '16:00';
+    this.editShift2End = lib.shift2End || '22:00';
     
     // Fetch invoices for this library from API
     this.invoiceService.getInvoicesByLibraryId(lib.id).pipe(
@@ -255,12 +354,19 @@ export class LibrariesComponent {
     if (!lib) return;
     if (!this.editLibName.trim()) { this.toast.show('الرجاء إدخال اسم المكتبة', 'error'); return; }
     
-    const updatedLib = { 
+    const updatedLib: Library = { 
       ...lib, 
       name: this.editLibName, 
       logo: this.editLibLogo || lib.logo,
+      ownerName: this.editOwnerName || '',
+      ownerPhone: this.editOwnerPhone || '',
       responsibleName: this.editResponsibleName || '',
       responsiblePhone: this.editResponsiblePhone || '',
+      landlinePhone: this.editLandlinePhone || undefined,
+      shift1Start: this.editShift1Start || '08:00',
+      shift1End: this.editShift1End || '13:00',
+      shift2Start: this.editShift2Start || undefined,
+      shift2End: this.editShift2End || undefined,
       responseRating: this.editResponseRating || undefined,
       paymentRating: this.editPaymentRating || undefined,
       notes: this.editLibraryNotes || undefined
@@ -329,6 +435,8 @@ export class LibrariesComponent {
     this.clearanceTotal.set(0);
     this.clearancePaidAmount.set(0);
     this.clearanceBatchInvoices.set([]);
+    this.clearanceSearchTerm.set('');
+    this.clearanceGradeFilter.set('');
 
     const libId = lib ? lib.id : undefined;
     this.invoiceService.getClearancePreview(semesterId, libId).pipe(
@@ -373,6 +481,57 @@ export class LibrariesComponent {
     this.clearanceError.set('');
   }
 
+  closeBatchView() {
+    this.showBatchClearanceView.set(false);
+    this.batchSearchTerm.set('');
+    this.expandedBatchCard.set(null);
+    this.clearanceBatchInvoices.set([]);
+  }
+
+  toggleBatchCard(id: number | undefined) {
+    if (id == null) return;
+    this.expandedBatchCard.set(this.expandedBatchCard() === id ? null : id);
+  }
+
+  toggleInvoiceDetails(inv: any) {
+    const id = inv?.id ?? inv?.voucherNumber;
+    if (id == null) return;
+    this.expandedInvoiceId.set(this.expandedInvoiceId() === id ? null : id);
+  }
+
+  printBatchInvoice(inv: any) {
+    const all = this.clearanceBatchInvoices();
+    this.clearanceBatchInvoices.set([inv]);
+    this.cdr.detectChanges();
+    if (inv.id) {
+      window.onafterprint = () => {
+        this.invoiceService.updatePrintStatus(inv.id, 'printed').pipe(
+          takeUntilDestroyed(this.destroyRef)
+        ).subscribe({ error: () => {} });
+        window.onafterprint = null;
+        this.clearanceBatchInvoices.set(all);
+      };
+    }
+    printWhenImagesReady('.invoice-print-page', () => {});
+  }
+
+  printAllBatchClearances() {
+    this.showBatchClearanceView.set(false);
+    this.cdr.detectChanges();
+    const invoices = this.clearanceBatchInvoices();
+    window.onafterprint = () => {
+      invoices.forEach((inv: any) => {
+        if (inv.id) {
+          this.invoiceService.updatePrintStatus(inv.id, 'printed').pipe(
+            takeUntilDestroyed(this.destroyRef)
+          ).subscribe({ error: () => {} });
+        }
+      });
+      window.onafterprint = null;
+    };
+    printWhenImagesReady('.invoice-print-page', () => {});
+  }
+
   printClearance() {
     const lib = this.clearanceLibrary();
     const semesterId = this.settingsService.getActiveSemesterId();
@@ -387,9 +546,8 @@ export class LibrariesComponent {
       ).subscribe({
         next: (res) => {
           const invoice = res.data!;
-          this.currentClearanceNumber.set(
-            invoice.displayNumber || `${invoice.invoiceNumber || ''}${invoice.termCode || ''}`
-          );
+          this.clearanceToPrint.set(invoice);
+          this.activityService.logActivity('مخالصة', `تم إنشاء مخالصة للمكتبة "${invoice.libraryName}" بقيمة ${invoice.totalAmount} ريال`, 'ADD', { entity: 'invoice', id: invoice.id });
           this.toast.show('تم تسجيل المخالصة بنجاح', 'success');
           this.cdr.detectChanges();
           if (invoice.id) {
@@ -400,7 +558,8 @@ export class LibrariesComponent {
             window.onafterprint = null;
           };
           }
-          printWhenImagesReady('.clearance-print-page', () => {
+          printWhenImagesReady('.invoice-print-page', () => {
+            this.clearanceToPrint.set(null);
             this.closeClearance();
           });
         },
@@ -419,19 +578,9 @@ export class LibrariesComponent {
           const count = result.count;
           const invoices = result.invoices;
           this.clearanceBatchInvoices.set(invoices);
+          this.activityService.logActivity('مخالصة كلية', `تم إنشاء ${count} مخالصة بقيمة إجمالية ${result.totalAmount} ريال`, 'ADD');
           this.toast.show(`تم تسجيل ${count} مخالصة بنجاح`, 'success');
-           this.cdr.detectChanges();
-          window.onafterprint = () => {
-            invoices.forEach((inv: any) => {
-              this.invoiceService.updatePrintStatus(inv.id, 'printed').pipe(
-              takeUntilDestroyed(this.destroyRef)
-            ).subscribe({ error: () => {} });
-            });
-            window.onafterprint = null;
-          };
-          printWhenImagesReady('.clearance-print-page', () => {
-            this.closeClearance();
-          });
+          this.showBatchClearanceView.set(true);
         },
         error: (err: any) => {
           this.toast.show(err.error?.message || 'حدث خطأ في إنشاء المخالصات', 'error');
@@ -486,7 +635,8 @@ export class LibrariesComponent {
       takeUntilDestroyed(this.destroyRef)
     ).subscribe({
       next: (res: any) => {
-        this.activityService.logActivity('إضافة مكتبة', `تم إضافة مكتبة جديدة باسم: ${this.libraryName}`, 'ADD');
+        const libId = res.data?.id ?? res.id;
+        this.activityService.logActivity('إضافة مكتبة', `تم إضافة مكتبة جديدة باسم: ${this.libraryName}`, 'ADD', { entity: 'library', id: libId });
         this.libraryName = '';
         this.ownerName = '';
         this.ownerPhone = '';
@@ -571,6 +721,7 @@ export class LibrariesComponent {
     ).subscribe({
       next: (res) => {
         const voucher = res.data!;
+        this.activityService.logActivity('سند قبض', `تم إنشاء سند قبض للمكتبة "${lib.name}" بقيمة ${this.rvAmount} ريال`, 'ADD', { entity: 'invoice', id: voucher.id });
         this.toast.show('تم إنشاء سند القبض بنجاح', 'success');
         this.receiptVoucherToPrint.set(voucher);
         this.cdr.detectChanges();

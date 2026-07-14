@@ -192,8 +192,8 @@ public class InvoicesController : ControllerBase
 
         if (!int.TryParse(semester.AcademicYear.Name.Split('-')[0], out var invoiceYear))
             return BadRequest(ApiResponse<object>.Fail("صيغة السنة الدراسية غير صالحة"));
-        var termCode = type == "clearance" ? InvoiceBusinessService.ClearanceTermCode : semester.Code;
-        var nextNumber = await _invoiceService.GetNextInvoiceNumberAsync(libraryId, invoiceYear, cancellationToken);
+        var termCode = semester.Code;
+        var nextNumber = await _invoiceService.GetNextInvoiceNumberAsync(libraryId, semesterId, invoiceYear, cancellationToken);
 
         return Ok(ApiResponse<object>.Ok(new
         {

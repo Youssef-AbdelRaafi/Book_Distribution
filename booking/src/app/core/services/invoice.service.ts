@@ -3,6 +3,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, tap, catchError, of } from 'rxjs';
 import { Invoice, ClearancePreview } from '../models/invoice.model';
 import { ApiResponse } from '../models/api-response.model';
+import { ActivityPayload } from '../models/activity.model';
 import { ToastService } from './toast.service';
 import { environment } from '../../../environments/environment';
 
@@ -101,8 +102,8 @@ export class InvoiceService {
     );
   }
 
-  createBatchClearance(semesterId: number): Observable<ApiResponse<{ count: number; invoices: Invoice[] }>> {
-    return this.http.post<ApiResponse<{ count: number; invoices: Invoice[] }>>(`${this.apiUrl}/clearance/batch`, { semesterId } as CreateBatchClearanceRequest).pipe(
+  createBatchClearance(semesterId: number): Observable<ApiResponse<{ count: number; totalAmount: number; invoices: Invoice[] }>> {
+    return this.http.post<ApiResponse<{ count: number; totalAmount: number; invoices: Invoice[] }>>(`${this.apiUrl}/clearance/batch`, { semesterId } as CreateBatchClearanceRequest).pipe(
       tap(() => this.fetchInvoices())
     );
   }
@@ -140,4 +141,27 @@ export class InvoiceService {
     return this.http.get<ApiResponse<NextNumberResponse>>(`${this.apiUrl}/next-number`, { params: new HttpParams().set('semesterId', semesterId.toString()) });
   }
 
+  executeCompensation(activity: { type?: string; payload?: ActivityPayload }) {
+    const payload = activity?.payload;
+    if (!payload || !payload.id) return;
+    if (payload.entity !== 'invoice') return;
+
+    if (activity.type === 'ADD') {
+      // Undo create: delete the invoice
+      this.deleteInvoice(payload.id).subscribe({ error: () => {} });
+    } else if (activity.type === 'DELETE' && payload.previous) {
+      // Undo delete: cannot restore invoice via API — notify user
+      this.toast.show('لا يمكن استعادة الفاتورة المحذوفة عبر التراجع. استخدم زر الحذف مباشرة.', 'error');
+    }
+  }
+
+  executeRedo(activity: { type?: string; payload?: ActivityPayload }) {
+    const payload = activity?.payload;
+    if (!payload) return;
+    if (payload.entity !== 'invoice') return;
+
+    if (activity.type === 'DELETE' && payload.id) {
+      this.deleteInvoice(payload.id).subscribe({ error: () => {} });
+    }
+  }
 }

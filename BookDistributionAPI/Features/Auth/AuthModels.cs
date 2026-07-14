@@ -18,3 +18,12 @@ public class LoginResponse
     public DateTime? ExpiresAt { get; set; }
     public string? Message { get; set; }
 }
+
+public class ChangePasswordRequest
+{
+    [Required, StringLength(200)]
+    public string CurrentPassword { get; set; } = string.Empty;
+
+    [Required, StringLength(200)]
+    public string NewPassword { get; set; } = string.Empty;
+}

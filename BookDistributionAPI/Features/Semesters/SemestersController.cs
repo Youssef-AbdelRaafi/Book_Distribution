@@ -89,10 +89,25 @@ public class SemestersController : ControllerBase
         if (activeYear != null)
         {
             var activeSemesterIds = activeYear.Semesters.Select(s => s.Id).ToList();
-            var hasOpenOrders = await _db.Invoices.AnyAsync(i =>
-                activeSemesterIds.Contains(i.SemesterId) && i.Type != "clearance", cancellationToken);
-            if (hasOpenOrders)
-                return BadRequest(ApiResponse<object>.Fail("لا يمكن بدء عام جديد. توجد فواتير غير مسددة في العام الحالي. قم بإنشاء المخالصات أولاً."));
+
+            var librariesWithOrders = await _db.Invoices
+                .Where(i => activeSemesterIds.Contains(i.SemesterId) && i.Type != "clearance")
+                .Select(i => i.LibraryId)
+                .Distinct()
+                .ToListAsync(cancellationToken);
+
+            if (librariesWithOrders.Count != 0)
+            {
+                var librariesWithClearances = await _db.Invoices
+                    .Where(i => activeSemesterIds.Contains(i.SemesterId) && i.Type == "clearance")
+                    .Select(i => i.LibraryId)
+                    .Distinct()
+                    .ToListAsync(cancellationToken);
+
+                var unclearedLibraries = librariesWithOrders.Except(librariesWithClearances).ToList();
+                if (unclearedLibraries.Count != 0)
+                    return BadRequest(ApiResponse<object>.Fail("لا يمكن بدء عام جديد. المكتبات التالية لم تسدد بعد: يرجى إنشاء المخالصات أولاً."));
+            }
         }
 
         await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);

@@ -1,43 +1,45 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Options;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using BookDistributionAPI.Common;
+using BookDistributionAPI.Data;
+using BookDistributionAPI.Features.Users;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
-using System.Threading.Tasks;
-using System.Threading;
 
 namespace BookDistributionAPI.Features.Auth;
 
 [ApiController]
 [Route("api/auth")]
-[AllowAnonymous]
 public class AuthController : ControllerBase
 {
     private readonly AuthOptions _authOptions;
+    private readonly AppDbContext _db;
 
-    public AuthController(IOptions<AuthOptions> authOptions)
+    public AuthController(IOptions<AuthOptions> authOptions, AppDbContext db)
     {
         _authOptions = authOptions.Value;
+        _db = db;
     }
 
     [HttpPost("login")]
-    public async Task<IActionResult> Login([FromBody] LoginRequest request)
+    [AllowAnonymous]
+    public async Task<IActionResult> Login([FromBody] LoginRequest request, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Username) || string.IsNullOrWhiteSpace(request.Password))
-        {
             return BadRequest(ApiResponse<LoginResponse>.Fail("الرجاء إدخال اسم المستخدم وكلمة المرور"));
-        }
 
-        if (IsValidUser(request))
+        var user = await IsValidUser(request, cancellationToken);
+        if (user != null)
         {
             var expiresAt = DateTime.UtcNow.AddMinutes(_authOptions.TokenMinutes);
             var response = new LoginResponse
             {
                 Success = true,
-                Token = CreateToken(request.Username, expiresAt),
+                Token = CreateToken(user.Username, user.Role, expiresAt),
                 ExpiresAt = expiresAt,
                 Message = "تم تسجيل الدخول بنجاح"
             };
@@ -47,24 +49,47 @@ public class AuthController : ControllerBase
         return Unauthorized(ApiResponse<LoginResponse>.Fail("اسم المستخدم أو كلمة المرور غير صحيحة"));
     }
 
-    private bool IsValidUser(LoginRequest request)
+    [HttpPost("change-password")]
+    [Authorize]
+    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request, CancellationToken cancellationToken)
     {
-        if (!string.Equals(request.Username, _authOptions.AdminUsername, StringComparison.Ordinal))
-            return false;
+        if (string.IsNullOrWhiteSpace(request.CurrentPassword) || string.IsNullOrWhiteSpace(request.NewPassword))
+            return BadRequest(ApiResponse<object>.Fail("الرجاء إدخال كلمة المرور الحالية والجديدة"));
 
-        if (string.IsNullOrWhiteSpace(_authOptions.AdminPasswordHash))
-            return false;
+        if (request.NewPassword.Length < 6)
+            return BadRequest(ApiResponse<object>.Fail("يجب أن تكون كلمة المرور الجديدة 6 أحرف على الأقل"));
 
-        return PasswordHasher.Verify(request.Password, _authOptions.AdminPasswordHash);
+        var username = User.Identity?.Name;
+        if (string.IsNullOrWhiteSpace(username))
+            return Unauthorized(ApiResponse<object>.Fail("غير مصرح به"));
+
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Username == username && u.IsActive, cancellationToken);
+        if (user == null)
+            return Unauthorized(ApiResponse<object>.Fail("المستخدم غير موجود"));
+
+        if (!PasswordHasher.Verify(request.CurrentPassword, user.PasswordHash))
+            return BadRequest(ApiResponse<object>.Fail("كلمة المرور الحالية غير صحيحة"));
+
+        user.PasswordHash = PasswordHasher.Hash(request.NewPassword);
+        await _db.SaveChangesAsync(cancellationToken);
+
+        return Ok(ApiResponse<object>.Ok(new { }, "تم تغيير كلمة المرور بنجاح"));
     }
 
-    private string CreateToken(string username, DateTime expiresAt)
+    private async Task<User?> IsValidUser(LoginRequest request, CancellationToken cancellationToken)
+    {
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Username == request.Username && u.IsActive, cancellationToken);
+        if (user == null) return null;
+        return PasswordHasher.Verify(request.Password, user.PasswordHash) ? user : null;
+    }
+
+    private string CreateToken(string username, string role, DateTime expiresAt)
     {
         var claims = new[]
         {
             new Claim(JwtRegisteredClaimNames.Sub, username),
             new Claim(ClaimTypes.Name, username),
-            new Claim(ClaimTypes.Role, "Admin")
+            new Claim(ClaimTypes.Role, role)
         };
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_authOptions.JwtSigningKey));

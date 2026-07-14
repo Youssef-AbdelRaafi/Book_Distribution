@@ -9,8 +9,16 @@
     </div>
     
     <div class="flex items-center gap-3 bg-surface-container-low p-1.5 rounded-lg border border-outline-variant">
-      <span class="text-sm font-medium text-on-surface-variant px-2">الترم المالي:</span>
+      <span class="text-sm font-medium text-on-surface-variant px-2">الترم النشط:</span>
       <select [ngModel]="settingsService.getActiveTermCode()" (ngModelChange)="onTermCodeChange($event)" class="bg-surface-primary border-none rounded py-1 px-3 text-sm font-bold text-primary focus:outline-none cursor-pointer">
+        <option value="A">الترم الأول</option>
+        <option value="B">الترم الثاني</option>
+      </select>
+    </div>
+    <div class="flex items-center gap-3 bg-surface-container-low p-1.5 rounded-lg border border-outline-variant">
+      <span class="text-sm font-medium text-on-surface-variant px-2">فلتر التحليل:</span>
+      <select [(ngModel)]="filterTermCode" class="bg-surface-primary border-none rounded py-1 px-3 text-sm font-bold text-primary focus:outline-none cursor-pointer">
+        <option value="">كل الترمين</option>
         <option value="A">الترم الأول</option>
         <option value="B">الترم الثاني</option>
       </select>

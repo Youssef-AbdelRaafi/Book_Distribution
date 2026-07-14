@@ -6,6 +6,8 @@ using BookDistributionAPI.Features.Governorates;
 using BookDistributionAPI.Features.Books;
 using BookDistributionAPI.Features.Settings;
 using BookDistributionAPI.Features.Libraries;
+using BookDistributionAPI.Features.Users;
+using BookDistributionAPI.Features.Auth;
 
 namespace BookDistributionAPI.Data;
 
@@ -153,6 +155,19 @@ public static class SeedData
                     new AppSetting { Key = "whatsappNumber", Value = "91913020" },
                 };
                 db.AppSettings.AddRange(settings);
+                await db.SaveChangesAsync();
+            }
+
+            if (!await db.Users.AnyAsync())
+            {
+                var adminHash = PasswordHasher.Hash("admin@123");
+                db.Users.Add(new User
+                {
+                    Username = "admin",
+                    PasswordHash = adminHash,
+                    Role = "Admin",
+                    IsActive = true
+                });
                 await db.SaveChangesAsync();
             }
 

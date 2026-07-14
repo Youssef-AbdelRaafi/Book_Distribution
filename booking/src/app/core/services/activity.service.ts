@@ -2,6 +2,10 @@ import { Injectable, signal, inject } from '@angular/core';
 import { Activity, ActivityPayload } from '../models/activity.model';
 import { InventoryService } from './inventory.service';
 import { LibraryService } from './library.service';
+import { InvoiceService } from './invoice.service';
+import { ToastService } from './toast.service';
+import { ConfirmService } from './confirm.service';
+import { filter } from 'rxjs';
 
 @Injectable({
   providedIn: 'root'
@@ -13,6 +17,9 @@ export class ActivityService {
   private readonly maxActivities = 200;
   private inventoryService = inject(InventoryService);
   private libraryService = inject(LibraryService);
+  private invoiceService = inject(InvoiceService);
+  private toast = inject(ToastService);
+  private confirmService = inject(ConfirmService);
 
   constructor() {
     this.loadActivities(); 
@@ -48,46 +55,70 @@ export class ActivityService {
   undoActivity(activityId: string) {
     const activities = this.activitiesSignal();
     const index = activities.findIndex(a => a.id === activityId);
-    if (index !== -1 && activities[index].status !== 'undone') {
-      const activity = activities[index];
-      
-      // Execute compensation
+    if (index === -1 || activities[index].status === 'undone') return;
+
+    const activity = activities[index];
+    const isFinancial = activity.type === 'ADD' || activity.type === 'DELETE';
+
+    const doUndo = () => {
       if (activity.type && activity.payload) {
         if (activity.payload?.entity === 'library') {
           this.libraryService.executeCompensation(activity);
-        } else if (activity.payload?.entity === 'inventory' || !activity.payload?.entity) {
+        } else if (activity.payload?.entity === 'inventory') {
           this.inventoryService.executeCompensation(activity);
+        } else if (activity.payload?.entity === 'invoice') {
+          this.invoiceService.executeCompensation(activity);
         }
       }
 
-      // Update status
       const updated = [...activities];
       updated[index] = { ...activity, status: 'undone' };
       this.activitiesSignal.set(updated);
       localStorage.setItem(this.storageKey, JSON.stringify(updated));
+      this.toast.show(`تم التراجع عن: ${activity.action}`, 'success');
+    };
+
+    if (isFinancial) {
+      this.confirmService.confirm(
+        `⚠️ هل أنت متأكد من التراجع عن العملية التالية؟\n\n"${activity.action}"\n${activity.details}\n\nقد يؤثر ذلك على الأرصدة المالية.`
+      ).pipe(filter(result => !!result)).subscribe({ next: () => doUndo() });
+    } else {
+      doUndo();
     }
   }
 
   redoActivity(activityId: string) {
     const activities = this.activitiesSignal();
     const index = activities.findIndex(a => a.id === activityId);
-    if (index !== -1 && activities[index].status === 'undone') {
-      const activity = activities[index];
-      
-      // Execute redo
+    if (index === -1 || activities[index].status !== 'undone') return;
+
+    const activity = activities[index];
+    const isFinancial = activity.type === 'ADD' || activity.type === 'DELETE';
+
+    const doRedo = () => {
       if (activity.type && activity.payload) {
         if (activity.payload?.entity === 'library') {
           this.libraryService.executeRedo(activity);
-        } else if (activity.payload?.entity === 'inventory' || !activity.payload?.entity) {
+        } else if (activity.payload?.entity === 'inventory') {
           this.inventoryService.executeRedo(activity);
+        } else if (activity.payload?.entity === 'invoice') {
+          this.invoiceService.executeRedo(activity);
         }
       }
 
-      // Update status
       const updated = [...activities];
       updated[index] = { ...activity, status: 'active' };
       this.activitiesSignal.set(updated);
       localStorage.setItem(this.storageKey, JSON.stringify(updated));
+      this.toast.show(`تمت إعادة: ${activity.action}`, 'success');
+    };
+
+    if (isFinancial) {
+      this.confirmService.confirm(
+        `⚠️ هل أنت متأكد من إعادة العملية التالية؟\n\n"${activity.action}"\n${activity.details}\n\nقد يؤثر ذلك على الأرصدة المالية.`
+      ).pipe(filter(result => !!result)).subscribe({ next: () => doRedo() });
+    } else {
+      doRedo();
     }
   }
 
