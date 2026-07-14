@@ -1,10 +1,11 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable, tap, catchError, of } from 'rxjs';
+import { Observable, tap, map, catchError, of, throwError } from 'rxjs';
 import { Invoice, ClearancePreview } from '../models/invoice.model';
 import { ApiResponse } from '../models/api-response.model';
 import { ActivityPayload } from '../models/activity.model';
 import { ToastService } from './toast.service';
+import { InventoryService } from './inventory.service';
 import { environment } from '../../../environments/environment';
 
 interface CreateOrderRequest {
@@ -38,6 +39,7 @@ interface NextNumberResponse {
 export class InvoiceService {
   private http = inject(HttpClient);
   private toast = inject(ToastService);
+  private inventoryService = inject(InventoryService);
   private apiUrl = `${environment.apiUrl}/invoices`;
 
   private invoicesSignal = signal<Invoice[]>([]);
@@ -141,27 +143,37 @@ export class InvoiceService {
     return this.http.get<ApiResponse<NextNumberResponse>>(`${this.apiUrl}/next-number`, { params: new HttpParams().set('semesterId', semesterId.toString()) });
   }
 
-  executeCompensation(activity: { type?: string; payload?: ActivityPayload }) {
+  executeCompensation(activity: { type?: string; payload?: ActivityPayload }): Observable<any> {
     const payload = activity?.payload;
-    if (!payload || !payload.id) return;
-    if (payload.entity !== 'invoice') return;
+    if (!payload || !payload.id || payload.entity !== 'invoice') {
+      return throwError(() => new Error('لا يمكن التراجع عن هذا النشاط'));
+    }
 
     if (activity.type === 'ADD') {
-      // Undo create: delete the invoice
-      this.deleteInvoice(payload.id).subscribe({ error: () => {} });
-    } else if (activity.type === 'DELETE' && payload.previous) {
-      // Undo delete: cannot restore invoice via API — notify user
-      this.toast.show('لا يمكن استعادة الفاتورة المحذوفة عبر التراجع. استخدم زر الحذف مباشرة.', 'error');
+      return this.deleteInvoice(payload.id).pipe(
+        tap(() => this.inventoryService.fetchBooks()),
+        map(() => undefined)
+      );
     }
+    if (activity.type === 'DELETE') {
+      this.toast.show('لا يمكن استعادة الفاتورة المحذوفة عبر التراجع', 'error');
+      return throwError(() => new Error('لا يمكن استعادة الفاتورة المحذوفة'));
+    }
+    return throwError(() => new Error('لا يمكن التراجع عن هذا النشاط'));
   }
 
-  executeRedo(activity: { type?: string; payload?: ActivityPayload }) {
+  executeRedo(activity: { type?: string; payload?: ActivityPayload }): Observable<any> {
     const payload = activity?.payload;
-    if (!payload) return;
-    if (payload.entity !== 'invoice') return;
-
-    if (activity.type === 'DELETE' && payload.id) {
-      this.deleteInvoice(payload.id).subscribe({ error: () => {} });
+    if (!payload || !payload.id || payload.entity !== 'invoice') {
+      return throwError(() => new Error('لا يمكن إعادة هذا النشاط'));
     }
+
+    if (activity.type === 'DELETE') {
+      return this.deleteInvoice(payload.id).pipe(
+        tap(() => this.inventoryService.fetchBooks()),
+        map(() => undefined)
+      );
+    }
+    return throwError(() => new Error('لا يمكن إعادة هذا النشاط'));
   }
 }

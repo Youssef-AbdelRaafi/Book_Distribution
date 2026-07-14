@@ -578,7 +578,9 @@ export class LibrariesComponent {
           const count = result.count;
           const invoices = result.invoices;
           this.clearanceBatchInvoices.set(invoices);
-          this.activityService.logActivity('مخالصة كلية', `تم إنشاء ${count} مخالصة بقيمة إجمالية ${result.totalAmount} ريال`, 'ADD');
+          (invoices || []).forEach((inv: any) => {
+            this.activityService.logActivity('مخالصة', `تم إنشاء مخالصة للمكتبة "${inv.libraryName}" بقيمة ${inv.totalAmount} ريال`, 'ADD', { entity: 'invoice', id: inv.id });
+          });
           this.toast.show(`تم تسجيل ${count} مخالصة بنجاح`, 'success');
           this.showBatchClearanceView.set(true);
         },

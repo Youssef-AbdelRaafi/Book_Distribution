@@ -407,9 +407,6 @@ public class InvoiceBusinessService
         if (invoice == null)
             throw new InvalidOperationException("الفاتورة غير موجودة");
 
-        if (invoice.Type == ClearanceType)
-            throw new InvalidOperationException("لا يمكن حذف فاتورة المخالصة لحماية السجلات المحاسبية");
-
         await using var transaction = await BeginInvoiceTransactionAsync(invoice.SemesterId, cancellationToken);
 
         if (invoice.Type != ClearanceType)

@@ -90,23 +90,19 @@ public class SemestersController : ControllerBase
         {
             var activeSemesterIds = activeYear.Semesters.Select(s => s.Id).ToList();
 
-            var librariesWithOrders = await _db.Invoices
+            var unclearedLibraries = await _db.Invoices
                 .Where(i => activeSemesterIds.Contains(i.SemesterId) && i.Type != "clearance")
                 .Select(i => i.LibraryId)
                 .Distinct()
+                .Where(libId => _db.Libraries.Any(l => l.Id == libId && l.IsActive))
+                .Where(libId => !_db.Invoices.Any(i => i.LibraryId == libId && activeSemesterIds.Contains(i.SemesterId) && i.Type == "clearance"))
+                .Join(_db.Libraries, libId => libId, lib => lib.Id, (libId, lib) => lib.Name)
                 .ToListAsync(cancellationToken);
 
-            if (librariesWithOrders.Count != 0)
+            if (unclearedLibraries.Count != 0)
             {
-                var librariesWithClearances = await _db.Invoices
-                    .Where(i => activeSemesterIds.Contains(i.SemesterId) && i.Type == "clearance")
-                    .Select(i => i.LibraryId)
-                    .Distinct()
-                    .ToListAsync(cancellationToken);
-
-                var unclearedLibraries = librariesWithOrders.Except(librariesWithClearances).ToList();
-                if (unclearedLibraries.Count != 0)
-                    return BadRequest(ApiResponse<object>.Fail("لا يمكن بدء عام جديد. المكتبات التالية لم تسدد بعد: يرجى إنشاء المخالصات أولاً."));
+                var names = string.Join("، ", unclearedLibraries);
+                return BadRequest(ApiResponse<object>.Fail($"لا يمكن بدء عام جديد. المكتبات التالية لم تسدد بعد: {names}. يرجى إنشاء المخالصات أولاً ثم المحاولة مرة أخرى."));
             }
         }
 

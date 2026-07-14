@@ -5,7 +5,7 @@ import { LibraryService } from './library.service';
 import { InvoiceService } from './invoice.service';
 import { ToastService } from './toast.service';
 import { ConfirmService } from './confirm.service';
-import { filter } from 'rxjs';
+import { filter, Observable, throwError } from 'rxjs';
 
 @Injectable({
   providedIn: 'root'
@@ -52,6 +52,22 @@ export class ActivityService {
     localStorage.setItem(this.storageKey, JSON.stringify(updated));
   }
 
+  private executeCompensation(activity: Activity): Observable<any> {
+    if (!activity.type || !activity.payload) return throwError(() => new Error('لا يمكن التراجع عن هذا النشاط'));
+    if (activity.payload.entity === 'library') return this.libraryService.executeCompensation(activity);
+    if (activity.payload.entity === 'inventory') return this.inventoryService.executeCompensation(activity);
+    if (activity.payload.entity === 'invoice') return this.invoiceService.executeCompensation(activity);
+    return throwError(() => new Error('لا يمكن التراجع عن هذا النشاط'));
+  }
+
+  private executeRedo(activity: Activity): Observable<any> {
+    if (!activity.type || !activity.payload) return throwError(() => new Error('لا يمكن إعادة هذا النشاط'));
+    if (activity.payload.entity === 'library') return this.libraryService.executeRedo(activity);
+    if (activity.payload.entity === 'inventory') return this.inventoryService.executeRedo(activity);
+    if (activity.payload.entity === 'invoice') return this.invoiceService.executeRedo(activity);
+    return throwError(() => new Error('لا يمكن إعادة هذا النشاط'));
+  }
+
   undoActivity(activityId: string) {
     const activities = this.activitiesSignal();
     const index = activities.findIndex(a => a.id === activityId);
@@ -59,23 +75,19 @@ export class ActivityService {
 
     const activity = activities[index];
     const isFinancial = activity.type === 'ADD' || activity.type === 'DELETE';
-
     const doUndo = () => {
-      if (activity.type && activity.payload) {
-        if (activity.payload?.entity === 'library') {
-          this.libraryService.executeCompensation(activity);
-        } else if (activity.payload?.entity === 'inventory') {
-          this.inventoryService.executeCompensation(activity);
-        } else if (activity.payload?.entity === 'invoice') {
-          this.invoiceService.executeCompensation(activity);
+      this.executeCompensation(activity).subscribe({
+        next: () => {
+          const updated = [...activities];
+          updated[index] = { ...activity, status: 'undone' };
+          this.activitiesSignal.set(updated);
+          localStorage.setItem(this.storageKey, JSON.stringify(updated));
+          this.toast.show(`تم التراجع عن: ${activity.action}`, 'success');
+        },
+        error: (err) => {
+          this.toast.show(err?.message || 'حدث خطأ في التراجع', 'error');
         }
-      }
-
-      const updated = [...activities];
-      updated[index] = { ...activity, status: 'undone' };
-      this.activitiesSignal.set(updated);
-      localStorage.setItem(this.storageKey, JSON.stringify(updated));
-      this.toast.show(`تم التراجع عن: ${activity.action}`, 'success');
+      });
     };
 
     if (isFinancial) {
@@ -94,23 +106,19 @@ export class ActivityService {
 
     const activity = activities[index];
     const isFinancial = activity.type === 'ADD' || activity.type === 'DELETE';
-
     const doRedo = () => {
-      if (activity.type && activity.payload) {
-        if (activity.payload?.entity === 'library') {
-          this.libraryService.executeRedo(activity);
-        } else if (activity.payload?.entity === 'inventory') {
-          this.inventoryService.executeRedo(activity);
-        } else if (activity.payload?.entity === 'invoice') {
-          this.invoiceService.executeRedo(activity);
+      this.executeRedo(activity).subscribe({
+        next: () => {
+          const updated = [...activities];
+          updated[index] = { ...activity, status: 'active' };
+          this.activitiesSignal.set(updated);
+          localStorage.setItem(this.storageKey, JSON.stringify(updated));
+          this.toast.show(`تمت إعادة: ${activity.action}`, 'success');
+        },
+        error: (err) => {
+          this.toast.show(err?.message || 'حدث خطأ في الإعادة', 'error');
         }
-      }
-
-      const updated = [...activities];
-      updated[index] = { ...activity, status: 'active' };
-      this.activitiesSignal.set(updated);
-      localStorage.setItem(this.storageKey, JSON.stringify(updated));
-      this.toast.show(`تمت إعادة: ${activity.action}`, 'success');
+      });
     };
 
     if (isFinancial) {

@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { BehaviorSubject, Observable, catchError, of, tap } from 'rxjs';
+import { BehaviorSubject, Observable, catchError, of, tap, map, throwError } from 'rxjs';
 import { Book } from '../models/inventory.model';
 import { ApiResponse } from '../models/api-response.model';
 import { ActivityPayload } from '../models/activity.model';
@@ -94,26 +94,28 @@ export class InventoryService {
   deleteInventoryItem(id: number) {
     this.deleteBook(id).subscribe({ error: () => this.toast.show('تعذر حذف العنصر', 'error') });
   }
-  executeCompensation(activity: { type?: string; payload?: ActivityPayload }) {
+  executeCompensation(activity: { type?: string; payload?: ActivityPayload }): Observable<any> {
     const payload = activity?.payload;
-    if (!payload) return;
+    if (!payload) return throwError(() => new Error('لا يمكن التراجع عن هذا النشاط'));
     if (activity.type === 'ADD' && payload.id) {
-      this.deleteBook(payload.id).subscribe({ error: () => {} });
+      return this.deleteBook(payload.id).pipe(map(() => undefined));
     } else if (activity.type === 'DELETE' && payload) {
-      this.addBook(payload as unknown as Book).subscribe({ error: () => {} });
+      return this.addBook(payload as unknown as Book).pipe(map(() => undefined));
     } else if (activity.type === 'UPDATE' && payload?.id && payload?.previous) {
-      this.updateBook(payload.id, payload.previous as unknown as Partial<Book>).subscribe({ error: () => {} });
+      return this.updateBook(payload.id, payload.previous as unknown as Partial<Book>).pipe(map(() => undefined));
     }
+    return throwError(() => new Error('لا يمكن التراجع عن هذا النشاط'));
   }
-  executeRedo(activity: { type?: string; payload?: ActivityPayload }) {
+  executeRedo(activity: { type?: string; payload?: ActivityPayload }): Observable<any> {
     const payload = activity?.payload;
-    if (!payload) return;
+    if (!payload) return throwError(() => new Error('لا يمكن إعادة هذا النشاط'));
     if (activity.type === 'ADD' && payload) {
-      this.addBook(payload as unknown as Book).subscribe({ error: () => {} });
+      return this.addBook(payload as unknown as Book).pipe(map(() => undefined));
     } else if (activity.type === 'DELETE' && payload?.id) {
-      this.deleteBook(payload.id).subscribe({ error: () => {} });
+      return this.deleteBook(payload.id).pipe(map(() => undefined));
     } else if (activity.type === 'UPDATE' && payload?.id && payload?.current) {
-      this.updateBook(payload.id, payload.current as unknown as Partial<Book>).subscribe({ error: () => {} });
+      return this.updateBook(payload.id, payload.current as unknown as Partial<Book>).pipe(map(() => undefined));
     }
+    return throwError(() => new Error('لا يمكن إعادة هذا النشاط'));
   }
 }
