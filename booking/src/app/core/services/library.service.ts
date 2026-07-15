@@ -129,8 +129,8 @@ export class LibraryService {
   executeRedo(activity: { type?: string; payload?: ActivityPayload }): Observable<any> {
     const payload = activity?.payload;
     if (!payload) return throwError(() => new Error('لا يمكن إعادة هذا النشاط'));
-    if (activity.type === 'ADD' && payload?.data) {
-      return this.addLibrary(payload.data as unknown as Library).pipe(map(() => undefined));
+    if (activity.type === 'ADD' && payload?.['data']) {
+      return this.addLibrary(payload['data'] as unknown as Library).pipe(map(() => undefined));
     } else if (activity.type === 'DELETE' && payload?.id) {
       return this.deleteLibrary(payload.id).pipe(map(() => undefined));
     } else if (activity.type === 'UPDATE' && payload?.id && payload?.current) {
