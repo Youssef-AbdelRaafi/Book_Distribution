@@ -252,18 +252,13 @@ export class LibrariesComponent {
     return gov.cities;
   }
 
-  onGovInput(val: string) {
-    this.selectedGovName = val;
-    const gov = this.libraryService.governorates().find(g => g.name === val);
-    this.selectedGovernorateId = gov ? gov.id : 0;
+  onGovChange(id: number) {
+    this.selectedGovernorateId = id;
     this.selectedCityId = 0;
-    this.selectedCityName = '';
   }
 
-  onCityInput(val: string) {
-    this.selectedCityName = val;
-    const city = this.filteredCities().find(c => c.name === val);
-    this.selectedCityId = city ? city.id : 0;
+  onCityChange(id: number) {
+    this.selectedCityId = id;
   }
 
   onGovernorateChange() {
@@ -678,9 +673,7 @@ export class LibrariesComponent {
         this.landlinePhone = '';
         this.selectedLogoData = null;
         this.selectedGovernorateId = 0;
-        this.selectedGovName = '';
         this.selectedCityId = 0;
-        this.selectedCityName = '';
         this.toast.show('تم حفظ المكتبة بنجاح!', 'success');
       },
       error: (err: any) => {

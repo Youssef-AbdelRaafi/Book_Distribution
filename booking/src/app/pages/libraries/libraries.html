@@ -33,17 +33,17 @@
           <div class="grid grid-cols-2 gap-space-sm">
             <div>
               <label class="block text-xs font-medium text-on-surface-variant mb-1.5">المحافظة <span class="text-error">*</span></label>
-              <input type="text" [ngModel]="selectedGovName" (ngModelChange)="onGovInput($event)" name="governorate" list="govsList" placeholder="اختر المحافظة" class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2.5 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all">
-              <datalist id="govsList">
-                <option *ngFor="let gov of libraryService.governorates(); trackBy: trackById" [value]="gov.name"></option>
-              </datalist>
+              <select [(ngModel)]="selectedGovernorateId" (ngModelChange)="onGovChange($event)" name="governorate" class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2.5 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all cursor-pointer">
+                <option [ngValue]="0">اختر المحافظة</option>
+                <option *ngFor="let gov of libraryService.governorates(); trackBy: trackById" [ngValue]="gov.id">{{ gov.name }}</option>
+              </select>
             </div>
             <div>
               <label class="block text-xs font-medium text-on-surface-variant mb-1.5">الولاية <span class="text-error">*</span></label>
-              <input type="text" [ngModel]="selectedCityName" (ngModelChange)="onCityInput($event)" name="city" list="citiesList" placeholder="اختر الولاية" class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2.5 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all">
-              <datalist id="citiesList">
-                <option *ngFor="let city of filteredCities(); trackBy: trackById" [value]="city.name"></option>
-              </datalist>
+              <select [(ngModel)]="selectedCityId" (ngModelChange)="onCityChange($event)" name="city" class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2.5 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all cursor-pointer">
+                <option [ngValue]="0">اختر الولاية</option>
+                <option *ngFor="let city of filteredCities(); trackBy: trackById" [ngValue]="city.id">{{ city.name }}</option>
+              </select>
             </div>
           </div>
           <div>

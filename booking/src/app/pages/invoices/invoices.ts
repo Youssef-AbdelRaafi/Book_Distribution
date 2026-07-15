@@ -167,37 +167,25 @@ export class InvoicesComponent {
     return libs;
   }
 
-  onGovInput(val: string) {
-    this.selectedGovName = val;
-    const gov = this.libraryService.governorates().find(g => g.name === val);
-    this.selectedGovernorateId = gov ? gov.id : 0;
+  onGovChange(id: number) {
+    this.selectedGovernorateId = id;
     this.selectedCityId = 0;
-    this.selectedCityName = '';
     this.selectedLibraryId = 0;
-    this.selectedLibName = '';
   }
 
-  onCityInput(val: string) {
-    this.selectedCityName = val;
-    const city = this.filteredCities().find(c => c.name === val);
-    this.selectedCityId = city ? city.id : 0;
+  onCityChange(id: number) {
+    this.selectedCityId = id;
     this.selectedLibraryId = 0;
-    this.selectedLibName = '';
   }
 
-  onLibInput(val: string) {
-    this.selectedLibName = val;
-    const lib = this.filteredLibraries().find(l => l.name === val);
-    if (lib) {
-      this.selectedLibraryId = lib.id;
-      this.selectedGovernorateId = lib.governorateId;
-      const gov = this.libraryService.governorates().find(g => g.id === lib.governorateId);
-      this.selectedGovName = gov ? gov.name : '';
-      const city = gov?.cities.find(c => c.id === lib.cityId);
-      this.selectedCityId = lib.cityId;
-      this.selectedCityName = city ? city.name : '';
-    } else {
-      this.selectedLibraryId = 0;
+  onLibChange(id: number) {
+    this.selectedLibraryId = id;
+    if (id > 0) {
+      const lib = this.librariesData().find(l => l.id === id);
+      if (lib) {
+        this.selectedGovernorateId = lib.governorateId;
+        this.selectedCityId = lib.cityId;
+      }
     }
   }
 
@@ -205,11 +193,8 @@ export class InvoicesComponent {
   filterType = signal('');
   filterTime = signal('all');
   filterGovernorateId = signal(0);
-  filterGovName = signal('');
   filterCityId = signal(0);
-  filterCityName = signal('');
   filterLibraryId = signal(0);
-  filterLibName = signal('');
   filterSemesterId = signal<number>(0);
 
   filterHistoryCities = computed(() => {
@@ -225,28 +210,19 @@ export class InvoicesComponent {
     return libs;
   });
 
-  onFilterGovInput(val: string) {
-    this.filterGovName.set(val);
-    const gov = this.libraryService.governorates().find(g => g.name === val);
-    this.filterGovernorateId.set(gov ? gov.id : 0);
+  onFilterGovChange(id: number) {
+    this.filterGovernorateId.set(id);
     this.filterCityId.set(0);
-    this.filterCityName.set('');
     this.filterLibraryId.set(0);
-    this.filterLibName.set('');
   }
 
-  onFilterCityInput(val: string) {
-    this.filterCityName.set(val);
-    const city = this.filterHistoryCities().find(c => c.name === val);
-    this.filterCityId.set(city ? city.id : 0);
+  onFilterCityChange(id: number) {
+    this.filterCityId.set(id);
     this.filterLibraryId.set(0);
-    this.filterLibName.set('');
   }
 
-  onFilterLibInput(val: string) {
-    this.filterLibName.set(val);
-    const lib = this.filterHistoryLibraries().find(l => l.name === val);
-    this.filterLibraryId.set(lib ? lib.id : 0);
+  onFilterLibChange(id: number) {
+    this.filterLibraryId.set(id);
   }
 
   filteredInvoices = computed(() => {

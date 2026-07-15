@@ -253,7 +253,7 @@ export class DashboardComponent {
   // --- Classic Analytics Mode Data ---
   
   classicChartData = computed(() => {
-    const invs: Invoice[] = this.filteredInvoices();
+    const invs: Invoice[] = this.invoices();
     const mode = this.classicDisplayMode();
     const yearMap = new Map<number, number | Set<string>>();
 
@@ -305,7 +305,7 @@ export class DashboardComponent {
   });
 
   classicTableData = computed(() => {
-    const invs: Invoice[] = this.filteredInvoices();
+    const invs: Invoice[] = this.invoices();
     const mode = this.classicDisplayMode();
     
     // Group by Year and Term

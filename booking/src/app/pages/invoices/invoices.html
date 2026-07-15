@@ -26,26 +26,26 @@
             
             <div>
               <label class="block text-xs font-medium text-on-surface-variant mb-1.5">المحافظة</label>
-              <input type="text" [ngModel]="selectedGovName" (ngModelChange)="onGovInput($event)" list="invGovsList" placeholder="كل المحافظات" class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2.5 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all">
-              <datalist id="invGovsList">
-                <option *ngFor="let gov of libraryService.governorates(); trackBy: trackById" [value]="gov.name"></option>
-              </datalist>
+              <select [ngModel]="selectedGovernorateId" (ngModelChange)="onGovChange($event)" class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2.5 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all cursor-pointer">
+                <option [ngValue]="0">كل المحافظات</option>
+                <option *ngFor="let gov of libraryService.governorates(); trackBy: trackById" [ngValue]="gov.id">{{ gov.name }}</option>
+              </select>
             </div>
 
             <div>
               <label class="block text-xs font-medium text-on-surface-variant mb-1.5">المدينة</label>
-              <input type="text" [ngModel]="selectedCityName" (ngModelChange)="onCityInput($event)" list="invCitiesList" placeholder="كل المدن" class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2.5 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all">
-              <datalist id="invCitiesList">
-                <option *ngFor="let city of filteredCities(); trackBy: trackById" [value]="city.name"></option>
-              </datalist>
+              <select [ngModel]="selectedCityId" (ngModelChange)="onCityChange($event)" class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2.5 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all cursor-pointer">
+                <option [ngValue]="0">كل المدن</option>
+                <option *ngFor="let city of filteredCities(); trackBy: trackById" [ngValue]="city.id">{{ city.name }}</option>
+              </select>
             </div>
 
             <div>
               <label class="block text-xs font-medium text-on-surface-variant mb-1.5">المكتبة</label>
-              <input type="text" [ngModel]="selectedLibName" (ngModelChange)="onLibInput($event)" list="invLibsList" placeholder="اختر المكتبة..." class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2.5 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all">
-              <datalist id="invLibsList">
-                <option *ngFor="let lib of filteredLibraries(); trackBy: trackById" [value]="lib.name"></option>
-              </datalist>
+              <select [ngModel]="selectedLibraryId" (ngModelChange)="onLibChange($event)" class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2.5 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all cursor-pointer">
+                <option [ngValue]="0">اختر المكتبة...</option>
+                <option *ngFor="let lib of filteredLibraries(); trackBy: trackById" [ngValue]="lib.id">{{ lib.name }}</option>
+              </select>
             </div>
           </div>
 
@@ -167,21 +167,21 @@
                 <option [ngValue]="0">كل الترم</option>
                 <option *ngFor="let sem of activeYearSemesters(); trackBy: trackById" [ngValue]="sem.id">{{ sem.name }}</option>
               </select>
-              <input type="text" [ngModel]="filterGovName()" (ngModelChange)="onFilterGovInput($event)" list="histGovsList" placeholder="كل المحافظات" class="bg-surface-primary border border-outline-variant rounded-md px-2 py-1.5 text-xs focus:border-primary outline-none">
-              <datalist id="histGovsList">
-                <option *ngFor="let gov of libraryService.governorates(); trackBy: trackById" [value]="gov.name"></option>
-              </datalist>
+              <select [ngModel]="filterGovernorateId()" (ngModelChange)="onFilterGovChange($event)" class="bg-surface-primary border border-outline-variant rounded-md px-2 py-1.5 text-xs focus:border-primary outline-none cursor-pointer">
+                <option [ngValue]="0">كل المحافظات</option>
+                <option *ngFor="let gov of libraryService.governorates(); trackBy: trackById" [ngValue]="gov.id">{{ gov.name }}</option>
+              </select>
 
-              <input type="text" [ngModel]="filterCityName()" (ngModelChange)="onFilterCityInput($event)" list="histCitiesList" placeholder="كل المدن" class="bg-surface-primary border border-outline-variant rounded-md px-2 py-1.5 text-xs focus:border-primary outline-none">
-              <datalist id="histCitiesList">
-                <option *ngFor="let city of filterHistoryCities(); trackBy: trackById" [value]="city.name"></option>
-              </datalist>
+              <select [ngModel]="filterCityId()" (ngModelChange)="onFilterCityChange($event)" class="bg-surface-primary border border-outline-variant rounded-md px-2 py-1.5 text-xs focus:border-primary outline-none cursor-pointer">
+                <option [ngValue]="0">كل المدن</option>
+                <option *ngFor="let city of filterHistoryCities(); trackBy: trackById" [ngValue]="city.id">{{ city.name }}</option>
+              </select>
             </div>
             
-            <input type="text" [ngModel]="filterLibName()" (ngModelChange)="onFilterLibInput($event)" list="histLibsList" placeholder="كل المكتبات" class="w-full bg-surface-primary border border-outline-variant rounded-md px-2 py-1.5 text-xs focus:border-primary outline-none">
-            <datalist id="histLibsList">
-              <option *ngFor="let lib of filterHistoryLibraries(); trackBy: trackById" [value]="lib.name"></option>
-            </datalist>
+            <select [ngModel]="filterLibraryId()" (ngModelChange)="onFilterLibChange($event)" class="w-full bg-surface-primary border border-outline-variant rounded-md px-2 py-1.5 text-xs focus:border-primary outline-none cursor-pointer">
+              <option [ngValue]="0">كل المكتبات</option>
+              <option *ngFor="let lib of filterHistoryLibraries(); trackBy: trackById" [ngValue]="lib.id">{{ lib.name }}</option>
+            </select>
           </div>
 
           <!-- History List -->
