@@ -18,11 +18,13 @@ public class AuthController : ControllerBase
 {
     private readonly AuthOptions _authOptions;
     private readonly AppDbContext _db;
+    private readonly LoginRateLimiter _rateLimiter;
 
-    public AuthController(IOptions<AuthOptions> authOptions, AppDbContext db)
+    public AuthController(IOptions<AuthOptions> authOptions, AppDbContext db, LoginRateLimiter rateLimiter)
     {
         _authOptions = authOptions.Value;
         _db = db;
+        _rateLimiter = rateLimiter;
     }
 
     [HttpPost("login")]
@@ -32,9 +34,16 @@ public class AuthController : ControllerBase
         if (string.IsNullOrWhiteSpace(request.Username) || string.IsNullOrWhiteSpace(request.Password))
             return BadRequest(ApiResponse<LoginResponse>.Fail("الرجاء إدخال اسم المستخدم وكلمة المرور"));
 
+        var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        var rateKey = $"login:{request.Username}:{ip}";
+
+        if (_rateLimiter.IsBlocked(rateKey))
+            return StatusCode(429, ApiResponse<LoginResponse>.Fail("محاولات كثيرة جداً. الرجاء الانتظار 15 دقيقة"));
+
         var user = await IsValidUser(request, cancellationToken);
         if (user != null)
         {
+            _rateLimiter.Reset(rateKey);
             var expiresAt = DateTime.UtcNow.AddMinutes(_authOptions.TokenMinutes);
             var response = new LoginResponse
             {
@@ -46,6 +55,7 @@ public class AuthController : ControllerBase
             return Ok(ApiResponse<LoginResponse>.Ok(response, "تم تسجيل الدخول بنجاح"));
         }
 
+        _rateLimiter.RecordAttempt(rateKey);
         return Unauthorized(ApiResponse<LoginResponse>.Fail("اسم المستخدم أو كلمة المرور غير صحيحة"));
     }
 

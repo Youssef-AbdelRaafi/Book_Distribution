@@ -5,7 +5,7 @@ using BookDistributionAPI.Common;
 using BookDistributionAPI.Data;
 using BookDistributionAPI.Features.AcademicYears;
 using BookDistributionAPI.Features.Books;
-using System.Threading;
+
 
 namespace BookDistributionAPI.Features.Semesters;
 
@@ -80,31 +80,17 @@ public class SemestersController : ControllerBase
         var nextYearName = $"{dto.StartYear}-{dto.StartYear + 1}";
         
         if (await _db.AcademicYears.AnyAsync(y => y.Name == nextYearName, cancellationToken))
-            return BadRequest(ApiResponse<object>.Fail("العام الدراسي موجود بالفعل"));
+        {
+            var currentActive = await _db.AcademicYears.FirstOrDefaultAsync(y => y.IsActive, cancellationToken);
+            var suggested = currentActive != null
+                ? $"العام التالي لـ {currentActive.Name} هو {int.Parse(currentActive.Name.Split('-')[1])}-{int.Parse(currentActive.Name.Split('-')[1]) + 1}"
+                : "يرجى اختيار سنة بداية مختلفة";
+            return BadRequest(ApiResponse<object>.Fail($"العام الدراسي \"{nextYearName}\" موجود بالفعل. {suggested}"));
+        }
 
         var activeYear = await _db.AcademicYears
             .Include(y => y.Semesters)
             .FirstOrDefaultAsync(y => y.IsActive, cancellationToken);
-
-        if (activeYear != null)
-        {
-            var activeSemesterIds = activeYear.Semesters.Select(s => s.Id).ToList();
-
-            var unclearedLibraries = await _db.Invoices
-                .Where(i => activeSemesterIds.Contains(i.SemesterId) && i.Type != "clearance")
-                .Select(i => i.LibraryId)
-                .Distinct()
-                .Where(libId => _db.Libraries.Any(l => l.Id == libId && l.IsActive))
-                .Where(libId => !_db.Invoices.Any(i => i.LibraryId == libId && activeSemesterIds.Contains(i.SemesterId) && i.Type == "clearance"))
-                .Join(_db.Libraries, libId => libId, lib => lib.Id, (libId, lib) => lib.Name)
-                .ToListAsync(cancellationToken);
-
-            if (unclearedLibraries.Count != 0)
-            {
-                var names = string.Join("، ", unclearedLibraries);
-                return BadRequest(ApiResponse<object>.Fail($"لا يمكن بدء عام جديد. المكتبات التالية لم تسدد بعد: {names}. يرجى إنشاء المخالصات أولاً ثم المحاولة مرة أخرى."));
-            }
-        }
 
         await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
 

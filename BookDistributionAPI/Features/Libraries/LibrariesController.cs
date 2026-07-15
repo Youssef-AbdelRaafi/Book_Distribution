@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using BookDistributionAPI.Common;
 using BookDistributionAPI.Data;
-using System.Threading;
+
 
 namespace BookDistributionAPI.Features.Libraries;
 
@@ -167,6 +167,17 @@ public class LibrariesController : ControllerBase
         var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp" };
         if (!allowedExtensions.Contains(ext))
             return BadRequest(ApiResponse<object>.Fail("صيغة الملف غير مدعومة. الصيغ المسموحة: jpg, png, gif, webp"));
+
+        // Validate file content (magic bytes)
+        using var reader = new BinaryReader(file.OpenReadStream());
+        var header = reader.ReadBytes(8);
+        file.OpenReadStream().Position = 0;
+        var isImage = (header.Length >= 2 && header[0] == 0xFF && header[1] == 0xD8) // JPEG
+            || (header.Length >= 8 && header[0] == 0x89 && header[1] == 0x50 && header[2] == 0x4E && header[3] == 0x47) // PNG
+            || (header.Length >= 4 && header[0] == 0x47 && header[1] == 0x49 && header[2] == 0x46) // GIF
+            || (header.Length >= 8 && header[0] == 0x52 && header[1] == 0x49 && header[2] == 0x46 && header[3] == 0x46); // WEBP (RIFF)
+        if (!isImage)
+            return BadRequest(ApiResponse<object>.Fail("الملف المرفوع ليس صورة صالحة"));
 
         var uploadsDir = Path.Combine(_env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot"), "uploads", "logos");
         Directory.CreateDirectory(uploadsDir);

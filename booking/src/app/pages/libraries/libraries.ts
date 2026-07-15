@@ -1,8 +1,8 @@
 import { Component, computed, signal, inject, ChangeDetectorRef, Input, DestroyRef, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { BehaviorSubject, combineLatest } from 'rxjs';
-import { switchMap, filter, map, of } from 'rxjs';
+import { BehaviorSubject, combineLatest, forkJoin } from 'rxjs';
+import { switchMap, filter, map, of, catchError } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { LibraryService } from '../../core/services/library.service';
 import { InvoiceService } from '../../core/services/invoice.service';
@@ -423,11 +423,13 @@ export class LibrariesComponent {
     }
 
     if (!lib) {
-      this.clearanceLibrary.set({ id: 0, name: 'جميع المكتبات' });
-    } else {
-      this.clearanceLibrary.set(lib);
+      // Show library selection modal for batch clearance
+      this.selectAllClearanceLibraries();
+      this.showClearanceLibrarySelector.set(true);
+      return;
     }
 
+    this.clearanceLibrary.set(lib);
     this.clearanceError.set('');
     this.isClearanceModalOpen = true;
     this.clearanceLoading.set(true);
@@ -438,8 +440,7 @@ export class LibrariesComponent {
     this.clearanceSearchTerm.set('');
     this.clearanceGradeFilter.set('');
 
-    const libId = lib ? lib.id : undefined;
-    this.invoiceService.getClearancePreview(semesterId, libId).pipe(
+    this.invoiceService.getClearancePreview(semesterId, lib.id).pipe(
       takeUntilDestroyed(this.destroyRef)
     ).subscribe({
       next: (res) => {
@@ -532,6 +533,9 @@ export class LibrariesComponent {
     printWhenImagesReady('.invoice-print-page', () => {});
   }
 
+  showClearanceLibrarySelector = signal(false);
+  clearanceLibrarySelections = signal<Map<number, boolean>>(new Map());
+
   printClearance() {
     const lib = this.clearanceLibrary();
     const semesterId = this.settingsService.getActiveSemesterId();
@@ -568,27 +572,85 @@ export class LibrariesComponent {
         }
       });
     } else {
-      this.confirmService.confirm('سيتم إنشاء مخالصة لكل مكتبة لديها رصيد مستحق. هل تريد المتابعة؟').pipe(
-        filter(result => !!result),
-        switchMap(() => this.invoiceService.createBatchClearance(semesterId)),
-        takeUntilDestroyed(this.destroyRef)
-      ).subscribe({
-        next: (res) => {
-          const result = res.data!;
-          const count = result.count;
-          const invoices = result.invoices;
-          this.clearanceBatchInvoices.set(invoices);
-          (invoices || []).forEach((inv: any) => {
-            this.activityService.logActivity('مخالصة', `تم إنشاء مخالصة للمكتبة "${inv.libraryName}" بقيمة ${inv.totalAmount} ريال`, 'ADD', { entity: 'invoice', id: inv.id });
-          });
-          this.toast.show(`تم تسجيل ${count} مخالصة بنجاح`, 'success');
-          this.showBatchClearanceView.set(true);
-        },
-        error: (err: any) => {
-          this.toast.show(err.error?.message || 'حدث خطأ في إنشاء المخالصات', 'error');
-        }
-      });
+      // Show library selection modal instead of directly creating batch
+      this.showClearanceLibrarySelector.set(true);
     }
+  }
+
+  getClearanceEligibleLibraries(): Library[] {
+    return this.librariesList().filter(l => l.isActive);
+  }
+
+  toggleClearanceLibrarySelection(libId: number) {
+    const map = new Map(this.clearanceLibrarySelections());
+    map.set(libId, !(map.get(libId) ?? true));
+    this.clearanceLibrarySelections.set(map);
+  }
+
+  selectAllClearanceLibraries() {
+    const map = new Map<number, boolean>();
+    this.getClearanceEligibleLibraries().forEach(l => map.set(l.id, true));
+    this.clearanceLibrarySelections.set(map);
+  }
+
+  deselectAllClearanceLibraries() {
+    this.clearanceLibrarySelections.set(new Map());
+  }
+
+  selectedClearanceCount(): number {
+    return Array.from(this.clearanceLibrarySelections().entries()).filter(([_, v]) => v).length;
+  }
+
+  proceedWithSelectedClearances() {
+    const semesterId = this.settingsService.getActiveSemesterId();
+    if (semesterId == null) { this.toast.show('الرجاء تحديد فصل دراسي فعال', 'error'); return; }
+
+    const selectedIds = Array.from(this.clearanceLibrarySelections().entries())
+      .filter(([_, selected]) => selected)
+      .map(([id]) => id);
+
+    if (selectedIds.length === 0) {
+      this.toast.show('الرجاء اختيار مكتبة واحدة على الأقل', 'error');
+      return;
+    }
+
+    this.showClearanceLibrarySelector.set(false);
+    this.clearanceLoading.set(true);
+
+    // Create clearances for selected libraries in parallel, skipping failures
+    const requests$ = selectedIds.map(libId =>
+      this.invoiceService.createClearance({ libraryId: libId, semesterId }).pipe(
+        catchError(err => {
+          const lib = this.librariesList().find(l => l.id === libId);
+          console.warn(`فشل إنشاء مخالصة للمكتبة "${lib?.name || libId}":`, err.error?.message || err.message);
+          return of(null);
+        })
+      )
+    );
+
+    forkJoin(requests$).pipe(
+      takeUntilDestroyed(this.destroyRef)
+    ).subscribe({
+      next: (results: any[]) => {
+        const invoices = results.filter(r => r?.data).map(r => r.data);
+        this.clearanceLoading.set(false);
+
+        if (invoices.length === 0) {
+          this.toast.show('فشل إنشاء المخالصات لجميع المكتبات المحددة', 'error');
+          return;
+        }
+
+        this.clearanceBatchInvoices.set(invoices);
+        const totalAmount = invoices.reduce((sum: number, inv: any) => sum + (inv.totalAmount || 0), 0);
+        this.activityService.logActivity('مخالصة', `تم إنشاء ${invoices.length} مخالصة بقيمة ${totalAmount} ريال`, 'ADD', { entity: 'invoice', ids: invoices.map((i: any) => i.id) });
+        this.toast.show(`تم تسجيل ${invoices.length} مخالصة بنجاح`, 'success');
+        this.showBatchClearanceView.set(true);
+      },
+      error: (err: any) => {
+        this.clearanceLoading.set(false);
+        this.toast.show(err.error?.message || 'حدث خطأ في إنشاء المخالصات', 'error');
+      }
+    });
   }
 
   selectedLogoData: string | null = null;

@@ -17,10 +17,36 @@ public class InvoiceBusinessService
 
     private readonly AppDbContext _db;
     private static readonly ConcurrentDictionary<string, SemaphoreSlim> _locks = new();
+    private static readonly ConcurrentDictionary<string, DateTime> _lockTimestamps = new();
+    private static readonly TimeSpan LockCleanupInterval = TimeSpan.FromMinutes(30);
+    private static DateTime _lastCleanup = DateTime.UtcNow;
 
     public InvoiceBusinessService(AppDbContext db)
     {
         _db = db;
+    }
+
+    private static void CleanupStaleLocks()
+    {
+        var now = DateTime.UtcNow;
+        if ((now - _lastCleanup) < LockCleanupInterval)
+            return;
+        _lastCleanup = now;
+
+        var cutoff = now.Add(-LockCleanupInterval);
+        foreach (var kvp in _lockTimestamps)
+        {
+            if (kvp.Value < cutoff && _locks.TryGetValue(kvp.Key, out var sem))
+            {
+                // Only clean up semaphores that are not currently acquired
+                if (sem.CurrentCount == 1)
+                {
+                    _locks.TryRemove(kvp.Key, out _);
+                    _lockTimestamps.TryRemove(kvp.Key, out _);
+                    sem.Dispose();
+                }
+            }
+        }
     }
 
     /// <summary>
@@ -462,15 +488,43 @@ public class InvoiceBusinessService
         await transaction.CommitAsync();
     }
 
+    public async Task DeleteInvoicesAsync(List<int> ids, CancellationToken cancellationToken = default)
+    {
+        var invoices = await _db.Invoices
+            .Include(i => i.Items)
+            .Where(i => ids.Contains(i.Id))
+            .ToListAsync(cancellationToken);
+
+        if (invoices.Count == 0)
+            throw new InvalidOperationException("الفواتير غير موجودة");
+
+        var semesterId = invoices.First().SemesterId;
+        if (invoices.Any(i => i.SemesterId != semesterId))
+            throw new InvalidOperationException("لا يمكن حذف فواتير من فصول دراسية مختلفة في عملية واحدة");
+
+        await using var transaction = await BeginInvoiceTransactionAsync(semesterId, cancellationToken);
+
+        foreach (var invoice in invoices)
+        {
+            _db.Invoices.Remove(invoice);
+        }
+
+        await _db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync();
+    }
+
     private async Task<TransactionWithLock> BeginInvoiceTransactionAsync(int semesterId, CancellationToken cancellationToken = default)
     {
+        CleanupStaleLocks();
+
         var lockKey = $"invoice-semester:{semesterId}";
         var semaphore = _locks.GetOrAdd(lockKey, _ => new SemaphoreSlim(1, 1));
+        _lockTimestamps[lockKey] = DateTime.UtcNow;
         await semaphore.WaitAsync(cancellationToken);
         try
         {
             var transaction = await _db.Database.BeginTransactionAsync(System.Data.IsolationLevel.RepeatableRead, cancellationToken);
-            return new TransactionWithLock(transaction, semaphore);
+            return new TransactionWithLock(transaction, semaphore, () => _lockTimestamps[lockKey] = DateTime.UtcNow);
         }
         catch
         {
@@ -483,24 +537,40 @@ public class InvoiceBusinessService
     {
         private readonly IDbContextTransaction _transaction;
         private readonly SemaphoreSlim _semaphore;
+        private readonly Action _onRelease;
         private bool _disposed;
 
-        public TransactionWithLock(IDbContextTransaction transaction, SemaphoreSlim semaphore)
+        public TransactionWithLock(IDbContextTransaction transaction, SemaphoreSlim semaphore, Action? onRelease = null)
         {
             _transaction = transaction;
             _semaphore = semaphore;
+            _onRelease = onRelease ?? (() => { });
         }
 
         public async ValueTask DisposeAsync()
         {
             if (_disposed) return;
             _disposed = true;
-            await _transaction.DisposeAsync();
-            _semaphore.Release();
+            try
+            {
+                await _transaction.DisposeAsync();
+            }
+            finally
+            {
+                _onRelease();
+                _semaphore.Release();
+            }
         }
 
-        public Task CommitAsync(CancellationToken ct = default) => _transaction.CommitAsync(ct);
-        public Task RollbackAsync(CancellationToken ct = default) => _transaction.RollbackAsync(ct);
+        public async Task CommitAsync(CancellationToken ct = default)
+        {
+            await _transaction.CommitAsync(ct);
+        }
+
+        public async Task RollbackAsync(CancellationToken ct = default)
+        {
+            await _transaction.RollbackAsync(ct);
+        }
     }
 
     private async Task<Semester> GetSemesterAsync(int semesterId, CancellationToken cancellationToken = default)
@@ -593,17 +663,18 @@ public class InvoiceBusinessService
     /// <summary>
     /// Gets original sale prices using FIFO from order invoices.
     /// Returns the first (earliest) sale price for each book.
+    /// Uses Invoice.Id as tiebreaker for same-date invoices.
     /// </summary>
     private async Task<Dictionary<int, decimal>> GetOriginalSalePricesAsync(int libraryId, int semesterId, CancellationToken cancellationToken = default)
     {
         var priceData = await _db.InvoiceItems
             .Where(ii => ii.Invoice.LibraryId == libraryId && ii.Invoice.SemesterId == semesterId && ii.Invoice.Type == OrderType)
-            .Select(ii => new { ii.BookId, ii.UnitPrice, ii.Invoice.Date })
+            .Select(ii => new { ii.BookId, ii.UnitPrice, ii.Invoice.Date, ii.InvoiceId })
             .ToListAsync(cancellationToken);
 
         var prices = priceData
             .GroupBy(x => x.BookId)
-            .ToDictionary(g => g.Key, g => g.OrderBy(x => x.Date).Select(x => x.UnitPrice).First());
+            .ToDictionary(g => g.Key, g => g.OrderBy(x => x.Date).ThenBy(x => x.InvoiceId).Select(x => x.UnitPrice).First());
         return prices;
     }
 

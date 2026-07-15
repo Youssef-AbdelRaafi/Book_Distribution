@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using BookDistributionAPI.Common;
-using System.Threading;
+
 
 namespace BookDistributionAPI.Features.ReceiptVouchers;
 
@@ -43,9 +43,6 @@ public class ReceiptVouchersController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateReceiptVoucherDto dto, CancellationToken cancellationToken)
     {
-        if (!ModelState.IsValid)
-            return BadRequest(ApiResponse<object>.Fail("بيانات غير صالحة"));
-
         try
         {
             var voucher = await _service.CreateAsync(dto, cancellationToken);

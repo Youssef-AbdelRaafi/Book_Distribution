@@ -14,7 +14,7 @@ export class ActivityService {
   private activitiesSignal = signal<Activity[]>([]);
   public readonly activities$ = this.activitiesSignal.asReadonly();
   private readonly storageKey = 'activity_log';
-  private readonly maxActivities = 200;
+  private readonly maxActivities = 50;
   private inventoryService = inject(InventoryService);
   private libraryService = inject(LibraryService);
   private invoiceService = inject(InvoiceService);
@@ -36,9 +36,20 @@ export class ActivityService {
     }
   }
 
+  private generateId(): string {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return crypto.randomUUID();
+    }
+    // Fallback for older browsers
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+      const r = Math.random() * 16 | 0;
+      return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+    });
+  }
+
   logActivity(action: string, details: string, type?: 'ADD' | 'UPDATE' | 'DELETE' | 'GENERAL', payload?: ActivityPayload) {
     const newActivity: Activity = {
-      id: crypto.randomUUID?.() ?? (Date.now().toString(36) + Math.random().toString(36).slice(2, 10)),
+      id: this.generateId(),
       action,
       details,
       timestamp: new Date().toISOString(),
@@ -78,8 +89,11 @@ export class ActivityService {
     const doUndo = () => {
       this.executeCompensation(activity).subscribe({
         next: () => {
-          const updated = [...activities];
-          updated[index] = { ...activity, status: 'undone' };
+          const current = this.activitiesSignal();
+          const idx = current.findIndex(a => a.id === activityId);
+          if (idx === -1 || current[idx].status === 'undone') return;
+          const updated = [...current];
+          updated[idx] = { ...current[idx], status: 'undone' };
           this.activitiesSignal.set(updated);
           localStorage.setItem(this.storageKey, JSON.stringify(updated));
           this.toast.show(`تم التراجع عن: ${activity.action}`, 'success');
@@ -109,8 +123,11 @@ export class ActivityService {
     const doRedo = () => {
       this.executeRedo(activity).subscribe({
         next: () => {
-          const updated = [...activities];
-          updated[index] = { ...activity, status: 'active' };
+          const current = this.activitiesSignal();
+          const idx = current.findIndex(a => a.id === activityId);
+          if (idx === -1 || current[idx].status !== 'undone') return;
+          const updated = [...current];
+          updated[idx] = { ...current[idx], status: 'active' };
           this.activitiesSignal.set(updated);
           localStorage.setItem(this.storageKey, JSON.stringify(updated));
           this.toast.show(`تمت إعادة: ${activity.action}`, 'success');

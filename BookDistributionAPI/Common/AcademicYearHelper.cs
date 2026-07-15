@@ -19,17 +19,10 @@ public class AcademicYearHelper : IAcademicYearHelper
 
     public async Task<List<int>> GetActiveSemesterIdsAsync(CancellationToken cancellationToken = default)
     {
-        var activeYear = await _db.AcademicYears
+        return await _db.AcademicYears
             .AsNoTracking()
-            .FirstOrDefaultAsync(y => y.IsActive, cancellationToken);
-
-        if (activeYear == null)
-            return new List<int>();
-
-        return await _db.Semesters
-            .AsNoTracking()
-            .Where(s => s.AcademicYearId == activeYear.Id)
-            .Select(s => s.Id)
+            .Where(y => y.IsActive)
+            .SelectMany(y => y.Semesters.Select(s => s.Id))
             .ToListAsync(cancellationToken);
     }
 }

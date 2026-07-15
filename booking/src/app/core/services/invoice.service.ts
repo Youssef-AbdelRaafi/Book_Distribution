@@ -139,21 +139,38 @@ export class InvoiceService {
     );
   }
 
+  deleteInvoices(ids: number[]): Observable<ApiResponse<unknown>> {
+    return this.http.post<ApiResponse<unknown>>(`${this.apiUrl}/delete-batch`, { ids }).pipe(
+      tap(() => {
+        ids.forEach(id => this.removeInvoice(id));
+      })
+    );
+  }
+
   getNextNumber(semesterId: number): Observable<ApiResponse<NextNumberResponse>> {
     return this.http.get<ApiResponse<NextNumberResponse>>(`${this.apiUrl}/next-number`, { params: new HttpParams().set('semesterId', semesterId.toString()) });
   }
 
   executeCompensation(activity: { type?: string; payload?: ActivityPayload }): Observable<any> {
     const payload = activity?.payload;
-    if (!payload || !payload.id || payload.entity !== 'invoice') {
+    if (!payload || payload.entity !== 'invoice') {
       return throwError(() => new Error('لا يمكن التراجع عن هذا النشاط'));
     }
 
     if (activity.type === 'ADD') {
-      return this.deleteInvoice(payload.id).pipe(
-        tap(() => this.inventoryService.fetchBooks()),
-        map(() => undefined)
-      );
+      if (payload.ids && Array.isArray(payload.ids) && payload.ids.length > 0) {
+        return this.deleteInvoices(payload.ids).pipe(
+          tap(() => this.inventoryService.fetchBooks()),
+          map(() => undefined)
+        );
+      }
+      if (payload.id) {
+        return this.deleteInvoice(payload.id).pipe(
+          tap(() => this.inventoryService.fetchBooks()),
+          map(() => undefined)
+        );
+      }
+      return throwError(() => new Error('لا يمكن التراجع عن هذا النشاط'));
     }
     if (activity.type === 'DELETE') {
       this.toast.show('لا يمكن استعادة الفاتورة المحذوفة عبر التراجع', 'error');

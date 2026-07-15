@@ -68,6 +68,7 @@ builder.Services.AddAuthorization();
 builder.Services.AddScoped<InvoiceBusinessService>();
 builder.Services.AddScoped<ReceiptVoucherBusinessService>();
 builder.Services.AddScoped<IAcademicYearHelper, AcademicYearHelper>();
+builder.Services.AddSingleton<LoginRateLimiter>();
 
 builder.Services.AddControllers(options =>
     {
@@ -96,8 +97,10 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    await db.Database.MigrateAsync();
+
+    // Enable WAL mode for better concurrent read performance (must be set before migration)
     await db.Database.ExecuteSqlRawAsync("PRAGMA journal_mode=WAL;");
+    await db.Database.MigrateAsync();
 
     if (!await db.AcademicYears.AnyAsync())
         await SeedData.InitializeAsync(db);

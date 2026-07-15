@@ -56,8 +56,32 @@ export class SettingsService {
   }
 
   reloadAfterAuth(): void {
-    this.fetchSettings();
+    this.fetchSettingsFull();
     this.fetchSemesters();
+  }
+
+  fetchSettingsFull(): void {
+    this.http.get<ApiResponse<Record<string, unknown>>>(`${this.apiUrl}/full`).pipe(
+      tap(res => {
+        const data = res.data as unknown as Record<string, string>;
+        if (data) {
+          const settings: PrintSettings = {
+            brandName: data['brandName'] || this.defaultSettings.brandName,
+            phones: data['phones'] || this.defaultSettings.phones,
+            mainCurrency: data['mainCurrency'] || this.defaultSettings.mainCurrency,
+            subCurrency: data['subCurrency'] || this.defaultSettings.subCurrency,
+            ownerSignatureName: data['ownerSignatureName'] || this.defaultSettings.ownerSignatureName,
+            whatsappNumber: data['whatsappNumber'] || this.defaultSettings.whatsappNumber
+          };
+          this.printSettings.set(settings);
+          localStorage.setItem(this.STORAGE_KEY, JSON.stringify(settings));
+        }
+      }),
+      catchError(error => {
+        this.toast.show('تعذر تحميل الإعدادات', 'error');
+        return of(null);
+      })
+    ).subscribe();
   }
 
   private loadSettings(): PrintSettings {
@@ -81,6 +105,7 @@ export class SettingsService {
   }
 
   fetchSettings(): void {
+    // Public endpoint returns only branding (safe for login page)
     this.http.get<ApiResponse<Record<string, unknown>>>(this.apiUrl).pipe(
       tap(res => {
         const data = res.data as unknown as Record<string, string>;

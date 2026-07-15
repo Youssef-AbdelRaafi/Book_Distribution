@@ -1,6 +1,7 @@
 export interface ActivityPayload {
   entity: 'library' | 'inventory' | 'invoice';
   id?: number;
+  ids?: number[];
   previous?: Record<string, unknown>;
   current?: Record<string, unknown>;
   [key: string]: unknown;

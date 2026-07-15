@@ -13,7 +13,7 @@ COPY BookDistributionAPI/BookDistributionAPI.csproj ./BookDistributionAPI/
 RUN dotnet restore ./BookDistributionAPI/BookDistributionAPI.csproj
 COPY BookDistributionAPI/ ./BookDistributionAPI/
 WORKDIR /app/backend/BookDistributionAPI
-RUN dotnet publish -c Release -o /app/publish
+RUN dotnet publish -c Release --no-restore -o /app/publish
 
 # Copy Angular build to .NET wwwroot
 COPY --from=build-frontend /app/frontend/dist/booking/browser /app/publish/wwwroot
@@ -22,7 +22,7 @@ COPY --from=build-frontend /app/frontend/dist/booking/browser /app/publish/wwwro
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl sqlite3 cron \
+    curl sqlite3 cron su-exec \
     && rm -rf /var/lib/apt/lists/*
 
 # Create data directory with proper permissions
@@ -35,17 +35,16 @@ COPY BookDistributionAPI/scripts/crontab /etc/cron.d/backup-cron
 COPY BookDistributionAPI/scripts/entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/backup-db.sh /app/entrypoint.sh \
     && chmod 0644 /etc/cron.d/backup-cron \
-    && crontab /etc/cron.d/backup-cron
+    && crontab -u $APP_UID /etc/cron.d/backup-cron
 
 # Set environment variables for production
 ENV ASPNETCORE_ENVIRONMENT=Production
 ENV ASPNETCORE_URLS=http://+:8080
 ENV ASPNETCORE_HTTP_PORTS=8080
 
-USER $APP_UID
 EXPOSE 8080
 
 HEALTHCHECK --start-period=15s --interval=30s --timeout=10s --retries=3 \
-    CMD curl -f http://localhost:8080/ || exit 1
+    CMD curl -f http://localhost:8080/api/settings || exit 1
 
 ENTRYPOINT ["/app/entrypoint.sh"]

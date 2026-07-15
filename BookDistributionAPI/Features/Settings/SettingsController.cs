@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using BookDistributionAPI.Common;
 using BookDistributionAPI.Data;
-using System.Threading;
+
 
 namespace BookDistributionAPI.Features.Settings;
 
@@ -17,6 +17,25 @@ public class SettingsController : ControllerBase
     [HttpGet]
     [AllowAnonymous]
     public async Task<IActionResult> Get(CancellationToken cancellationToken)
+    {
+        // Unauthenticated users get only branding — no phone/whatsapp data
+        var keys = new[] { "brandName", "mainCurrency", "subCurrency" };
+        var settings = await _db.AppSettings
+            .Where(s => keys.Contains(s.Key))
+            .ToDictionaryAsync(s => s.Key, cancellationToken);
+
+        var dto = new
+        {
+            BrandName = settings.GetValueOrDefault("brandName")?.Value ?? "",
+            MainCurrency = settings.GetValueOrDefault("mainCurrency")?.Value ?? "R.O.",
+            SubCurrency = settings.GetValueOrDefault("subCurrency")?.Value ?? "Bz"
+        };
+        return Ok(ApiResponse<object>.Ok(dto));
+    }
+
+    [HttpGet("full")]
+    [Authorize]
+    public async Task<IActionResult> GetFull(CancellationToken cancellationToken)
     {
         var keys = new[] { "brandName", "phones", "mainCurrency", "subCurrency", "ownerSignatureName", "whatsappNumber" };
         var settings = await _db.AppSettings

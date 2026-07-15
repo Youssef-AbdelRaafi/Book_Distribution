@@ -195,15 +195,29 @@ export class HeaderComponent implements OnInit {
     }
   }
 
+  private getNextYearStart(): number {
+    // Derive next year from active academic year name, e.g. "2026-2027" → 2027
+    const activeYearName = this.settingsService.activeSemester()?.academicYearName;
+    if (activeYearName) {
+      const parts = activeYearName.split('-');
+      if (parts.length === 2) {
+        const endYear = parseInt(parts[1], 10);
+        if (!isNaN(endYear)) return endYear;
+      }
+    }
+    // Fallback: use current calendar year
+    return new Date().getFullYear();
+  }
+
   startNewYear() {
-    const nextYear = new Date().getFullYear();
+    const nextYear = this.getNextYearStart();
     const message = `⚠️ تحذير هام ⚠️\n\n` +
-      `هل أنت متأكد من إغلاق العام الدراسي الحالي وبدء عام جديد (${nextYear}-${nextYear+1})؟\n\n` +
+      `هل أنت متأكد من بدء عام دراسي جديد (${nextYear}-${nextYear+1})؟\n\n` +
       `سيتم:\n` +
-      `• إيقاف جميع الفصول السابقة\n` +
-      `• إنشاء عام دراسي جديد\n` +
+      `• إنشاء عام دراسي جديد وتنشيطه\n` +
+      `• إيقاف العام الحالي والسنوات السابقة\n` +
       `• نسخ الكتالوج من العام السابق برصيد صفر\n\n` +
-      `⚠️ هذا الإجراء لا يمكن التراجع عنه مباشرة، لكن يمكنك الرجوع لأي سنة سابقة من الإعدادات.\n\n` +
+      `ملاحظة: يمكنك الرجوع لأي سنة سابقة من الإعدادات (أيقونة الترس) ← "تغيير السنة الدراسية" لعرض وطباعة فواتيرها.\n\n` +
       `هل تريد المتابعة؟`;
     
     this.confirmService.confirm(message).pipe(

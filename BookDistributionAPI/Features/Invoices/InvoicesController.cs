@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using BookDistributionAPI.Common;
 using BookDistributionAPI.Data;
-using System.Threading;
+
 
 namespace BookDistributionAPI.Features.Invoices;
 
@@ -37,7 +37,9 @@ public class InvoicesController : ControllerBase
         [FromQuery] int? libraryId,
         [FromQuery] DateTime? fromDate,
         [FromQuery] DateTime? toDate,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        [FromQuery] int skip = 0,
+        [FromQuery] int take = 500)
     {
         var activeSemesterIds = await _academicYearHelper.GetActiveSemesterIdsAsync(cancellationToken);
         var query = InvoiceQuery().AsQueryable();
@@ -55,11 +57,15 @@ public class InvoicesController : ControllerBase
         if (toDate.HasValue)
             query = query.Where(i => i.Date <= toDate.Value);
 
+        var totalCount = await query.CountAsync(cancellationToken);
         var invoices = await query
             .OrderByDescending(i => i.Date)
+            .Skip(skip)
+            .Take(take)
             .ToListAsync(cancellationToken);
 
         var result = invoices.Select(InvoiceBusinessService.ToDto).ToList();
+        Response.Headers["X-Total-Count"] = totalCount.ToString();
         return Ok(ApiResponse<object>.Ok(result));
     }
 
@@ -80,6 +86,20 @@ public class InvoicesController : ControllerBase
         {
             await _invoiceService.DeleteInvoiceAsync(id, cancellationToken);
             return Ok(ApiResponse<bool>.Ok(true, "تم حذف الفاتورة بنجاح"));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ApiResponse<object>.Fail(ex.Message));
+        }
+    }
+
+    [HttpPost("delete-batch")]
+    public async Task<IActionResult> DeleteBatch([FromBody] DeleteBatchDto dto, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _invoiceService.DeleteInvoicesAsync(dto.Ids, cancellationToken);
+            return Ok(ApiResponse<bool>.Ok(true, "تم حذف الفواتير بنجاح"));
         }
         catch (InvalidOperationException ex)
         {

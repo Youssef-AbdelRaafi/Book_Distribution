@@ -114,3 +114,9 @@ public class UpdatePrintStatusDto
     [Required, RegularExpression("^(pending|printed)$")]
     public string PrintStatus { get; set; } = string.Empty;
 }
+
+public class DeleteBatchDto
+{
+    [Required, MinLength(1)]
+    public List<int> Ids { get; set; } = new();
+}

@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using BookDistributionAPI.Common;
 using BookDistributionAPI.Data;
-using System.Threading;
+
 
 namespace BookDistributionAPI.Features.Books;
 
@@ -19,7 +19,11 @@ public class BooksController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetAll([FromQuery] int? semesterId, CancellationToken cancellationToken)
+    public async Task<IActionResult> GetAll(
+        [FromQuery] int? semesterId,
+        CancellationToken cancellationToken,
+        [FromQuery] int skip = 0,
+        [FromQuery] int take = 500)
     {
         var activeSemesterIds = await _academicYearHelper.GetActiveSemesterIdsAsync(cancellationToken);
         var query = _db.Books.AsQueryable();
@@ -28,9 +32,12 @@ public class BooksController : ControllerBase
         else if (activeSemesterIds.Count > 0)
             query = query.Where(b => activeSemesterIds.Contains(b.SemesterId));
 
+        var totalCount = await query.CountAsync(cancellationToken);
         var books = await query
             .OrderBy(b => b.Grade)
             .ThenBy(b => b.Name)
+            .Skip(skip)
+            .Take(take)
             .Select(b => new BookDto
             {
                 Id = b.Id,
@@ -43,6 +50,7 @@ public class BooksController : ControllerBase
             })
             .ToListAsync(cancellationToken);
 
+        Response.Headers["X-Total-Count"] = totalCount.ToString();
         return Ok(ApiResponse<object>.Ok(books));
     }
 

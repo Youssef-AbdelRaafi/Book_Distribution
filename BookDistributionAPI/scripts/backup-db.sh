@@ -18,6 +18,8 @@ BACKUP_FILE="$BACKUP_DIR/bookdistribution_${TIMESTAMP}.db"
 
 # Use sqlite3 .backup for safe online backup
 if command -v sqlite3 &> /dev/null; then
+    # Checkpoint WAL to ensure consistency, then backup
+    sqlite3 "$DATA_DIR/$DB_NAME" "PRAGMA wal_checkpoint(TRUNCATE);"
     sqlite3 "$DATA_DIR/$DB_NAME" ".backup '$BACKUP_FILE'"
     echo "Backup created: $BACKUP_FILE ($(du -h "$BACKUP_FILE" | cut -f1))"
 else
