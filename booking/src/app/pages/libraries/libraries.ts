@@ -693,7 +693,6 @@ export class LibrariesComponent {
     this.rvPurpose = '';
     this.rvDate = new Date().toISOString().split('T')[0];
 
-    // Try to pre-fill amount from clearance if available
     const semesterId = this.settingsService.getActiveSemesterId();
     if (semesterId && lib.id) {
       this.invoiceService.getClearancePreview(semesterId, lib.id).pipe(
@@ -701,16 +700,24 @@ export class LibrariesComponent {
       ).subscribe({
         next: (res) => {
           const preview = res.data!;
-          if (preview.totalAmount > 0) {
-            this.rvAmount = preview.totalAmount;
-            this.rvPurpose = `تسوية حساب الفصل الدراسي ${preview.semesterName || ''}`;
+          const netAmount = Math.max((preview.totalAmount || 0) - (preview.paidAmount || 0), 0);
+          
+          if (netAmount <= 0) {
+            this.toast.show('حساب هذه المكتبة خالص، لا توجد مبالغ مستحقة للتحصيل', 'error');
+            return;
           }
+          
+          this.rvAmount = netAmount;
+          this.rvPurpose = `تسوية حساب الفصل الدراسي ${preview.semesterName || ''}`;
+          this.isReceiptVoucherModalOpen = true;
         },
-        error: () => {} // Ignore — user can fill manually
+        error: () => {
+          this.isReceiptVoucherModalOpen = true;
+        } 
       });
+    } else {
+      this.isReceiptVoucherModalOpen = true;
     }
-
-    this.isReceiptVoucherModalOpen = true;
   }
 
   closeReceiptVoucher() {

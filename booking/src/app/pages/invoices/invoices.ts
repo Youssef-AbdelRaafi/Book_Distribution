@@ -422,7 +422,7 @@ export class InvoicesComponent {
 
   processOrder() {
     if (!this.selectedLibraryId) {
-      this.toast.show('الرجاء اختيار المكتبة أولاً', 'error');
+      this.toast.show('هذه المكتبة غير موجودة، الرجاء الاختيار من القائمة', 'error');
       return;
     }
 
@@ -458,7 +458,7 @@ export class InvoicesComponent {
 
   processRefund() {
     if (!this.selectedLibraryId) {
-      this.toast.show('الرجاء اختيار المكتبة أولاً', 'error');
+      this.toast.show('هذه المكتبة غير موجودة، الرجاء الاختيار من القائمة', 'error');
       return;
     }
 
