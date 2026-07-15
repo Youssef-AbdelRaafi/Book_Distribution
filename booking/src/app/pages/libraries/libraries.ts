@@ -214,6 +214,9 @@ export class LibrariesComponent {
   shift1End = '13:00';
   shift2Start = '16:00';
   shift2End = '22:00';
+  
+  selectedGovName = '';
+  selectedCityName = '';
 
   private destroyRef = inject(DestroyRef);
 
@@ -227,13 +230,26 @@ export class LibrariesComponent {
 
   }
 
-  // Filtered cities based on selected governorate — only cities that have libraries
+  // Filtered cities based on selected governorate
   filteredCities() {
     const govs = this.libraryService.governorates();
     const gov = govs.find(g => g.id === Number(this.selectedGovernorateId));
     if (!gov) return [];
-    const cityIdsWithLibraries = new Set(this.librariesList().map(l => l.cityId));
-    return gov.cities.filter(c => cityIdsWithLibraries.has(c.id));
+    return gov.cities;
+  }
+
+  onGovInput(val: string) {
+    this.selectedGovName = val;
+    const gov = this.libraryService.governorates().find(g => g.name === val);
+    this.selectedGovernorateId = gov ? gov.id : 0;
+    this.selectedCityId = 0;
+    this.selectedCityName = '';
+  }
+
+  onCityInput(val: string) {
+    this.selectedCityName = val;
+    const city = this.filteredCities().find(c => c.name === val);
+    this.selectedCityId = city ? city.id : 0;
   }
 
   onGovernorateChange() {
@@ -645,6 +661,10 @@ export class LibrariesComponent {
         this.responsiblePhone = '';
         this.landlinePhone = '';
         this.selectedLogoData = null;
+        this.selectedGovernorateId = 0;
+        this.selectedGovName = '';
+        this.selectedCityId = 0;
+        this.selectedCityName = '';
         this.toast.show('تم حفظ المكتبة بنجاح!', 'success');
       },
       error: (err: any) => {

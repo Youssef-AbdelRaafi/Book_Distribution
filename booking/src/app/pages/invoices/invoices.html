@@ -26,26 +26,26 @@
             
             <div>
               <label class="block text-xs font-medium text-on-surface-variant mb-1.5">المحافظة</label>
-              <select [(ngModel)]="selectedGovernorateId" (ngModelChange)="onGovernorateChange()" class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2.5 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all appearance-none cursor-pointer">
-                <option [ngValue]="0">كل المحافظات</option>
-                <option *ngFor="let gov of libraryService.governorates(); trackBy: trackById" [ngValue]="gov.id">{{ gov.name }}</option>
-              </select>
+              <input type="text" [ngModel]="selectedGovName" (ngModelChange)="onGovInput($event)" list="invGovsList" placeholder="كل المحافظات" class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2.5 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all">
+              <datalist id="invGovsList">
+                <option *ngFor="let gov of libraryService.governorates(); trackBy: trackById" [value]="gov.name"></option>
+              </datalist>
             </div>
 
             <div>
               <label class="block text-xs font-medium text-on-surface-variant mb-1.5">المدينة</label>
-              <select [(ngModel)]="selectedCityId" (ngModelChange)="onCityChange()" class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2.5 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all appearance-none cursor-pointer">
-                <option [ngValue]="0">كل المدن</option>
-                <option *ngFor="let city of filteredCities(); trackBy: trackById" [ngValue]="city.id">{{ city.name }}</option>
-              </select>
+              <input type="text" [ngModel]="selectedCityName" (ngModelChange)="onCityInput($event)" list="invCitiesList" placeholder="كل المدن" class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2.5 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all">
+              <datalist id="invCitiesList">
+                <option *ngFor="let city of filteredCities(); trackBy: trackById" [value]="city.name"></option>
+              </datalist>
             </div>
 
             <div>
               <label class="block text-xs font-medium text-on-surface-variant mb-1.5">المكتبة</label>
-              <select [(ngModel)]="selectedLibraryId" (ngModelChange)="onLibraryChange()" class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2.5 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all appearance-none cursor-pointer">
-                <option [ngValue]="0">اختر المكتبة...</option>
-                <option *ngFor="let lib of filteredLibraries()" [ngValue]="lib.id">{{ lib.name }} — {{ lib.governorateName }} / {{ lib.cityName }}</option>
-              </select>
+              <input type="text" [ngModel]="selectedLibName" (ngModelChange)="onLibInput($event)" list="invLibsList" placeholder="اختر المكتبة..." class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2.5 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all">
+              <datalist id="invLibsList">
+                <option *ngFor="let lib of filteredLibraries(); trackBy: trackById" [value]="lib.name"></option>
+              </datalist>
             </div>
           </div>
 
@@ -89,14 +89,14 @@
                       </td>
                       <td class="py-2 px-4 text-on-surface font-mono">
                         <div>
-                          {{ item.price | number:'1.3-3' }} R.O.
+                          {{ item.price | number:'1.3-3' }} {{ settingsService.printSettings().mainCurrency }}
                         </div>
                       </td>
                       <td class="py-2 px-4">
                         <input type="number" [(ngModel)]="item.quantity" (ngModelChange)="updateItemTotal(item)" class="w-full bg-surface-primary border border-outline-variant rounded-md px-2 py-1.5 text-center focus:border-primary focus:ring-1 focus:ring-primary outline-none text-sm transition-all" min="0" placeholder="0">
                       </td>
                       <td class="py-3 px-4 font-semibold font-mono" [ngClass]="{'text-primary': (item.total || 0) > 0, 'text-on-surface-variant': !item.total}">
-                        {{ item.total ? (item.total | number:'1.3-3') + ' R.O.' : '-' }}
+                        {{ item.total ? (item.total | number:'1.3-3') + ' ' + settingsService.printSettings().mainCurrency : '-' }}
                       </td>
                     </tr>
                   </ng-container>
@@ -108,7 +108,7 @@
             </div>
             
             <div class="bg-surface-container-low p-4 flex justify-between items-center border-t border-surface-container-high">
-              <div class="text-sm font-medium text-on-surface-variant">الإجمالي: <span class="text-lg font-bold text-text-heading ml-1">{{ draftTotal() | number:'1.3-3' }} R.O.</span></div>
+              <div class="text-sm font-medium text-on-surface-variant">الإجمالي: <span class="text-lg font-bold text-text-heading ml-1">{{ draftTotal() | number:'1.3-3' }} {{ settingsService.printSettings().mainCurrency }}</span></div>
             </div>
           </div>
 
@@ -167,20 +167,21 @@
                 <option [ngValue]="0">كل الترم</option>
                 <option *ngFor="let sem of activeYearSemesters(); trackBy: trackById" [ngValue]="sem.id">{{ sem.name }}</option>
               </select>
-              <select [(ngModel)]="filterGovernorateId" (ngModelChange)="onFilterGovernorateChange()" class="bg-surface-primary border border-outline-variant rounded-md px-2 py-1.5 text-xs focus:border-primary outline-none">
-                <option [ngValue]="0">كل المحافظات</option>
-                <option *ngFor="let gov of libraryService.governorates(); trackBy: trackById" [ngValue]="gov.id">{{ gov.name }}</option>
-              </select>
-              <select [(ngModel)]="filterCityId" (ngModelChange)="onFilterCityChange()" class="bg-surface-primary border border-outline-variant rounded-md px-2 py-1.5 text-xs focus:border-primary outline-none">
-                <option [ngValue]="0">كل المدن</option>
-                <option *ngFor="let city of filterHistoryCities(); trackBy: trackById" [ngValue]="city.id">{{ city.name }}</option>
-              </select>
+              <input type="text" [ngModel]="filterGovName()" (ngModelChange)="onFilterGovInput($event)" list="histGovsList" placeholder="كل المحافظات" class="bg-surface-primary border border-outline-variant rounded-md px-2 py-1.5 text-xs focus:border-primary outline-none">
+              <datalist id="histGovsList">
+                <option *ngFor="let gov of libraryService.governorates(); trackBy: trackById" [value]="gov.name"></option>
+              </datalist>
+
+              <input type="text" [ngModel]="filterCityName()" (ngModelChange)="onFilterCityInput($event)" list="histCitiesList" placeholder="كل المدن" class="bg-surface-primary border border-outline-variant rounded-md px-2 py-1.5 text-xs focus:border-primary outline-none">
+              <datalist id="histCitiesList">
+                <option *ngFor="let city of filterHistoryCities(); trackBy: trackById" [value]="city.name"></option>
+              </datalist>
             </div>
             
-            <select [(ngModel)]="filterLibraryId" class="w-full bg-surface-primary border border-outline-variant rounded-md px-2 py-1.5 text-xs focus:border-primary outline-none">
-              <option [ngValue]="0">كل المكتبات</option>
-              <option *ngFor="let lib of filterHistoryLibraries(); trackBy: trackById" [ngValue]="lib.id">{{ lib.name }}</option>
-            </select>
+            <input type="text" [ngModel]="filterLibName()" (ngModelChange)="onFilterLibInput($event)" list="histLibsList" placeholder="كل المكتبات" class="w-full bg-surface-primary border border-outline-variant rounded-md px-2 py-1.5 text-xs focus:border-primary outline-none">
+            <datalist id="histLibsList">
+              <option *ngFor="let lib of filterHistoryLibraries(); trackBy: trackById" [value]="lib.name"></option>
+            </datalist>
           </div>
 
           <!-- History List -->
@@ -201,7 +202,7 @@
                 </div>
                 <div class="text-left">
                   <div class="font-bold font-mono" [ngClass]="getTypeAmountColor(inv.type)">
-                    {{ inv.totalAmount | number:'1.3-3' }} R.O.
+                    {{ inv.totalAmount | number:'1.3-3' }} {{ settingsService.printSettings().mainCurrency }}
                   </div>
                   <div class="text-[10px] text-on-surface-variant mt-0.5">{{ inv.date | date:'short' }}</div>
                 </div>
@@ -311,7 +312,7 @@
         <div class="flex justify-end mt-4">
           <div class="p-4 bg-primary/5 border border-primary/20 rounded-lg min-w-[250px]">
             <div class="text-xs text-on-surface-variant mb-1">الإجمالي الكلي</div>
-            <div class="text-xl font-bold text-primary">{{ previewInvoice()?.totalAmount | number:'1.3-3' }} R.O.</div>
+            <div class="text-xl font-bold text-primary">{{ previewInvoice()?.totalAmount | number:'1.3-3' }} {{ settingsService.printSettings().mainCurrency }}</div>
           </div>
         </div>
       </ng-container>
@@ -321,7 +322,7 @@
         <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
           <div class="p-4 bg-surface-container-low rounded-lg border border-outline-variant">
             <div class="text-xs text-on-surface-variant mb-1">المبلغ</div>
-            <div class="text-lg font-bold text-[#1a237e]">{{ previewInvoice()?.amount | number:'1.3-3' }} R.O.</div>
+            <div class="text-lg font-bold text-[#1a237e]">{{ previewInvoice()?.amount | number:'1.3-3' }} {{ settingsService.printSettings().mainCurrency }}</div>
           </div>
           <div class="p-4 bg-surface-container-low rounded-lg border border-outline-variant">
             <div class="text-xs text-on-surface-variant mb-1">طريقة الدفع</div>
@@ -416,15 +417,15 @@
         <th class="border border-black p-0 font-normal text-[12px]">
           <div class="border-b border-black p-1">السعر Rate</div>
           <div class="flex">
-            <div class="flex-1 p-1 border-l border-black">Bz</div>
-            <div class="flex-1 p-1">R.O.</div>
+            <div class="flex-1 p-1 border-l border-black">{{ settingsService.printSettings().subCurrency }}</div>
+            <div class="flex-1 p-1">{{ settingsService.printSettings().mainCurrency }}</div>
           </div>
         </th>
         <th class="border border-black p-0 font-normal text-[12px]">
           <div class="border-b border-black p-1">المبلغ Amount</div>
           <div class="flex">
-            <div class="flex-1 p-1 border-l border-black">Bz</div>
-            <div class="flex-1 p-1">R.O.</div>
+            <div class="flex-1 p-1 border-l border-black">{{ settingsService.printSettings().subCurrency }}</div>
+            <div class="flex-1 p-1">{{ settingsService.printSettings().mainCurrency }}</div>
           </div>
         </th>
       </tr>
@@ -562,8 +563,8 @@
       <table class="w-full border-collapse border border-black text-center text-[13px] font-bold" dir="ltr">
         <thead>
           <tr>
-            <th class="border border-black py-1 font-bold text-[12px]">ريال R.O.</th>
-            <th class="border border-black py-1 font-bold text-[12px]">بيسة B.s</th>
+            <th class="border border-black py-1 font-bold text-[12px]">{{ settingsService.printSettings().mainCurrency }}</th>
+            <th class="border border-black py-1 font-bold text-[12px]">{{ settingsService.printSettings().subCurrency }}</th>
           </tr>
         </thead>
         <tbody>

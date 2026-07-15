@@ -33,17 +33,17 @@
           <div class="grid grid-cols-2 gap-space-sm">
             <div>
               <label class="block text-xs font-medium text-on-surface-variant mb-1.5">المحافظة <span class="text-error">*</span></label>
-              <select [(ngModel)]="selectedGovernorateId" name="governorate" (ngModelChange)="onGovernorateChange()" class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2.5 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all">
-                <option [ngValue]="0">اختر المحافظة</option>
-                <option *ngFor="let gov of libraryService.governorates(); trackBy: trackById" [ngValue]="gov.id">{{ gov.name }}</option>
-              </select>
+              <input type="text" [ngModel]="selectedGovName" (ngModelChange)="onGovInput($event)" name="governorate" list="govsList" placeholder="اختر المحافظة" class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2.5 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all">
+              <datalist id="govsList">
+                <option *ngFor="let gov of libraryService.governorates(); trackBy: trackById" [value]="gov.name"></option>
+              </datalist>
             </div>
             <div>
               <label class="block text-xs font-medium text-on-surface-variant mb-1.5">الولاية <span class="text-error">*</span></label>
-              <select [(ngModel)]="selectedCityId" name="city" class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2.5 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all">
-                <option [ngValue]="0">اختر الولاية</option>
-                <option *ngFor="let city of filteredCities(); trackBy: trackById" [ngValue]="city.id">{{ city.name }}</option>
-              </select>
+              <input type="text" [ngModel]="selectedCityName" (ngModelChange)="onCityInput($event)" name="city" list="citiesList" placeholder="اختر الولاية" class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2.5 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all">
+              <datalist id="citiesList">
+                <option *ngFor="let city of filteredCities(); trackBy: trackById" [value]="city.name"></option>
+              </datalist>
             </div>
           </div>
           <div>
@@ -280,11 +280,11 @@
       <div class="flex justify-between items-center">
         <div class="text-lg font-bold text-on-surface space-y-1">
           <div *ngIf="clearancePaidAmount() > 0" class="text-sm font-medium text-on-surface-variant">
-            المبلغ الأصلي: {{ (clearanceTotal() + clearancePaidAmount()) | number:'1.3-3' }} R.O.
-            <span class="mx-2 text-tertiary">{{ '−' }} {{ clearancePaidAmount() | number:'1.3-3' }} R.O. مدفوع</span>
+            المبلغ الأصلي: {{ (clearanceTotal() + clearancePaidAmount()) | number:'1.3-3' }} {{ settingsService.printSettings().mainCurrency }}
+            <span class="mx-2 text-tertiary">{{ '−' }} {{ clearancePaidAmount() | number:'1.3-3' }} {{ settingsService.printSettings().mainCurrency }} مدفوع</span>
           </div>
           <div>
-            المبلغ المستحق: <span class="text-primary text-xl">{{ clearanceTotal() | number:'1.3-3' }} R.O.</span>
+            المبلغ المستحق: <span class="text-primary text-xl">{{ clearanceTotal() | number:'1.3-3' }} {{ settingsService.printSettings().mainCurrency }}</span>
           </div>
         </div>
         <div class="flex gap-3">
@@ -341,15 +341,15 @@
         <th class="border border-black p-0 font-normal text-[12px]">
           <div class="border-b border-black p-1">السعر Rate</div>
           <div class="flex">
-            <div class="flex-1 p-1 border-l border-black">Bz</div>
-            <div class="flex-1 p-1">R.O.</div>
+            <div class="flex-1 p-1 border-l border-black">{{ settingsService.printSettings().subCurrency }}</div>
+            <div class="flex-1 p-1">{{ settingsService.printSettings().mainCurrency }}</div>
           </div>
         </th>
         <th class="border border-black p-0 font-normal text-[12px]">
           <div class="border-b border-black p-1">المبلغ Amount</div>
           <div class="flex">
-            <div class="flex-1 p-1 border-l border-black">Bz</div>
-            <div class="flex-1 p-1">R.O.</div>
+            <div class="flex-1 p-1 border-l border-black">{{ settingsService.printSettings().subCurrency }}</div>
+            <div class="flex-1 p-1">{{ settingsService.printSettings().mainCurrency }}</div>
           </div>
         </th>
       </tr>
@@ -438,15 +438,15 @@
           <th class="border border-black p-0 font-normal text-[12px]">
             <div class="border-b border-black p-1">السعر Rate</div>
             <div class="flex">
-              <div class="flex-1 p-1 border-l border-black">Bz</div>
-              <div class="flex-1 p-1">R.O.</div>
+              <div class="flex-1 p-1 border-l border-black">{{ settingsService.printSettings().subCurrency }}</div>
+              <div class="flex-1 p-1">{{ settingsService.printSettings().mainCurrency }}</div>
             </div>
           </th>
           <th class="border border-black p-0 font-normal text-[12px]">
             <div class="border-b border-black p-1">المبلغ Amount</div>
             <div class="flex">
-              <div class="flex-1 p-1 border-l border-black">Bz</div>
-              <div class="flex-1 p-1">R.O.</div>
+              <div class="flex-1 p-1 border-l border-black">{{ settingsService.printSettings().subCurrency }}</div>
+              <div class="flex-1 p-1">{{ settingsService.printSettings().mainCurrency }}</div>
             </div>
           </th>
         </tr>
@@ -537,7 +537,7 @@
             </div>
           </div>
           <div class="text-left">
-            <div class="font-bold font-mono text-secondary">{{ inv.totalAmount | number:'1.3-3' }} R.O.</div>
+            <div class="font-bold font-mono text-secondary">{{ inv.totalAmount | number:'1.3-3' }} {{ settingsService.printSettings().mainCurrency }}</div>
             <div class="text-[10px] text-on-surface-variant mt-0.5">{{ inv.date | date:'yyyy/M/d' }}</div>
           </div>
         </div>
@@ -578,7 +578,7 @@
           <div class="flex justify-end mt-3">
             <div class="p-3 bg-secondary/5 border border-secondary/20 rounded-lg min-w-[200px]">
               <div class="text-xs text-on-surface-variant mb-1">الإجمالي</div>
-              <div class="text-lg font-bold text-secondary">{{ inv.totalAmount | number:'1.3-3' }} R.O.</div>
+              <div class="text-lg font-bold text-secondary">{{ inv.totalAmount | number:'1.3-3' }} {{ settingsService.printSettings().mainCurrency }}</div>
             </div>
           </div>
         </div>
@@ -798,7 +798,7 @@
               </div>
               <div class="flex items-center gap-2">
                 <div class="font-mono font-bold text-sm" [ngClass]="inv.type === 'order' ? 'text-primary' : inv.type === 'refund' ? 'text-error' : inv.type === 'receipt_voucher' ? 'text-[#1a237e]' : 'text-secondary'">
-                  {{ inv.totalAmount | number:'1.3-3' }} R.O.
+                  {{ inv.totalAmount | number:'1.3-3' }} {{ settingsService.printSettings().mainCurrency }}
                 </div>
                 <span class="material-symbols-outlined text-on-surface-variant text-[18px] transition-transform" [ngClass]="expandedInvoiceId() === (inv.id ?? inv.voucherNumber) ? 'rotate-180' : ''">expand_more</span>
               </div>
@@ -830,7 +830,7 @@
                 </table>
                 <div class="flex justify-end mt-2" *ngIf="inv.items?.length">
                   <div class="text-sm font-bold">
-                    الإجمالي: <span class="text-primary">{{ inv.totalAmount | number:'1.3-3' }} R.O.</span>
+                    الإجمالي: <span class="text-primary">{{ inv.totalAmount | number:'1.3-3' }} {{ settingsService.printSettings().mainCurrency }}</span>
                   </div>
                 </div>
                 <div *ngIf="!inv.items?.length" class="text-center text-on-surface-variant py-4 text-xs">
@@ -842,7 +842,7 @@
               <div *ngIf="inv.type === 'receipt_voucher'" class="grid grid-cols-2 md:grid-cols-4 gap-2">
                 <div class="p-2 bg-surface-container-low rounded-lg">
                   <div class="text-[10px] text-on-surface-variant">المبلغ</div>
-                  <div class="font-bold text-sm text-[#1a237e]">{{ inv.amount | number:'1.3-3' }} R.O.</div>
+                  <div class="font-bold text-sm text-[#1a237e]">{{ inv.amount | number:'1.3-3' }} {{ settingsService.printSettings().mainCurrency }}</div>
                 </div>
                 <div class="p-2 bg-surface-container-low rounded-lg">
                   <div class="text-[10px] text-on-surface-variant">طريقة الدفع</div>
@@ -1049,8 +1049,8 @@
       <table class="w-full border-collapse border border-black text-center text-[13px] font-bold" dir="ltr">
         <thead>
           <tr>
-            <th class="border border-black py-1 font-bold text-[12px]">ريال R.O.</th>
-            <th class="border border-black py-1 font-bold text-[12px]">بيسة B.s</th>
+            <th class="border border-black py-1 font-bold text-[12px]">{{ settingsService.printSettings().mainCurrency }}</th>
+            <th class="border border-black py-1 font-bold text-[12px]">{{ settingsService.printSettings().subCurrency }}</th>
           </tr>
         </thead>
         <tbody>

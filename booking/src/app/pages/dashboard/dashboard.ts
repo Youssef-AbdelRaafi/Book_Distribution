@@ -258,7 +258,9 @@ export class DashboardComponent {
     const yearMap = new Map<number, number | Set<string>>();
 
     invs.forEach(inv => {
-      const year = new Date(inv.date || new Date()).getFullYear();
+      const sem = this.settingsService.allSemesters().find(s => s.id === inv.semesterId);
+      const yearStr = sem?.academicYearName ? sem.academicYearName.split('-')[0] : '';
+      const year = yearStr ? parseInt(yearStr, 10) : new Date(inv.date || new Date()).getFullYear();
       
       if (mode === 'libraries') {
         if (!yearMap.has(year)) yearMap.set(year, new Set<string>());
@@ -310,7 +312,9 @@ export class DashboardComponent {
     const groupMap = new Map<string, { year: number, term: string, ordered: number, refunded: number, net: number, libSales: Map<string, number> }>();
 
     invs.forEach(inv => {
-      const year = new Date(inv.date || new Date()).getFullYear();
+      const sem = this.settingsService.allSemesters().find(s => s.id === inv.semesterId);
+      const yearStr = sem?.academicYearName ? sem.academicYearName.split('-')[0] : '';
+      const year = yearStr ? parseInt(yearStr, 10) : new Date(inv.date || new Date()).getFullYear();
       const term = inv.termCode === 'B' || inv.semesterName === 'الفصل الثاني'
         ? 'الترم الثاني'
         : inv.termCode === 'A' || inv.semesterName === 'الفصل الأول'

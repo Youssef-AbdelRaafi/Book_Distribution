@@ -13,8 +13,6 @@ export interface PrintSettings {
   subCurrency: string;
   ownerSignatureName: string;
   whatsappNumber: string;
-  term1Start?: string;
-  term2Start?: string;
 }
 
 export interface SemesterInfo {
