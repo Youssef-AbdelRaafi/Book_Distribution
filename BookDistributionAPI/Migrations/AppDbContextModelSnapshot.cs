@@ -175,6 +175,10 @@ namespace BookDistributionAPI.Migrations
                     b.Property<int>("LibraryId")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("LibraryName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("PrintStatus")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -388,6 +392,10 @@ namespace BookDistributionAPI.Migrations
 
                     b.Property<int>("LibraryId")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("LibraryName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("PaymentMethod")
                         .IsRequired()
