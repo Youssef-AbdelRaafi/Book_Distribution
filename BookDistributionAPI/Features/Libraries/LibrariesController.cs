@@ -205,6 +205,17 @@ public class LibrariesController : ControllerBase
         return Ok(ApiResponse<object>.Ok(true, "تم حذف المكتبة بنجاح"));
     }
 
+    [HttpPut("{id}/restore")]
+    public async Task<IActionResult> Restore(int id, CancellationToken cancellationToken)
+    {
+        var lib = await _db.Libraries.FindAsync([id], cancellationToken);
+        if (lib == null) return NotFound(ApiResponse<object>.Fail("المكتبة غير موجودة"));
+
+        lib.IsActive = true; 
+        await _db.SaveChangesAsync(cancellationToken);
+        return Ok(ApiResponse<object>.Ok(true, "تم استعادة المكتبة بنجاح"));
+    }
+
     [HttpGet("{id}/books")]
     public async Task<IActionResult> GetLibraryBooks(int id, [FromQuery] int? semesterId, CancellationToken cancellationToken)
     {

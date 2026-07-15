@@ -86,7 +86,13 @@ export class LibraryService {
 
   deleteLibrary(id: number): Observable<ApiResponse<unknown>> {
     return this.http.delete<ApiResponse<unknown>>(`${this.apiUrl}/${id}`).pipe(
-      tap(() => this.removeLibrary(id))
+      tap(() => this.fetchLibraries())
+    );
+  }
+
+  restoreLibrary(id: number): Observable<ApiResponse<unknown>> {
+    return this.http.put<ApiResponse<unknown>>(`${this.apiUrl}/${id}/restore`, {}).pipe(
+      tap(() => this.fetchLibraries())
     );
   }
 
@@ -113,8 +119,8 @@ export class LibraryService {
     if (!payload) return throwError(() => new Error('لا يمكن التراجع عن هذا النشاط'));
     if (activity.type === 'ADD' && payload.id) {
       return this.deleteLibrary(payload.id).pipe(map(() => undefined));
-    } else if (activity.type === 'DELETE' && payload) {
-      return this.addLibrary(payload as unknown as Library).pipe(map(() => undefined));
+    } else if (activity.type === 'DELETE' && payload?.id) {
+      return this.restoreLibrary(payload.id).pipe(map(() => undefined));
     } else if (activity.type === 'UPDATE' && payload?.id && payload?.previous) {
       return this.updateLibrary(payload.id, payload.previous as unknown as Partial<Library>).pipe(map(() => undefined));
     }
@@ -123,8 +129,8 @@ export class LibraryService {
   executeRedo(activity: { type?: string; payload?: ActivityPayload }): Observable<any> {
     const payload = activity?.payload;
     if (!payload) return throwError(() => new Error('لا يمكن إعادة هذا النشاط'));
-    if (activity.type === 'ADD' && payload) {
-      return this.addLibrary(payload as unknown as Library).pipe(map(() => undefined));
+    if (activity.type === 'ADD' && payload?.data) {
+      return this.addLibrary(payload.data as unknown as Library).pipe(map(() => undefined));
     } else if (activity.type === 'DELETE' && payload?.id) {
       return this.deleteLibrary(payload.id).pipe(map(() => undefined));
     } else if (activity.type === 'UPDATE' && payload?.id && payload?.current) {

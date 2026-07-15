@@ -102,6 +102,19 @@ export class LibrariesComponent {
 
   isListCollapsed = signal(localStorage.getItem(LS_LIB_LIST_COLLAPSED) === 'true');
   isListEditMode = signal(false);
+  private listEditTimeout: any;
+
+  toggleListEditMode() {
+    this.isListEditMode.update(v => !v);
+    if (this.isListEditMode()) {
+      if (this.listEditTimeout) clearTimeout(this.listEditTimeout);
+      this.listEditTimeout = setTimeout(() => {
+        this.isListEditMode.set(false);
+      }, 15000);
+    } else {
+      if (this.listEditTimeout) clearTimeout(this.listEditTimeout);
+    }
+  }
   searchTerm = '';
   private searchTerm$ = new BehaviorSubject<string>('');
 
@@ -133,6 +146,7 @@ export class LibrariesComponent {
   clearanceLibrary = signal<any>(null);
   clearanceItems = signal<{grade: string, items: ClearanceSummaryItem[]}[]>([]);
   clearanceTotal = signal<number>(0);
+  clearanceOriginalTotal = signal<number>(0);
   clearancePaidAmount = signal<number>(0);
   clearanceDate = new Date().toLocaleDateString('ar-SA', { calendar: 'gregory' });
   currentClearanceNumber = signal<string>('');
@@ -448,6 +462,7 @@ export class LibrariesComponent {
     this.clearanceLoading.set(true);
     this.clearanceItems.set([]);
     this.clearanceTotal.set(0);
+    this.clearanceOriginalTotal.set(0);
     this.clearancePaidAmount.set(0);
     this.clearanceBatchInvoices.set([]);
     this.clearanceSearchTerm.set('');
@@ -460,6 +475,7 @@ export class LibrariesComponent {
       next: (res) => {
         const preview = res.data!;
         this.clearancePaidAmount.set(preview.paidAmount || 0);
+        this.clearanceOriginalTotal.set(preview.totalAmount || 0);
         const netAmount = Math.max((preview.totalAmount || 0) - (preview.paidAmount || 0), 0);
         this.clearanceTotal.set(netAmount);
 

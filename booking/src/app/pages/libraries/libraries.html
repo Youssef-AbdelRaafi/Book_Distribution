@@ -124,7 +124,7 @@
           <span class="material-symbols-outlined text-primary">store</span> قائمة المكتبات
         </h3>
         <div class="flex items-center gap-2">
-          <button type="button" (click)="isListEditMode.set(!isListEditMode())" class="w-8 h-8 rounded-full flex items-center justify-center transition-colors" [ngClass]="isListEditMode() ? 'bg-primary text-on-primary' : 'bg-surface-container-high text-on-surface hover:bg-surface-container-highest'">
+          <button type="button" (click)="toggleListEditMode()" class="w-8 h-8 rounded-full flex items-center justify-center transition-colors" [ngClass]="isListEditMode() ? 'bg-primary text-on-primary' : 'bg-surface-container-high text-on-surface hover:bg-surface-container-highest'">
             <span class="material-symbols-outlined text-[16px]">edit</span>
           </button>
           <div class="flex items-center gap-2 cursor-pointer" (click)="toggleList()">
@@ -280,7 +280,7 @@
       <div class="flex justify-between items-center">
         <div class="text-lg font-bold text-on-surface space-y-1">
           <div *ngIf="clearancePaidAmount() > 0" class="text-sm font-medium text-on-surface-variant">
-            المبلغ الأصلي: {{ (clearanceTotal() + clearancePaidAmount()) | number:'1.3-3' }} {{ settingsService.printSettings().mainCurrency }}
+            المبلغ الأصلي: {{ clearanceOriginalTotal() | number:'1.3-3' }} {{ settingsService.printSettings().mainCurrency }}
             <span class="mx-2 text-tertiary">{{ '−' }} {{ clearancePaidAmount() | number:'1.3-3' }} {{ settingsService.printSettings().mainCurrency }} مدفوع</span>
           </div>
           <div>
