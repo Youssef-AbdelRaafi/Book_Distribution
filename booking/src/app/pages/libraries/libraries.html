@@ -197,7 +197,7 @@
         <!-- List Footer Actions -->
         <div class="flex gap-2 mt-4">
           <button type="button" (click)="clearance()" class="flex-1 py-2 bg-surface-container-low border border-surface-container-highest rounded-lg text-sm text-secondary hover:bg-surface-container transition-colors flex items-center justify-center gap-2">
-            <span class="material-symbols-outlined text-[18px]">payments</span> مخالصة (اختيار المكتبات)
+            <span class="material-symbols-outlined text-[18px]">payments</span> مخالصة الكل
           </button>
         </div>
       </div>
@@ -398,7 +398,7 @@
 </div>
 
 <!-- Batch Clearances -->
-<div *ngIf="isClearanceModalOpen && clearanceBatchInvoices().length > 0" class="print-page invoice-print-page w-full bg-white text-black p-4" dir="rtl" style="font-family: 'Traditional Arabic', 'Amiri', 'Times New Roman', serif;">
+<div *ngIf="clearanceBatchInvoices().length > 0" class="print-page invoice-print-page w-full bg-white text-black p-4" dir="rtl" style="font-family: 'Traditional Arabic', 'Amiri', 'Times New Roman', serif;">
   <div *ngFor="let inv of clearanceBatchInvoices(); trackBy: trackById; let last = last" class="bg-white text-black p-4" [ngStyle]="{'page-break-after': last ? 'auto' : 'always'}" dir="rtl" style="font-family: 'Traditional Arabic', 'Amiri', 'Times New Roman', serif;">
     <div class="flex flex-col mb-2">
       <div class="text-center text-[22px] font-bold mb-3 mt-1">
@@ -492,45 +492,6 @@
       [responsibleName]="inv.responsibleName || ''"
       [responsiblePhone]="inv.responsiblePhone || ''">
     </app-invoice-print-footer>
-  </div>
-</div>
-
-<!-- Library Selection for Batch Clearance -->
-<div *ngIf="showClearanceLibrarySelector()" class="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 print:hidden p-4" (click)="showClearanceLibrarySelector.set(false)">
-  <div class="bg-surface-container-lowest rounded-xl shadow-lg w-full max-w-lg max-h-[90vh] flex flex-col" (click)="$event.stopPropagation()">
-    <div class="flex justify-between items-center p-5 border-b border-surface-container-high">
-      <h2 class="text-lg font-bold text-primary flex items-center gap-2">
-        <span class="material-symbols-outlined">checklist</span> اختيار المكتبات للمخالصة
-      </h2>
-      <button type="button" (click)="showClearanceLibrarySelector.set(false)" class="text-on-surface-variant hover:text-error transition-colors">
-        <span class="material-symbols-outlined">close</span>
-      </button>
-    </div>
-    <div class="p-4 border-b border-surface-container-high bg-surface-container-low flex gap-2">
-      <button type="button" (click)="selectAllClearanceLibraries()" class="text-xs font-medium px-3 py-1.5 rounded-lg border border-outline-variant hover:bg-surface-container transition-colors">تحديد الكل</button>
-      <button type="button" (click)="deselectAllClearanceLibraries()" class="text-xs font-medium px-3 py-1.5 rounded-lg border border-outline-variant hover:bg-surface-container transition-colors">إلغاء الكل</button>
-    </div>
-    <div class="flex-1 overflow-y-auto p-4 custom-scrollbar space-y-2">
-      <label *ngFor="let lib of getClearanceEligibleLibraries(); trackBy: trackById" class="flex items-center gap-3 p-3 rounded-lg border border-outline-variant cursor-pointer hover:bg-surface-container-lowest transition-colors"
-        [ngClass]="{'border-primary bg-primary/5': clearanceLibrarySelections().get(lib.id)}">
-        <input type="checkbox" [checked]="clearanceLibrarySelections().get(lib.id) ?? true" (change)="toggleClearanceLibrarySelection(lib.id)" class="w-5 h-5 rounded accent-primary cursor-pointer shrink-0">
-        <div class="flex-1">
-          <div class="text-sm font-semibold text-text-heading">{{ lib.name }}</div>
-          <div class="text-xs text-on-surface-variant">{{ lib.governorateName }} - {{ lib.cityName }}</div>
-        </div>
-      </label>
-      <div *ngIf="getClearanceEligibleLibraries().length === 0" class="text-center text-on-surface-variant py-8">
-        لا توجد مكتبات متاحة للمخالصة
-      </div>
-    </div>
-    <div class="p-5 border-t border-surface-container-high bg-surface-container-low rounded-b-xl flex justify-between items-center">
-      <div class="text-sm text-on-surface-variant">
-        {{ selectedClearanceCount() }} مكتبة محددة
-      </div>
-      <button type="button" (click)="proceedWithSelectedClearances()" class="px-6 py-2.5 bg-secondary text-on-secondary rounded-lg text-sm font-medium hover:bg-on-secondary-fixed-variant transition-colors flex items-center gap-2">
-        <span class="material-symbols-outlined text-[20px]">payments</span> إنشاء المخالصات للمحددة
-      </button>
-    </div>
   </div>
 </div>
 
