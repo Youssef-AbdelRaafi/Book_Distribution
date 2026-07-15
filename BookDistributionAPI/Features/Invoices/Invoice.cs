@@ -15,6 +15,7 @@ public class Invoice
     }
     public string Type { get; set; } = string.Empty; 
     public int LibraryId { get; set; }
+    public string LibraryName { get; set; } = string.Empty;
     public Libraries.Library Library { get; set; } = null!;
     public int SemesterId { get; set; }
     public Semesters.Semester Semester { get; set; } = null!;

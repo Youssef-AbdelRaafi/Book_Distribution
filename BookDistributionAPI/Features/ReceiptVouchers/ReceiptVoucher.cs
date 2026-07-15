@@ -7,6 +7,7 @@ public class ReceiptVoucher
     public int VoucherYear { get; set; }
     public string DisplayNumber => $"{VoucherYear}-{VoucherNumber}";
     public int LibraryId { get; set; }
+    public string LibraryName { get; set; } = string.Empty;
     public Libraries.Library Library { get; set; } = null!;
     public int? SemesterId { get; set; }
     public Semesters.Semester? Semester { get; set; }
