@@ -1,7 +1,8 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable, tap, catchError, of } from 'rxjs';
+import { Observable, tap, catchError, of, map, throwError } from 'rxjs';
 import { ReceiptVoucher, CreateReceiptVoucher } from '../models/receipt-voucher.model';
+import { ActivityPayload } from '../models/activity.model';
 import { ApiResponse } from '../models/api-response.model';
 import { ToastService } from './toast.service';
 import { environment } from '../../../environments/environment';
@@ -58,5 +59,33 @@ export class ReceiptVoucherService {
     return this.http.delete<ApiResponse<unknown>>(`${this.apiUrl}/${id}`).pipe(
       tap(() => this.removeVoucher(id))
     );
+  }
+
+  executeCompensation(activity: { type?: string; payload?: ActivityPayload }): Observable<any> {
+    const payload = activity?.payload;
+    if (!payload || payload.entity !== 'receipt_voucher') {
+      return throwError(() => new Error('لا يمكن التراجع عن هذا النشاط'));
+    }
+
+    if (activity.type === 'ADD' && payload.id) {
+      return this.delete(payload.id).pipe(map(() => undefined));
+    }
+    if (activity.type === 'DELETE') {
+      this.toast.show('لا يمكن استعادة سند القبض المحذوف عبر التراجع', 'error');
+      return throwError(() => new Error('لا يمكن استعادة سند القبض المحذوف'));
+    }
+    return throwError(() => new Error('لا يمكن التراجع عن هذا النشاط'));
+  }
+
+  executeRedo(activity: { type?: string; payload?: ActivityPayload }): Observable<any> {
+    const payload = activity?.payload;
+    if (!payload || !payload.id || payload.entity !== 'receipt_voucher') {
+      return throwError(() => new Error('لا يمكن إعادة هذا النشاط'));
+    }
+
+    if (activity.type === 'DELETE') {
+      return this.delete(payload.id).pipe(map(() => undefined));
+    }
+    return throwError(() => new Error('لا يمكن إعادة هذا النشاط'));
   }
 }

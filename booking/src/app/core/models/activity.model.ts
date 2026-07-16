@@ -1,5 +1,5 @@
 export interface ActivityPayload {
-  entity: 'library' | 'inventory' | 'invoice';
+  entity: 'library' | 'inventory' | 'invoice' | 'receipt_voucher';
   id?: number;
   ids?: number[];
   previous?: Record<string, unknown>;

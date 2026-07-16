@@ -3,6 +3,7 @@ import { Activity, ActivityPayload } from '../models/activity.model';
 import { InventoryService } from './inventory.service';
 import { LibraryService } from './library.service';
 import { InvoiceService } from './invoice.service';
+import { ReceiptVoucherService } from './receipt-voucher.service';
 import { ToastService } from './toast.service';
 import { ConfirmService } from './confirm.service';
 import { filter, Observable, throwError } from 'rxjs';
@@ -18,6 +19,7 @@ export class ActivityService {
   private inventoryService = inject(InventoryService);
   private libraryService = inject(LibraryService);
   private invoiceService = inject(InvoiceService);
+  private receiptVoucherService = inject(ReceiptVoucherService);
   private toast = inject(ToastService);
   private confirmService = inject(ConfirmService);
 
@@ -68,6 +70,7 @@ export class ActivityService {
     if (activity.payload.entity === 'library') return this.libraryService.executeCompensation(activity);
     if (activity.payload.entity === 'inventory') return this.inventoryService.executeCompensation(activity);
     if (activity.payload.entity === 'invoice') return this.invoiceService.executeCompensation(activity);
+    if (activity.payload.entity === 'receipt_voucher') return this.receiptVoucherService.executeCompensation(activity);
     return throwError(() => new Error('لا يمكن التراجع عن هذا النشاط'));
   }
 
@@ -76,6 +79,7 @@ export class ActivityService {
     if (activity.payload.entity === 'library') return this.libraryService.executeRedo(activity);
     if (activity.payload.entity === 'inventory') return this.inventoryService.executeRedo(activity);
     if (activity.payload.entity === 'invoice') return this.invoiceService.executeRedo(activity);
+    if (activity.payload.entity === 'receipt_voucher') return this.receiptVoucherService.executeRedo(activity);
     return throwError(() => new Error('لا يمكن إعادة هذا النشاط'));
   }
 

@@ -711,7 +711,7 @@ export class LibrariesComponent {
 
   openReceiptVoucher(lib: Library) {
     this.receiptVoucherLibrary.set(lib);
-    this.rvAmount = 0;
+    this.rvAmount = null as any;
     this.rvPaymentMethod = 'cash';
     this.rvChequeNumber = '';
     this.rvBankName = '';
@@ -732,7 +732,7 @@ export class LibrariesComponent {
             return;
           }
           
-          this.rvAmount = netAmount;
+          // this.rvAmount = netAmount; // Commented out so user has to type it manually
           this.rvPurpose = `تسوية حساب الفصل الدراسي ${preview.semesterName || ''}`;
           this.isReceiptVoucherModalOpen = true;
         },
@@ -783,7 +783,7 @@ export class LibrariesComponent {
     ).subscribe({
       next: (res) => {
         const voucher = res.data!;
-        this.activityService.logActivity('سند قبض', `تم إنشاء سند قبض للمكتبة "${lib.name}" بقيمة ${this.rvAmount} ريال`, 'ADD', { entity: 'invoice', id: voucher.id });
+        this.activityService.logActivity('سند قبض', `تم إنشاء سند قبض للمكتبة "${lib.name}" بقيمة ${this.rvAmount} ريال`, 'ADD', { entity: 'receipt_voucher', id: voucher.id });
         this.toast.show('تم إنشاء سند القبض بنجاح', 'success');
         this.receiptVoucherToPrint.set(voucher);
         this.cdr.detectChanges();
