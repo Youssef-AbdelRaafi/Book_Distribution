@@ -127,6 +127,9 @@
           <button type="button" (click)="toggleListEditMode()" class="w-8 h-8 rounded-full flex items-center justify-center transition-colors" [ngClass]="isListEditMode() ? 'bg-primary text-on-primary' : 'bg-surface-container-high text-on-surface hover:bg-surface-container-highest'">
             <span class="material-symbols-outlined text-[16px]">edit</span>
           </button>
+          <div class="flex items-center gap-2 cursor-pointer" (click)="toggleShowDeleted()">
+            <span class="material-symbols-outlined text-[20px] transition-colors" [ngClass]="showDeletedLibraries() ? 'text-error' : 'text-on-surface-variant'">delete</span>
+          </div>
           <div class="flex items-center gap-2 cursor-pointer" (click)="toggleList()">
             <span class="bg-surface-container text-on-surface text-xs font-medium px-2 py-1 rounded-full">{{ librariesList().length }} مكتبة</span>
             <span class="material-symbols-outlined text-on-surface-variant transition-transform duration-300" [ngClass]="{'rotate-180': isListCollapsed()}">expand_more</span>
@@ -144,7 +147,9 @@
         </div>
         <div class="grid gap-4 max-h-[460px] overflow-y-auto pr-1 custom-scrollbar" [ngClass]="isCompact ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'">
           <!-- Library Item -->
-          <div *ngFor="let lib of filteredLibraries$ | async; trackBy: trackById" class="p-3.5 bg-surface-container-lowest rounded-lg border border-outline-variant hover:border-primary hover:shadow-sm transition-all flex flex-col gap-2 cursor-pointer group">
+          <div *ngFor="let lib of filteredLibraries$ | async; trackBy: trackById" 
+               class="p-3.5 rounded-lg border hover:shadow-sm transition-all flex flex-col gap-2 cursor-pointer group"
+               [ngClass]="lib.isActive === false ? 'bg-error/5 border-error/20 hover:border-error opacity-75' : 'bg-surface-container-lowest border-outline-variant hover:border-primary'">
             <div class="flex items-start gap-3">
               <div class="w-10 h-10 rounded-md bg-surface-container-high flex items-center justify-center shrink-0 text-primary group-hover:bg-primary group-hover:text-on-primary transition-colors overflow-hidden">
                 <img *ngIf="lib.logo" [src]="lib.logo" class="w-full h-full object-cover">
@@ -153,8 +158,11 @@
               <div class="flex-1">
                 <div class="text-sm font-semibold text-text-heading flex justify-between items-start gap-2">
                   <span>{{ lib.name }}</span>
-                  <button type="button" *ngIf="isListEditMode()" (click)="deleteLibraryQuick(lib, $event)" class="text-error hover:bg-error/10 w-6 h-6 rounded flex items-center justify-center transition-colors shrink-0">
+                  <button type="button" *ngIf="isListEditMode() && lib.isActive !== false" (click)="deleteLibraryQuick(lib, $event)" class="text-error hover:bg-error/10 w-6 h-6 rounded flex items-center justify-center transition-colors shrink-0" title="حذف">
                     <span class="material-symbols-outlined text-[16px]">delete</span>
+                  </button>
+                  <button type="button" *ngIf="isListEditMode() && lib.isActive === false" (click)="restoreLibraryQuick(lib, $event)" class="text-success hover:bg-success/10 w-6 h-6 rounded flex items-center justify-center transition-colors shrink-0" title="استعادة">
+                    <span class="material-symbols-outlined text-[16px]">restore</span>
                   </button>
                 </div>
                 <div class="flex flex-wrap gap-2 mt-0.5">
@@ -182,13 +190,19 @@
               </div>
             </div>
             <div class="flex justify-between items-center mt-2 pt-2 border-t border-surface-container-high">
-              <div class="text-[12px] font-medium flex items-center gap-1" [ngClass]="getLibraryStatus(lib).colorClass">
-                <span class="w-2 h-2 rounded-full" [ngClass]="getLibraryStatus(lib).bgClass"></span> {{ getLibraryStatus(lib).text }}
+              <div class="text-[12px] font-medium flex items-center gap-1" [ngClass]="lib.isActive === false ? 'text-error' : getLibraryStatus(lib).colorClass">
+                <span class="w-2 h-2 rounded-full" [ngClass]="lib.isActive === false ? 'bg-error' : getLibraryStatus(lib).bgClass"></span> 
+                {{ lib.isActive === false ? 'مكتبة محذوفة' : getLibraryStatus(lib).text }}
               </div>
-              <div class="flex gap-3">
+              <div class="flex gap-3" *ngIf="lib.isActive !== false">
                 <button type="button" (click)="showDetails(lib)" class="text-secondary text-xs hover:underline">التفاصيل</button>
                 <button type="button" (click)="clearance(lib)" class="text-tertiary text-xs hover:underline">مخالصة</button>
                 <button type="button" (click)="openReceiptVoucher(lib)" class="text-primary text-xs hover:underline">سند قبض</button>
+              </div>
+              <div class="flex gap-3" *ngIf="lib.isActive === false">
+                <button type="button" (click)="restoreLibraryQuick(lib, $event)" class="text-success font-medium text-xs hover:underline flex items-center gap-1">
+                  <span class="material-symbols-outlined text-[14px]">restore</span> استعادة
+                </button>
               </div>
             </div>
           </div>

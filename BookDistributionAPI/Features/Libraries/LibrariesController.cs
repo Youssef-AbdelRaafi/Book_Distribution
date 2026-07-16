@@ -21,16 +21,22 @@ public class LibrariesController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetAll(CancellationToken cancellationToken)
+    public async Task<IActionResult> GetAll([FromQuery] bool includeDeleted = false, CancellationToken cancellationToken = default)
     {
-        var libraries = await _db.Libraries
+        var query = _db.Libraries
             .Include(l => l.Governorate)
             .Include(l => l.City)
-            .Where(l => l.IsActive)
+            .AsQueryable();
+
+        if (!includeDeleted)
+            query = query.Where(l => l.IsActive);
+
+        var libraries = await query
             .OrderBy(l => l.Governorate.Name)
             .ThenBy(l => l.Name)
             .Select(l => MapToDto(l))
             .ToListAsync(cancellationToken);
+            
         return Ok(ApiResponse<object>.Ok(libraries));
     }
 

@@ -21,7 +21,7 @@ export class LibraryService {
   governorates = signal<Governorate[]>([]);
 
   fetchLibraries(): void {
-    this.http.get<ApiResponse<Library[]>>(this.apiUrl).pipe(
+    this.http.get<ApiResponse<Library[]>>(`${this.apiUrl}?includeDeleted=true`).pipe(
       tap(res => {
         this.librariesSubject.next(Array.isArray(res.data) ? res.data : []);
       }),

@@ -118,14 +118,29 @@ export class LibrariesComponent {
   searchTerm = '';
   private searchTerm$ = new BehaviorSubject<string>('');
 
+  showDeletedLibraries = signal(false);
+  private showDeletedLibraries$ = new BehaviorSubject<boolean>(false);
+
+  toggleShowDeleted() {
+    this.showDeletedLibraries.update(v => !v);
+    this.showDeletedLibraries$.next(this.showDeletedLibraries());
+  }
+
   filteredLibraries$ = combineLatest([
     this.searchTerm$,
-    this.libraryService.libraries$
+    this.libraryService.libraries$,
+    this.showDeletedLibraries$
   ]).pipe(
-    map(([term, libs]) => {
+    map(([term, libs, showDeleted]) => {
+      let filtered = libs;
+      if (showDeleted) {
+        filtered = filtered.filter(l => l.isActive === false);
+      } else {
+        filtered = filtered.filter(l => l.isActive !== false);
+      }
       const t = term.trim().toLowerCase();
-      if (!t) return libs;
-      return libs.filter(l =>
+      if (!t) return filtered;
+      return filtered.filter(l =>
         l.name.toLowerCase().includes(t) ||
         (l.governorateName || l.region || '').toLowerCase().includes(t) ||
         (l.cityName || l.city || '').toLowerCase().includes(t)
@@ -433,6 +448,16 @@ export class LibrariesComponent {
     ).subscribe({
       next: () => this.toast.show('تم حذف المكتبة بنجاح', 'success'),
       error: () => this.toast.show('حدث خطأ في حذف المكتبة', 'error')
+    });
+  }
+
+  restoreLibraryQuick(lib: Library, event: Event) {
+    event.stopPropagation();
+    this.libraryService.restoreLibrary(lib.id).pipe(
+      takeUntilDestroyed(this.destroyRef)
+    ).subscribe({
+      next: () => this.toast.show('تم استعادة المكتبة بنجاح', 'success'),
+      error: () => this.toast.show('حدث خطأ في استعادة المكتبة', 'error')
     });
   }
 

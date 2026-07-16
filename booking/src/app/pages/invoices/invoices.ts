@@ -161,7 +161,7 @@ export class InvoicesComponent {
   }
 
   filteredLibraries() {
-    let libs = this.librariesData();
+    let libs = this.librariesData().filter(l => l.isActive !== false);
     if (this.selectedGovernorateId != 0) libs = libs.filter(l => l.governorateId == this.selectedGovernorateId);
     if (this.selectedCityId != 0) libs = libs.filter(l => l.cityId == this.selectedCityId);
     return libs;
