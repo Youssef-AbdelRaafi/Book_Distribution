@@ -70,7 +70,7 @@
             <td class="p-3.5 text-left">
               <div *ngIf="!isEditMode()" class="font-mono">{{ item.price | number:'1.3-3' }}</div>
               <div *ngIf="isEditMode()" class="flex justify-end">
-                <input #inputPrice type="number" [ngModel]="item.price" (blur)="updatePrice(item, inputPrice.valueAsNumber)" class="w-24 bg-surface-primary border border-outline-variant rounded-md px-2 py-1 text-left font-mono focus:border-primary outline-none" min="0" step="0.100">
+                <input #inputPrice type="number" [ngModel]="item.price" (blur)="updatePrice(item, inputPrice.valueAsNumber)" (focus)="$event.target.select()" class="w-24 bg-surface-primary border border-outline-variant rounded-md px-2 py-1 text-left font-mono focus:border-primary outline-none" min="0" step="0.100">
               </div>
             </td>
             <td class="p-3.5 text-left font-mono">
@@ -84,7 +84,7 @@
                 </ng-container>
               </div>
               <div *ngIf="isEditMode()" class="flex justify-end">
-                <input #inputStock type="number" [ngModel]="item.stockQuantity" (blur)="updateStockQuantity(item, inputStock.valueAsNumber)" class="w-24 bg-surface-primary border border-outline-variant rounded-md px-2 py-1 text-left font-mono focus:border-primary outline-none" min="0">
+                <input #inputStock type="number" [ngModel]="item.stockQuantity" (blur)="updateStockQuantity(item, inputStock.valueAsNumber)" (focus)="$event.target.select()" class="w-24 bg-surface-primary border border-outline-variant rounded-md px-2 py-1 text-left font-mono focus:border-primary outline-none" min="0">
               </div>
             </td>
           </tr>
