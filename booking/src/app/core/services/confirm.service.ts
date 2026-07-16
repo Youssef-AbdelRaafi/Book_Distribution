@@ -26,7 +26,7 @@ export class ConfirmService {
       };
       document.addEventListener('keydown', onKeyDown);
 
-      const timeoutId = setTimeout(() => resolve(false), 30000);
+      const timeoutId = setTimeout(() => resolve(false), 120000);
 
       const cleanup = () => {
         document.removeEventListener('keydown', onKeyDown);

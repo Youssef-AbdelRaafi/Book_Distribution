@@ -22,9 +22,6 @@ export class SinglePageComponent {
   public settingsService = inject(SettingsService);
   
   isHistoryModalOpen = false;
-  isCleanerModalOpen = false;
-  cleanerKeepFinancial = false;
-  cleanerAgeMonths = 6;
 
   getOrder(section: string): number {
     const index = this.settingsService.sectionOrder().indexOf(section);
@@ -89,7 +86,7 @@ export class SinglePageComponent {
   });
 
   canRedoLatest = computed(() => {
-    return !!this.activities().find(a => a.status === 'undone' && a.type);
+    return !!this.activities().find(a => a.status === 'undone' && a.type && a.payload?.entity !== 'invoice' && a.payload?.entity !== 'receipt_voucher');
   });
 
   undoLatest() {
@@ -100,36 +97,10 @@ export class SinglePageComponent {
   }
 
   redoLatest() {
-    const act = this.activities().find(a => a.status === 'undone' && a.type);
+    const act = this.activities().find(a => a.status === 'undone' && a.type && a.payload?.entity !== 'invoice' && a.payload?.entity !== 'receipt_voucher');
     if (act) {
       this.redoActivity(act.id);
     }
-  }
-
-  // ---- Smart Log Cleaner ----
-
-  openCleaner() {
-    this.isCleanerModalOpen = true;
-    this.cleanerKeepFinancial = false;
-    this.cleanerAgeMonths = 6;
-  }
-
-  closeCleaner() {
-    this.isCleanerModalOpen = false;
-  }
-
-  getCleanerStorageInfo() {
-    return this.activityService.getStorageInfo();
-  }
-
-  applyCleanByAge() {
-    this.activityService.cleanByAge(this.cleanerAgeMonths);
-    this.closeCleaner();
-  }
-
-  applyCleanByType() {
-    this.activityService.cleanByType(this.cleanerKeepFinancial);
-    this.closeCleaner();
   }
 
   getActivityDetails(act: any): string {
@@ -142,20 +113,13 @@ export class SinglePageComponent {
       const typeLabel = t === 'order' ? 'طلب' : t === 'refund' ? 'مرتجع' : 'مخالصة';
       extra = ` [${typeLabel}`;
       if (c['totalAmount'] != null) extra += ` | ${Number(c['totalAmount']).toFixed(3)} ر.ع`;
-      if (c['libraryName']) extra += ` | ${c['libraryName']}`;
       extra += ']';
     } else if (payload.entity === 'receipt_voucher' && c['amount']) {
       extra = ` [${Number(c['amount']).toFixed(3)} ر.ع`;
       if (c['paymentMethod']) extra += ` | ${c['paymentMethod'] === 'cash' ? 'نقداً' : 'شيك'}`;
-      if (c['libraryName']) extra += ` | ${c['libraryName']}`;
       extra += ']';
     }
     return act.details + extra;
   }
 
-  formatBytes(bytes: number): string {
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1048576) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / 1048576).toFixed(1)} MB`;
-  }
 }

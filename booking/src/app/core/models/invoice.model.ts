@@ -70,3 +70,15 @@ export interface BatchClearanceResult {
   count: number;
   invoices: Invoice[];
 }
+
+export interface ClearanceLibraryPreview {
+  libraryId: number;
+  libraryName: string;
+  governorateName: string;
+  cityName: string;
+  totalAmount: number;
+  paidAmount: number;
+  netAmount: number;
+  responsibleName?: string;
+  responsiblePhone?: string;
+}

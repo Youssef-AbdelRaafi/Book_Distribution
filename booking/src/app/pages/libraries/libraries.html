@@ -210,6 +210,9 @@
         
         <!-- List Footer Actions -->
         <div class="flex gap-2 mt-4">
+          <button type="button" (click)="openClearancePreviewAll()" class="flex-1 py-2 bg-surface-container-low border border-surface-container-highest rounded-lg text-sm text-primary hover:bg-surface-container transition-colors flex items-center justify-center gap-2">
+            <span class="material-symbols-outlined text-[18px]">visibility</span> معاينة الكل
+          </button>
           <button type="button" (click)="clearance()" class="flex-1 py-2 bg-surface-container-low border border-surface-container-highest rounded-lg text-sm text-secondary hover:bg-surface-container transition-colors flex items-center justify-center gap-2">
             <span class="material-symbols-outlined text-[18px]">payments</span> مخالصة الكل
           </button>
@@ -1105,5 +1108,90 @@
   <!-- Voucher Number Footer -->
   <div class="text-left text-[12px] text-gray-400 font-sans" dir="ltr">
     Voucher No: {{ receiptVoucherToPrint()?.displayNumber }}
+  </div>
+</div>
+
+<!-- Clearance Preview All Modal -->
+<div *ngIf="isClearancePreviewAllOpen" class="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 print:hidden p-4" (click)="closeClearancePreviewAll()">
+  <div class="bg-surface-container-lowest rounded-xl shadow-lg w-full max-w-3xl max-h-[90vh] flex flex-col" (click)="$event.stopPropagation()">
+    <div class="flex justify-between items-center p-5 border-b border-surface-container-high">
+      <h2 class="text-lg font-bold text-primary flex items-center gap-2">
+        <span class="material-symbols-outlined">visibility</span> معاينة المخالصات
+      </h2>
+      <button type="button" (click)="closeClearancePreviewAll()" class="text-on-surface-variant hover:text-error transition-colors">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+    
+    <div class="flex-1 overflow-y-auto p-5 custom-scrollbar">
+      <div *ngIf="clearancePreviewAllLoading" class="flex items-center justify-center py-12">
+        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <span class="mr-3 text-on-surface-variant">جاري التحميل...</span>
+      </div>
+      
+      <div *ngIf="clearancePreviewAllError" class="text-center py-8 text-error flex flex-col items-center gap-2">
+        <span class="material-symbols-outlined text-4xl">error</span>
+        <span>{{ clearancePreviewAllError }}</span>
+      </div>
+
+      <div *ngIf="!clearancePreviewAllLoading && !clearancePreviewAllError && clearancePreviewAllData().length === 0" class="text-center py-8 text-on-surface-variant flex flex-col items-center gap-2">
+        <span class="material-symbols-outlined text-4xl text-on-surface-variant/50">check_circle</span>
+        لا توجد مبالغ مستحقة لأي مكتبة
+      </div>
+
+      <div *ngIf="!clearancePreviewAllLoading && clearancePreviewAllData().length > 0" class="space-y-4">
+        <!-- Summary -->
+        <div class="bg-surface-container-low rounded-lg p-4 border border-surface-container-high grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+          <div>
+            <span class="text-on-surface-variant">عدد المكتبات:</span>
+            <span class="font-bold text-text-heading block">{{ clearancePreviewAllData().length }}</span>
+          </div>
+          <div>
+            <span class="text-on-surface-variant">إجمالي المبيعات:</span>
+            <span class="font-bold text-text-heading block">{{ getPreviewAllTotal('total') | number:'1.0-3' }} ر.ع</span>
+          </div>
+          <div>
+            <span class="text-on-surface-variant">المدفوع:</span>
+            <span class="font-bold text-text-heading block">{{ getPreviewAllTotal('paid') | number:'1.0-3' }} ر.ع</span>
+          </div>
+          <div>
+            <span class="text-on-surface-variant">الصافي المستحق:</span>
+            <span class="font-bold text-success block">{{ getPreviewAllTotal('net') | number:'1.0-3' }} ر.ع</span>
+          </div>
+        </div>
+
+        <!-- Libraries Table -->
+        <div class="overflow-x-auto border border-surface-container-high rounded-lg">
+          <table class="w-full text-sm text-right">
+            <thead class="bg-surface-container-low text-on-surface-variant text-xs">
+              <tr>
+                <th class="px-4 py-3 font-medium">المكتبة</th>
+                <th class="px-4 py-3 font-medium">المحافظة</th>
+                <th class="px-4 py-3 font-medium text-center">المدينة</th>
+                <th class="px-4 py-3 font-medium text-center">إجمالي المبيعات</th>
+                <th class="px-4 py-3 font-medium text-center">المدفوع</th>
+                <th class="px-4 py-3 font-medium text-center">المستحق</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-surface-container-high text-text-heading">
+              <tr *ngFor="let lib of clearancePreviewAllData(); trackBy: trackById" class="hover:bg-surface-container-lowest transition-colors">
+                <td class="px-4 py-3 font-medium">{{ lib.libraryName }}</td>
+                <td class="px-4 py-3 text-on-surface-variant">{{ lib.governorateName }}</td>
+                <td class="px-4 py-3 text-center text-on-surface-variant">{{ lib.cityName }}</td>
+                <td class="px-4 py-3 text-center">{{ lib.totalAmount | number:'1.0-3' }}</td>
+                <td class="px-4 py-3 text-center">{{ lib.paidAmount | number:'1.0-3' }}</td>
+                <td class="px-4 py-3 text-center font-bold" [ngClass]="lib.netAmount > 0 ? 'text-success' : 'text-on-surface-variant'">{{ lib.netAmount | number:'1.0-3' }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    
+    <div class="p-5 border-t border-surface-container-high bg-surface-container-low rounded-b-xl flex justify-end">
+      <button type="button" (click)="closeClearancePreviewAll()" class="px-5 py-2.5 border border-outline-variant rounded-lg text-sm font-medium text-on-surface-variant hover:bg-surface-container transition-colors">
+        إغلاق
+      </button>
+    </div>
   </div>
 </div>

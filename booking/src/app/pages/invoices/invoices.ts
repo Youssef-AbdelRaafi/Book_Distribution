@@ -367,10 +367,6 @@ export class InvoicesComponent {
     return item.bookId;
   }
 
-  onInvoiceSemesterChange() {
-    this.draftItems.update(items => items.map(i => ({ ...i, quantity: null, total: null })));
-  }
-
   draftItemsGrouped = computed(() => {
     let items = this.draftItems();
     
@@ -410,6 +406,7 @@ export class InvoicesComponent {
       if (active?.id) {
         this.invoiceSemesterId.set(active.id);
         this.filterSemesterId.set(active.id);
+        this.draftItems.update(items => items.filter(i => i.semesterId === active.id));
       } else if (semesters.length > 0 && this.invoiceSemesterId() === 0) {
         this.invoiceSemesterId.set(semesters[0].id);
         if (this.filterSemesterId() === 0) this.filterSemesterId.set(semesters[0].id);
@@ -426,8 +423,10 @@ export class InvoicesComponent {
     this.inventoryService.inventory$.pipe(
       takeUntilDestroyed(this.destroyRef)
     ).subscribe(items => {
+      const activeId = this.settingsService.activeSemester()?.id;
+      const filtered = activeId ? items.filter(i => i.semesterId === activeId) : items;
       const currentDrafts = this.draftItems();
-      const newDrafts = items.map(i => {
+      const newDrafts = filtered.map(i => {
         const existing = currentDrafts.find(d => d.bookId === i.id);
         return {
           bookId: i.id,
@@ -477,7 +476,7 @@ export class InvoicesComponent {
       takeUntilDestroyed(this.destroyRef)
     ).subscribe({      next: (res) => {
         const invoice = res.data!;
-        this.activityService.logActivity('طلب بيع', `تم إنشاء طلب بيع للمكتبة "${invoice.libraryName}" بقيمة ${invoice.totalAmount} ريال`, 'ADD', { entity: 'invoice', id: invoice.id });
+        this.activityService.logActivity('طلب بيع', `تم إنشاء طلب بيع للمكتبة "${invoice.libraryName}" بقيمة ${invoice.totalAmount} ريال`, 'ADD', { entity: 'invoice', id: invoice.id, current: invoice as any });
         this.toast.show('تم تسجيل طلب الشراء بنجاح وخصم الكميات!', 'success');
         this.resetDraft();
         this.inventoryService.fetchBooks(); // Refresh stock
@@ -513,7 +512,7 @@ export class InvoicesComponent {
       takeUntilDestroyed(this.destroyRef)
     ).subscribe({      next: (res) => {
         const invoice = res.data!;
-        this.activityService.logActivity('مرتجع', `تم تسجيل مرتجع للمكتبة "${invoice.libraryName}" بقيمة ${invoice.totalAmount} ريال`, 'ADD', { entity: 'invoice', id: invoice.id });
+        this.activityService.logActivity('مرتجع', `تم تسجيل مرتجع للمكتبة "${invoice.libraryName}" بقيمة ${invoice.totalAmount} ريال`, 'ADD', { entity: 'invoice', id: invoice.id, current: invoice as any });
         this.toast.show('تم تسجيل المرتجعات بنجاح وإعادتها للمخزون!', 'success');
         this.resetDraft();
         this.inventoryService.fetchBooks(); // Refresh stock
@@ -582,7 +581,7 @@ export class InvoicesComponent {
       takeUntilDestroyed(this.destroyRef)
     ).subscribe({
       next: () => {
-        this.activityService.logActivity('حذف فاتورة', `تم حذف ${invoice.type === 'order' ? 'فاتورة بيع' : invoice.type === 'refund' ? 'مرتجع' : 'سند قبض'} رقم ${invoice.displayNumber}`, 'DELETE', { entity: 'invoice', id: invoice.id, previous: invoice });
+        this.activityService.logActivity('حذف فاتورة', `تم حذف ${invoice.type === 'order' ? 'فاتورة بيع' : invoice.type === 'refund' ? 'مرتجع' : 'سند قبض'} رقم ${invoice.displayNumber}`, 'DELETE', { entity: 'invoice', id: invoice.id, previous: invoice, current: invoice as any });
         this.toast.show('تم الحذف بنجاح', 'success');
         if (invoice.type !== 'receipt_voucher') {
           this.inventoryService.fetchBooks();

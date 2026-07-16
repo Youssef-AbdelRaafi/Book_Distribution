@@ -84,6 +84,19 @@ public class ClearanceBatchResultDto
     public List<InvoiceDto> Invoices { get; set; } = new();
 }
 
+public class ClearanceLibraryPreviewDto
+{
+    public int LibraryId { get; set; }
+    public string LibraryName { get; set; } = string.Empty;
+    public string GovernorateName { get; set; } = string.Empty;
+    public string CityName { get; set; } = string.Empty;
+    public decimal TotalAmount { get; set; }
+    public decimal PaidAmount { get; set; }
+    public decimal NetAmount { get; set; }
+    public string? ResponsibleName { get; set; }
+    public string? ResponsiblePhone { get; set; }
+}
+
 public class ClearancePreviewDto
 {
     public int? LibraryId { get; set; }

@@ -1,7 +1,7 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable, tap, map, catchError, of, throwError } from 'rxjs';
-import { Invoice, ClearancePreview } from '../models/invoice.model';
+import { Observable, tap, map, catchError, of, throwError, switchMap } from 'rxjs';
+import { Invoice, ClearancePreview, ClearanceLibraryPreview } from '../models/invoice.model';
 import { ApiResponse } from '../models/api-response.model';
 import { ActivityPayload } from '../models/activity.model';
 import { ToastService } from './toast.service';
@@ -116,6 +116,12 @@ export class InvoiceService {
     return this.http.get<ApiResponse<ClearancePreview>>(`${this.apiUrl}/clearance/preview`, { params });
   }
 
+  getClearancePreviewAll(semesterId: number): Observable<ApiResponse<ClearanceLibraryPreview[]>> {
+    return this.http.get<ApiResponse<ClearanceLibraryPreview[]>>(`${this.apiUrl}/clearance/preview-all`, {
+      params: new HttpParams().set('semesterId', semesterId.toString())
+    });
+  }
+
   getInvoicesByLibrary(libraryName: string): Invoice[] {
     return this.invoicesSignal().filter(inv => inv.libraryName === libraryName);
   }
@@ -135,7 +141,11 @@ export class InvoiceService {
 
   deleteInvoice(id: number): Observable<ApiResponse<unknown>> {
     return this.http.delete<ApiResponse<unknown>>(`${this.apiUrl}/${id}`).pipe(
-      tap(() => this.removeInvoice(id))
+      tap(() => this.removeInvoice(id)),
+      catchError(err => {
+        const msg = err.error?.message || 'تعذر حذف الفاتورة';
+        return throwError(() => new Error(msg));
+      })
     );
   }
 
@@ -143,6 +153,10 @@ export class InvoiceService {
     return this.http.post<ApiResponse<unknown>>(`${this.apiUrl}/delete-batch`, { ids }).pipe(
       tap(() => {
         ids.forEach(id => this.removeInvoice(id));
+      }),
+      catchError(err => {
+        const msg = err.error?.message || 'تعذر حذف الفواتير';
+        return throwError(() => new Error(msg));
       })
     );
   }
@@ -152,7 +166,24 @@ export class InvoiceService {
   }
 
   restoreInvoice(id: number): Observable<any> {
-    return this.http.post(`${this.apiUrl}/${id}/restore`, {});
+    return this.http.post(`${this.apiUrl}/${id}/restore`, {}).pipe(
+      catchError(err => {
+        const msg = err.error?.message || 'تعذر استعادة الفاتورة';
+        return throwError(() => new Error(msg));
+      })
+    );
+  }
+
+  restoreInvoices(ids: number[]): Observable<any> {
+    if (ids.length === 0) return throwError(() => new Error('لا توجد فواتير لاستعادتها'));
+    if (ids.length === 1) return this.restoreInvoice(ids[0]);
+    // For multiple, restore sequentially
+    const requests = ids.map(id => this.restoreInvoice(id).pipe(map(() => undefined)));
+    let result = requests[0];
+    for (let i = 1; i < requests.length; i++) {
+      result = result.pipe(switchMap(() => requests[i]));
+    }
+    return result.pipe(tap(() => this.inventoryService.fetchBooks()));
   }
 
   executeCompensation(activity: { type?: string; payload?: ActivityPayload }): Observable<any> {
@@ -165,13 +196,15 @@ export class InvoiceService {
       if (payload.ids && Array.isArray(payload.ids) && payload.ids.length > 0) {
         return this.deleteInvoices(payload.ids).pipe(
           tap(() => this.inventoryService.fetchBooks()),
-          map(() => undefined)
+          map(() => undefined),
+          catchError(err => throwError(() => new Error(`فشل التراجع عن المجموعة: ${err.message}`)))
         );
       }
       if (payload.id) {
         return this.deleteInvoice(payload.id).pipe(
           tap(() => this.inventoryService.fetchBooks()),
-          map(() => undefined)
+          map(() => undefined),
+          catchError(err => throwError(() => new Error(`فشل التراجع عن الفاتورة: ${err.message}`)))
         );
       }
       return throwError(() => new Error('لا يمكن التراجع عن هذا النشاط'));
@@ -180,7 +213,8 @@ export class InvoiceService {
       if (payload.id) {
         return this.restoreInvoice(payload.id).pipe(
           tap(() => this.inventoryService.fetchBooks()),
-          map(() => undefined)
+          map(() => undefined),
+          catchError(err => throwError(() => new Error(`فشل استعادة الفاتورة المحذوفة: ${err.message}`)))
         );
       }
       return throwError(() => new Error('لا يمكن التراجع عن هذا النشاط'));
@@ -196,15 +230,16 @@ export class InvoiceService {
 
     if (activity.type === 'ADD') {
       if (payload.ids && Array.isArray(payload.ids) && payload.ids.length > 0) {
-        return this.restoreInvoice(payload.ids[0]).pipe(
-          tap(() => this.inventoryService.fetchBooks()),
-          map(() => undefined)
+        return this.restoreInvoices(payload.ids).pipe(
+          map(() => undefined),
+          catchError(err => throwError(() => new Error(`فشلت إعادة المجموعة: ${err.message}`)))
         );
       }
       if (payload.id) {
         return this.restoreInvoice(payload.id).pipe(
           tap(() => this.inventoryService.fetchBooks()),
-          map(() => undefined)
+          map(() => undefined),
+          catchError(err => throwError(() => new Error(`فشلت إعادة الفاتورة: ${err.message}`)))
         );
       }
       return throwError(() => new Error('لا يمكن إعادة هذا النشاط'));
@@ -213,7 +248,8 @@ export class InvoiceService {
       if (payload.id) {
         return this.deleteInvoice(payload.id).pipe(
           tap(() => this.inventoryService.fetchBooks()),
-          map(() => undefined)
+          map(() => undefined),
+          catchError(err => throwError(() => new Error(`فشلت إعادة حذف الفاتورة: ${err.message}`)))
         );
       }
       return throwError(() => new Error('لا يمكن إعادة هذا النشاط'));

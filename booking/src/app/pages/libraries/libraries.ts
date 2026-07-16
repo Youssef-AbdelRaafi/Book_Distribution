@@ -7,7 +7,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { LibraryService } from '../../core/services/library.service';
 import { InvoiceService } from '../../core/services/invoice.service';
 import { ReceiptVoucherService } from '../../core/services/receipt-voucher.service';
-import { Invoice } from '../../core/models/invoice.model';
+import { Invoice, ClearanceLibraryPreview } from '../../core/models/invoice.model';
 import { ReceiptVoucher } from '../../core/models/receipt-voucher.model';
 import { ToastService } from '../../core/services/toast.service';
 import { ConfirmService } from '../../core/services/confirm.service';
@@ -475,6 +475,51 @@ export class LibrariesComponent {
 
   clearanceLoading = signal(false);
   clearanceError = signal('');
+
+  // Clearance Preview All
+  isClearancePreviewAllOpen = false;
+  clearancePreviewAllLoading = false;
+  clearancePreviewAllError = '';
+  clearancePreviewAllData = signal<ClearanceLibraryPreview[]>([]);
+
+  openClearancePreviewAll() {
+    const semesterId = this.settingsService.getActiveSemesterId();
+    if (!semesterId) {
+      this.toast.show('لا يوجد فصل دراسي نشط', 'error');
+      return;
+    }
+    this.isClearancePreviewAllOpen = true;
+    this.clearancePreviewAllLoading = true;
+    this.clearancePreviewAllError = '';
+    this.clearancePreviewAllData.set([]);
+
+    this.invoiceService.getClearancePreviewAll(semesterId).pipe(
+      takeUntilDestroyed(this.destroyRef)
+    ).subscribe({
+      next: (res) => {
+        this.clearancePreviewAllLoading = false;
+        const data = res.data;
+        if (Array.isArray(data)) {
+          this.clearancePreviewAllData.set(data);
+        }
+      },
+      error: (err: any) => {
+        this.clearancePreviewAllLoading = false;
+        this.clearancePreviewAllError = err.error?.message || 'حدث خطأ في جلب البيانات';
+      }
+    });
+  }
+
+  closeClearancePreviewAll() {
+    this.isClearancePreviewAllOpen = false;
+    this.clearancePreviewAllData.set([]);
+    this.clearancePreviewAllError = '';
+  }
+
+  getPreviewAllTotal(field: 'total' | 'paid' | 'net'): number {
+    return this.clearancePreviewAllData().reduce((sum, lib) => sum + (field === 'total' ? lib.totalAmount : field === 'paid' ? lib.paidAmount : lib.netAmount), 0);
+  }
+
   clearance(lib?: Library) {
     const semesterId = this.settingsService.getActiveSemesterId();
     if (!semesterId) {

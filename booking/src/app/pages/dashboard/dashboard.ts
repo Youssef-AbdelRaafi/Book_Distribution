@@ -34,8 +34,7 @@ export class DashboardComponent {
   classicUnitLabel = computed(() => {
     const mode = this.classicDisplayMode();
     if (mode === 'revenue') return this.settingsService.printSettings().mainCurrency;
-    if (mode === 'quantity') return 'كتاب';
-    return 'مكتبة';
+    return 'كتاب';
   });
 
   onTermCodeChange(code: string) {
@@ -49,7 +48,7 @@ export class DashboardComponent {
 
   isAnalysisCollapsed = signal(localStorage.getItem(LS_DASH_ANALYSIS_COLLAPSED) === 'true');
   isClassicMode = signal(localStorage.getItem(LS_DASH_CLASSIC_MODE) !== 'false');
-  classicDisplayMode = signal<'libraries' | 'revenue' | 'quantity'>('libraries');
+  classicDisplayMode = signal<'revenue' | 'quantity'>('revenue');
   private readonly LOW_STOCK_THRESHOLD = 150;
   private readonly CRITICAL_STOCK_THRESHOLD = 200;
 
@@ -255,35 +254,30 @@ export class DashboardComponent {
   classicChartData = computed(() => {
     const invs: Invoice[] = this.invoices();
     const mode = this.classicDisplayMode();
-    const yearMap = new Map<number, number | Set<string>>();
+    const yearMap = new Map<number, number>();
 
     invs.forEach(inv => {
       const sem = this.settingsService.allSemesters().find(s => s.id === inv.semesterId);
       const yearStr = sem?.academicYearName ? sem.academicYearName.split('-')[0] : '';
       const year = yearStr ? parseInt(yearStr, 10) : new Date(inv.date || new Date()).getFullYear();
       
-      if (mode === 'libraries') {
-        if (!yearMap.has(year)) yearMap.set(year, new Set<string>());
-        (yearMap.get(year) as Set<string>).add(inv.libraryName || 'غير محدد');
-      } else {
-        let val = 0;
-        inv.items?.forEach(item => {
-          if (mode === 'revenue') {
-            if (inv.type === 'order') val += (item.total || 0);
-            if (inv.type === 'refund') val -= (item.total || 0);
-          } else if (mode === 'quantity') {
-            if (inv.type === 'order') val += (item.quantity || 0);
-            if (inv.type === 'refund') val -= (item.quantity || 0);
-          }
-        });
-        yearMap.set(year, (yearMap.get(year) as number || 0) + val);
-      }
+      let val = 0;
+      inv.items?.forEach(item => {
+        if (mode === 'revenue') {
+          if (inv.type === 'order') val += (item.total || 0);
+          if (inv.type === 'refund') val -= (item.total || 0);
+        } else {
+          if (inv.type === 'order') val += (item.quantity || 0);
+          if (inv.type === 'refund') val -= (item.quantity || 0);
+        }
+      });
+      yearMap.set(year, (yearMap.get(year) as number || 0) + val);
     });
 
     const data = Array.from(yearMap.entries())
       .sort((a, b) => a[0] - b[0])
       .map(([year, value]) => {
-        const val = mode === 'libraries' ? (value as Set<string>).size : Math.max((value as number), 0);
+        const val = Math.max(value, 0);
         return { year, value: val };
       });
 
@@ -308,8 +302,7 @@ export class DashboardComponent {
     const invs: Invoice[] = this.invoices();
     const mode = this.classicDisplayMode();
     
-    // Group by Year and Term
-    const groupMap = new Map<string, { year: number, term: string, ordered: number, refunded: number, net: number, libSales: Map<string, number> }>();
+    const groupMap = new Map<string, { year: number, term: string, ordered: number, refunded: number, net: number, libSet: Set<string>, libSales: Map<string, number> }>();
 
     invs.forEach(inv => {
       const sem = this.settingsService.allSemesters().find(s => s.id === inv.semesterId);
@@ -323,11 +316,12 @@ export class DashboardComponent {
       const key = `${year}-${term}`;
         
         if (!groupMap.has(key)) {
-          groupMap.set(key, { year, term, ordered: 0, refunded: 0, net: 0, libSales: new Map() });
+          groupMap.set(key, { year, term, ordered: 0, refunded: 0, net: 0, libSet: new Set(), libSales: new Map() });
         }
         
         const group = groupMap.get(key)!;
         const libName = inv.libraryName || 'غير محدد';
+        group.libSet.add(libName);
 
       inv.items?.forEach(item => {
         const qty = item.quantity || 0;
@@ -360,6 +354,7 @@ export class DashboardComponent {
         year: g.year,
         term: g.term,
         bestLibrary: bestLib,
+        libraryCount: g.libSet.size,
         ordered: g.ordered,
         refunded: g.refunded,
         netSales: g.net

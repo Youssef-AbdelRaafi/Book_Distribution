@@ -198,6 +198,20 @@ public class InvoicesController : ControllerBase
         }
     }
 
+    [HttpGet("clearance/preview-all")]
+    public async Task<IActionResult> GetClearancePreviewAll([FromQuery] int semesterId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var previews = await _invoiceService.GetClearancePreviewAllAsync(semesterId, cancellationToken);
+            return Ok(ApiResponse<object>.Ok(previews));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ApiResponse<object>.Fail(ex.Message));
+        }
+    }
+
     [HttpGet("clearance/preview")]
     public async Task<IActionResult> GetClearancePreview(
         [FromQuery] int? libraryId, 
