@@ -24,6 +24,7 @@ public class Invoice
     public string PrintStatus { get; set; } = "pending";
     public string? ResponsibleName { get; set; }
     public string? ResponsiblePhone { get; set; }
+    public bool IsActive { get; set; } = true;
     public ICollection<InvoiceItem> Items { get; set; } = new List<InvoiceItem>();
 }
 

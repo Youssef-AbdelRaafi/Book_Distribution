@@ -127,7 +127,7 @@
           <button type="button" (click)="toggleListEditMode()" class="w-8 h-8 rounded-full flex items-center justify-center transition-colors" [ngClass]="isListEditMode() ? 'bg-primary text-on-primary' : 'bg-surface-container-high text-on-surface hover:bg-surface-container-highest'">
             <span class="material-symbols-outlined text-[16px]">edit</span>
           </button>
-          <div class="flex items-center gap-2 cursor-pointer" (click)="toggleShowDeleted()">
+          <div *ngIf="hasDeletedLibraries() || showDeletedLibraries()" class="flex items-center gap-2 cursor-pointer" (click)="toggleShowDeleted()" title="عرض سلة المحذوفات">
             <span class="material-symbols-outlined text-[20px] transition-colors" [ngClass]="showDeletedLibraries() ? 'text-error' : 'text-on-surface-variant'">delete</span>
           </div>
           <div class="flex items-center gap-2 cursor-pointer" (click)="toggleList()">

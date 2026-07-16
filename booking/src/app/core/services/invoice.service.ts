@@ -151,6 +151,10 @@ export class InvoiceService {
     return this.http.get<ApiResponse<NextNumberResponse>>(`${this.apiUrl}/next-number`, { params: new HttpParams().set('semesterId', semesterId.toString()) });
   }
 
+  restoreInvoice(id: number): Observable<any> {
+    return this.http.post(`${this.apiUrl}/${id}/restore`, {});
+  }
+
   executeCompensation(activity: { type?: string; payload?: ActivityPayload }): Observable<any> {
     const payload = activity?.payload;
     if (!payload || payload.entity !== 'invoice') {
@@ -173,23 +177,46 @@ export class InvoiceService {
       return throwError(() => new Error('لا يمكن التراجع عن هذا النشاط'));
     }
     if (activity.type === 'DELETE') {
-      this.toast.show('لا يمكن استعادة الفاتورة المحذوفة عبر التراجع', 'error');
-      return throwError(() => new Error('لا يمكن استعادة الفاتورة المحذوفة'));
+      if (payload.id) {
+        return this.restoreInvoice(payload.id).pipe(
+          tap(() => this.inventoryService.fetchBooks()),
+          map(() => undefined)
+        );
+      }
+      return throwError(() => new Error('لا يمكن التراجع عن هذا النشاط'));
     }
     return throwError(() => new Error('لا يمكن التراجع عن هذا النشاط'));
   }
 
   executeRedo(activity: { type?: string; payload?: ActivityPayload }): Observable<any> {
     const payload = activity?.payload;
-    if (!payload || !payload.id || payload.entity !== 'invoice') {
+    if (!payload || payload.entity !== 'invoice') {
       return throwError(() => new Error('لا يمكن إعادة هذا النشاط'));
     }
 
+    if (activity.type === 'ADD') {
+      if (payload.ids && Array.isArray(payload.ids) && payload.ids.length > 0) {
+        return this.restoreInvoice(payload.ids[0]).pipe(
+          tap(() => this.inventoryService.fetchBooks()),
+          map(() => undefined)
+        );
+      }
+      if (payload.id) {
+        return this.restoreInvoice(payload.id).pipe(
+          tap(() => this.inventoryService.fetchBooks()),
+          map(() => undefined)
+        );
+      }
+      return throwError(() => new Error('لا يمكن إعادة هذا النشاط'));
+    }
     if (activity.type === 'DELETE') {
-      return this.deleteInvoice(payload.id).pipe(
-        tap(() => this.inventoryService.fetchBooks()),
-        map(() => undefined)
-      );
+      if (payload.id) {
+        return this.deleteInvoice(payload.id).pipe(
+          tap(() => this.inventoryService.fetchBooks()),
+          map(() => undefined)
+        );
+      }
+      return throwError(() => new Error('لا يمكن إعادة هذا النشاط'));
     }
     return throwError(() => new Error('لا يمكن إعادة هذا النشاط'));
   }

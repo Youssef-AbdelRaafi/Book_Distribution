@@ -72,7 +72,9 @@
         </div>
         
         <div class="flex justify-between items-end gap-4 mt-1">
-          <div class="text-sm flex-1" [ngClass]="act.status === 'undone' ? 'text-on-surface-variant/70' : 'text-on-surface-variant'">{{ act.details }}</div>
+          <div class="text-sm flex-1" [ngClass]="act.status === 'undone' ? 'text-on-surface-variant/70' : 'text-on-surface-variant'">
+            <span>{{ getActivityDetails(act) }}</span>
+          </div>
           
           <div class="flex items-center gap-2" *ngIf="act.type">
             <button type="button" *ngIf="act.status !== 'undone'" (click)="undoActivity(act.id)" class="text-xs font-medium text-error hover:bg-error-container hover:text-error px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1 border border-transparent hover:border-error-container">
@@ -89,10 +91,94 @@
         لا توجد أحداث مطابقة للبحث.
       </div>
     </div>
-    <div class="p-5 border-t border-surface-container-high bg-surface-container-low rounded-b-xl flex justify-end">
+    <div class="p-5 border-t border-surface-container-high bg-surface-container-low rounded-b-xl flex justify-between items-center">
+      <button type="button" (click)="openCleaner()" class="flex items-center gap-2 px-4 py-2.5 border border-outline-variant rounded-lg text-sm font-medium text-on-surface-variant hover:bg-surface-container transition-colors">
+        <span class="material-symbols-outlined text-[18px]">cleaning_services</span> تنظيف السجل
+      </button>
       <button type="button" (click)="closeHistory()" class="px-5 py-2.5 border border-outline-variant rounded-lg text-sm font-medium text-on-surface-variant hover:bg-surface-container transition-colors">
         إغلاق
       </button>
+    </div>
+  </div>
+</div>
+
+<!-- Cleaner Modal -->
+<div *ngIf="isCleanerModalOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 print-only-hide p-4">
+  <div class="bg-surface-container-lowest rounded-xl shadow-lg w-full max-w-sm max-h-[90vh] flex flex-col" (click)="$event.stopPropagation()">
+    <div class="flex justify-between items-center p-5 border-b border-surface-container-high">
+      <h2 class="text-lg font-bold text-primary flex items-center gap-2">
+        <span class="material-symbols-outlined">cleaning_services</span> تنظيف السجل
+      </h2>
+      <button type="button" (click)="closeCleaner()" class="text-on-surface-variant hover:text-error transition-colors">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+    
+    <div class="p-5 space-y-4">
+      <!-- Storage Info -->
+      <div class="bg-surface-container-low rounded-lg p-4 border border-surface-container-high">
+        <div class="text-sm font-semibold text-text-heading mb-2 flex items-center gap-2">
+          <span class="material-symbols-outlined text-[18px] text-primary">storage</span> معلومات التخزين
+        </div>
+        <div class="grid grid-cols-2 gap-3 text-sm">
+          <div>
+            <span class="text-on-surface-variant">المساحة:</span>
+            <span class="font-mono font-semibold text-text-heading block">{{ formatBytes(getCleanerStorageInfo().totalBytes) }}</span>
+          </div>
+          <div>
+            <span class="text-on-surface-variant">عدد الأحداث:</span>
+            <span class="font-mono font-semibold text-text-heading block">{{ getCleanerStorageInfo().totalEvents }}</span>
+          </div>
+          <div>
+            <span class="text-on-surface-variant">مالية:</span>
+            <span class="font-mono font-semibold text-text-heading block">{{ getCleanerStorageInfo().financialCount }}</span>
+          </div>
+          <div>
+            <span class="text-on-surface-variant">أخرى:</span>
+            <span class="font-mono font-semibold text-text-heading block">{{ getCleanerStorageInfo().otherCount }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Clean by Age -->
+      <div class="bg-surface-container-low rounded-lg p-4 border border-surface-container-high">
+        <div class="text-sm font-semibold text-text-heading mb-3 flex items-center gap-2">
+          <span class="material-symbols-outlined text-[18px] text-primary">schedule</span> مسح حسب العمر
+        </div>
+        <div class="flex items-center gap-3">
+          <span class="text-sm text-on-surface-variant">أقدم من</span>
+          <select [(ngModel)]="cleanerAgeMonths" class="bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-primary">
+            <option [ngValue]="1">شهر</option>
+            <option [ngValue]="3">3 أشهر</option>
+            <option [ngValue]="6">6 أشهر</option>
+            <option [ngValue]="12">سنة</option>
+            <option [ngValue]="24">سنتين</option>
+          </select>
+          <button type="button" (click)="applyCleanByAge()" class="px-4 py-1.5 bg-error/10 text-error rounded-lg text-sm font-medium hover:bg-error/20 transition-colors">
+            حذف
+          </button>
+        </div>
+      </div>
+
+      <!-- Clean by Type -->
+      <div class="bg-surface-container-low rounded-lg p-4 border border-surface-container-high">
+        <div class="text-sm font-semibold text-text-heading mb-3 flex items-center gap-2">
+          <span class="material-symbols-outlined text-[18px] text-primary">filter_alt</span> مسح حسب النوع
+        </div>
+        <div class="space-y-2">
+          <label class="flex items-center gap-3 cursor-pointer">
+            <input type="radio" name="cleanType" [value]="true" [(ngModel)]="cleanerKeepFinancial" class="accent-primary">
+            <span class="text-sm">حذف كل الأحداث غير المالية (إبقاء الفواتير وسندات القبض)</span>
+          </label>
+          <label class="flex items-center gap-3 cursor-pointer">
+            <input type="radio" name="cleanType" [value]="false" [(ngModel)]="cleanerKeepFinancial" class="accent-primary">
+            <span class="text-sm">حذف كل الأحداث المالية (إبقاء التعديلات الأخرى)</span>
+          </label>
+          <button type="button" (click)="applyCleanByType()" class="mt-2 px-4 py-1.5 bg-error/10 text-error rounded-lg text-sm font-medium hover:bg-error/20 transition-colors">
+            حذف
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 </div>

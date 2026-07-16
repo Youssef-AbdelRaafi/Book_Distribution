@@ -67,4 +67,18 @@ public class ReceiptVouchersController : ControllerBase
             return BadRequest(ApiResponse<object>.Fail(ex.Message));
         }
     }
+
+    [HttpPost("{id}/restore")]
+    public async Task<IActionResult> Restore(int id, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _service.RestoreAsync(id, cancellationToken);
+            return Ok(ApiResponse<object>.Ok(new { }, "تم استعادة سند القبض بنجاح"));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ApiResponse<object>.Fail(ex.Message));
+        }
+    }
 }

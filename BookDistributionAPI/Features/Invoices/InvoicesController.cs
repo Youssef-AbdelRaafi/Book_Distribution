@@ -93,6 +93,20 @@ public class InvoicesController : ControllerBase
         }
     }
 
+    [HttpPost("{id}/restore")]
+    public async Task<IActionResult> Restore(int id, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _invoiceService.RestoreInvoiceAsync(id, cancellationToken);
+            return Ok(ApiResponse<bool>.Ok(true, "تم استعادة الفاتورة بنجاح"));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ApiResponse<object>.Fail(ex.Message));
+        }
+    }
+
     [HttpPost("delete-batch")]
     public async Task<IActionResult> DeleteBatch([FromBody] DeleteBatchDto dto, CancellationToken cancellationToken)
     {

@@ -180,7 +180,18 @@ public class ReceiptVoucherBusinessService
         if (hasClearance)
             throw new InvalidOperationException("لا يمكن حذف سند القبض بعد إنشاء المخالصة");
 
-        _db.ReceiptVouchers.Remove(voucher);
+        voucher.IsActive = false;
+        await _db.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task RestoreAsync(int id, CancellationToken cancellationToken = default)
+    {
+        var voucher = await _db.ReceiptVouchers
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(rv => rv.Id == id && !rv.IsActive, cancellationToken)
+            ?? throw new InvalidOperationException("سند القبض غير موجود أو هو نشط بالفعل");
+
+        voucher.IsActive = true;
         await _db.SaveChangesAsync(cancellationToken);
     }
 

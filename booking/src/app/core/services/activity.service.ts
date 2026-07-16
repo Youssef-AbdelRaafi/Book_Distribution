@@ -155,4 +155,39 @@ export class ActivityService {
     this.activitiesSignal.set([]);
     localStorage.removeItem(this.storageKey);
   }
+
+  // ---- Smart Log Cleaner ----
+
+  getStorageInfo(): { totalBytes: number; totalEvents: number; financialCount: number; otherCount: number } {
+    const saved = localStorage.getItem(this.storageKey);
+    const totalBytes = saved ? new Blob([saved]).size : 0;
+    const activities = this.activitiesSignal();
+    const financialCount = activities.filter(a => a.payload?.entity === 'invoice' || a.payload?.entity === 'receipt_voucher').length;
+    return {
+      totalBytes,
+      totalEvents: activities.length,
+      financialCount,
+      otherCount: activities.length - financialCount
+    };
+  }
+
+  cleanByAge(months: number): void {
+    const cutoff = new Date();
+    cutoff.setMonth(cutoff.getMonth() - months);
+    const updated = this.activitiesSignal().filter(a => new Date(a.timestamp) >= cutoff);
+    this.activitiesSignal.set(updated);
+    localStorage.setItem(this.storageKey, JSON.stringify(updated));
+  }
+
+  cleanByType(keepFinancial: boolean): void {
+    if (keepFinancial) {
+      const updated = this.activitiesSignal().filter(a => a.payload?.entity === 'invoice' || a.payload?.entity === 'receipt_voucher');
+      this.activitiesSignal.set(updated);
+      localStorage.setItem(this.storageKey, JSON.stringify(updated));
+    } else {
+      const updated = this.activitiesSignal().filter(a => a.payload?.entity !== 'invoice' && a.payload?.entity !== 'receipt_voucher');
+      this.activitiesSignal.set(updated);
+      localStorage.setItem(this.storageKey, JSON.stringify(updated));
+    }
+  }
 }

@@ -61,6 +61,10 @@ export class ReceiptVoucherService {
     );
   }
 
+  restoreVoucher(id: number): Observable<any> {
+    return this.http.post(`${this.apiUrl}/${id}/restore`, {});
+  }
+
   executeCompensation(activity: { type?: string; payload?: ActivityPayload }): Observable<any> {
     const payload = activity?.payload;
     if (!payload || payload.entity !== 'receipt_voucher') {
@@ -71,8 +75,10 @@ export class ReceiptVoucherService {
       return this.delete(payload.id).pipe(map(() => undefined));
     }
     if (activity.type === 'DELETE') {
-      this.toast.show('لا يمكن استعادة سند القبض المحذوف عبر التراجع', 'error');
-      return throwError(() => new Error('لا يمكن استعادة سند القبض المحذوف'));
+      if (payload.id) {
+        return this.restoreVoucher(payload.id).pipe(map(() => undefined));
+      }
+      return throwError(() => new Error('لا يمكن التراجع عن هذا النشاط'));
     }
     return throwError(() => new Error('لا يمكن التراجع عن هذا النشاط'));
   }
@@ -83,6 +89,9 @@ export class ReceiptVoucherService {
       return throwError(() => new Error('لا يمكن إعادة هذا النشاط'));
     }
 
+    if (activity.type === 'ADD') {
+      return this.restoreVoucher(payload.id).pipe(map(() => undefined));
+    }
     if (activity.type === 'DELETE') {
       return this.delete(payload.id).pipe(map(() => undefined));
     }

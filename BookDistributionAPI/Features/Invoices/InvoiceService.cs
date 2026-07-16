@@ -483,7 +483,7 @@ public class InvoiceBusinessService
                 book.StockQuantity -= item.Quantity;
         }
 
-        _db.Invoices.Remove(invoice);
+        invoice.IsActive = false;
         await _db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync();
     }
@@ -506,9 +506,47 @@ public class InvoiceBusinessService
 
         foreach (var invoice in invoices)
         {
-            _db.Invoices.Remove(invoice);
+            invoice.IsActive = false;
         }
 
+        await _db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync();
+    }
+
+    public async Task RestoreInvoiceAsync(int invoiceId, CancellationToken cancellationToken = default)
+    {
+        var invoice = await _db.Invoices
+            .IgnoreQueryFilters()
+            .Include(i => i.Items)
+            .FirstOrDefaultAsync(i => i.Id == invoiceId && !i.IsActive, cancellationToken);
+
+        if (invoice == null)
+            throw new InvalidOperationException("الفاتورة غير موجودة أو هي نشطة بالفعل");
+
+        await using var transaction = await BeginInvoiceTransactionAsync(invoice.SemesterId, cancellationToken);
+
+        // Restore stock quantities
+        var affectedBookIds = invoice.Items.Select(i => i.BookId).ToList();
+        var booksToUpdate = await _db.Books
+            .Where(b => affectedBookIds.Contains(b.Id))
+            .ToDictionaryAsync(b => b.Id, cancellationToken);
+
+        foreach (var item in invoice.Items)
+        {
+            if (!booksToUpdate.TryGetValue(item.BookId, out var book))
+                continue;
+
+            if (invoice.Type == "order")
+            {
+                if (book.StockQuantity < item.Quantity)
+                    throw new InvalidOperationException($"لا يمكن استعادة الفاتورة: المخزون الحالي للكتاب «{book.Name}» ({book.StockQuantity}) غير كافٍ");
+                book.StockQuantity -= item.Quantity;
+            }
+            else if (invoice.Type == "refund")
+                book.StockQuantity += item.Quantity;
+        }
+
+        invoice.IsActive = true;
         await _db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync();
     }
@@ -709,7 +747,8 @@ public class InvoiceBusinessService
             PrintStatus = PendingPrintStatus,
             ResponsibleName = library.ResponsibleName,
             ResponsiblePhone = library.ResponsiblePhone,
-            Items = invoiceItems
+            Items = invoiceItems,
+            IsActive = true
         };
 
         _db.Invoices.Add(invoice);

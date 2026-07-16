@@ -121,6 +121,7 @@ export class LibrariesComponent {
 
   showDeletedLibraries = signal(false);
   private showDeletedLibraries$ = new BehaviorSubject<boolean>(false);
+  hasDeletedLibraries = computed(() => this.librariesList().some(l => l.isActive === false));
 
   toggleShowDeleted() {
     this.showDeletedLibraries.update(v => !v);

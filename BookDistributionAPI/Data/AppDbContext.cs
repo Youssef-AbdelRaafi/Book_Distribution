@@ -240,6 +240,9 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<Invoice>()
             .Ignore(i => i.DisplayNumber);
 
+        modelBuilder.Entity<Invoice>()
+            .HasQueryFilter(i => i.IsActive);
+
         modelBuilder.Entity<Semester>()
             .HasOne(s => s.AcademicYear)
             .WithMany(a => a.Semesters)
@@ -336,6 +339,9 @@ public class AppDbContext : DbContext
         // ---- ReceiptVoucher ----
         modelBuilder.Entity<ReceiptVoucher>()
             .Ignore(rv => rv.DisplayNumber);
+
+        modelBuilder.Entity<ReceiptVoucher>()
+            .HasQueryFilter(rv => rv.IsActive);
 
         modelBuilder.Entity<ReceiptVoucher>()
             .Property(rv => rv.Amount)
