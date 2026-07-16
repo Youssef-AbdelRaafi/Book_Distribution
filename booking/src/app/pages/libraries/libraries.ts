@@ -87,7 +87,8 @@ export class LibrariesComponent {
   isReceiptVoucherModalOpen = false;
   receiptVoucherLibrary = signal<Library | null>(null);
   receiptVoucherToPrint = signal<ReceiptVoucher | null>(null);
-  rvAmount = 0;
+  rvAmount: number | null = null;
+  rvMaxAmount: number | null = null;
   rvPaymentMethod: 'cash' | 'cheque' = 'cash';
   rvChequeNumber = '';
   rvBankName = '';
@@ -712,6 +713,7 @@ export class LibrariesComponent {
   openReceiptVoucher(lib: Library) {
     this.receiptVoucherLibrary.set(lib);
     this.rvAmount = null as any;
+    this.rvMaxAmount = null;
     this.rvPaymentMethod = 'cash';
     this.rvChequeNumber = '';
     this.rvBankName = '';
@@ -733,6 +735,7 @@ export class LibrariesComponent {
           }
           
           // this.rvAmount = netAmount; // Commented out so user has to type it manually
+          this.rvMaxAmount = netAmount;
           this.rvPurpose = `تسوية حساب الفصل الدراسي ${preview.semesterName || ''}`;
           this.isReceiptVoucherModalOpen = true;
         },
@@ -756,6 +759,10 @@ export class LibrariesComponent {
 
     if (!this.rvAmount || this.rvAmount <= 0) {
       this.toast.show('الرجاء إدخال مبلغ صحيح', 'error');
+      return;
+    }
+    if (this.rvMaxAmount !== null && this.rvAmount > this.rvMaxAmount) {
+      this.toast.show(`المبلغ المدخل (${this.rvAmount}) أكبر من المستحق الفعلي (${this.rvMaxAmount})`, 'error');
       return;
     }
     if (!this.rvPurpose.trim()) {
