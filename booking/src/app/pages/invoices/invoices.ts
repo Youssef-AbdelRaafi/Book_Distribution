@@ -210,6 +210,15 @@ export class InvoicesComponent {
     return libs;
   });
 
+  librariesWithHistoryIds = computed(() => {
+    const invs = this.invoicesList();
+    const vouchs = this.receiptVoucherService.vouchers$();
+    const ids = new Set<number>();
+    invs.forEach(i => { if(i.libraryId) ids.add(i.libraryId); });
+    vouchs.forEach(v => { if(v.libraryId) ids.add(v.libraryId); });
+    return ids;
+  });
+
   onFilterGovChange(id: number) {
     this.filterGovernorateId.set(id);
     this.filterCityId.set(0);

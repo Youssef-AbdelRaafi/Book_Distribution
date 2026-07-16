@@ -180,7 +180,12 @@
             
             <select [ngModel]="filterLibraryId()" (ngModelChange)="onFilterLibChange($event)" class="w-full bg-surface-primary border border-outline-variant rounded-md px-2 py-1.5 text-xs focus:border-primary outline-none cursor-pointer">
               <option [ngValue]="0">كل المكتبات</option>
-              <option *ngFor="let lib of filterHistoryLibraries(); trackBy: trackById" [ngValue]="lib.id">{{ lib.name }}</option>
+              <option *ngFor="let lib of filterHistoryLibraries(); trackBy: trackById" 
+                [ngValue]="lib.id"
+                [ngClass]="{'font-bold text-on-surface': librariesWithHistoryIds().has(lib.id), 'text-on-surface-variant opacity-50': !librariesWithHistoryIds().has(lib.id)}"
+              >
+                {{ lib.name }} {{ librariesWithHistoryIds().has(lib.id) ? '' : ' (لا يوجد عمليات)' }}
+              </option>
             </select>
           </div>
 
