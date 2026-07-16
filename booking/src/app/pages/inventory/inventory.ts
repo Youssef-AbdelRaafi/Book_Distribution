@@ -114,7 +114,7 @@ export class InventoryComponent {
       takeUntilDestroyed(this.destroyRef)
     ).subscribe({
       next: () => {
-        this.activityService.logActivity('تحديث السعر', `تم تحديث سعر ${book.name} إلى ${newPrice}`, 'UPDATE');
+        this.activityService.logActivity('تحديث السعر', `تم تحديث سعر ${book.name} إلى ${newPrice}`, 'UPDATE', { entity: 'inventory', id: book.id, previous: { ...book }, current: { ...book, price: newPrice } });
         this.toastService.show('تم تحديث السعر بنجاح', 'success');
       },
       error: (err) => this.toastService.show(err.error?.message || 'تعذر تحديث السعر', 'error')
@@ -129,7 +129,7 @@ export class InventoryComponent {
       takeUntilDestroyed(this.destroyRef)
     ).subscribe({
       next: () => {
-        this.activityService.logActivity('تحديث المخزون', `تم تحديث مخزون ${book.name} إلى ${newStock}`, 'UPDATE');
+        this.activityService.logActivity('تحديث المخزون', `تم تحديث مخزون ${book.name} إلى ${newStock}`, 'UPDATE', { entity: 'inventory', id: book.id, previous: { ...book }, current: { ...book, stockQuantity: newStock } });
         this.toastService.show('تم تحديث المخزون بنجاح', 'success');
       },
       error: (err) => this.toastService.show(err.error?.message || 'تعذر تحديث المخزون', 'error')
@@ -178,8 +178,9 @@ export class InventoryComponent {
     this.inventoryService.addBook(bookToAdd).pipe(
       takeUntilDestroyed(this.destroyRef)
     ).subscribe({
-      next: () => {
-        this.activityService.logActivity('إضافة كتاب', `تم إضافة ${bookToAdd.name} للمخزون`, 'ADD');
+      next: (res: any) => {
+        const createdBook = res.data || { ...bookToAdd, id: res.id || Date.now() };
+        this.activityService.logActivity('إضافة كتاب', `تم إضافة ${bookToAdd.name} للمخزون`, 'ADD', { entity: 'inventory', id: createdBook.id, data: createdBook });
         this.toastService.show('تم إضافة الكتاب للمخزون العام بنجاح', 'success');
         this.closeAddModal();
       },
