@@ -395,15 +395,23 @@ export class LibrariesComponent {
     if (!lib) return;
     if (!this.editLibName.trim()) { this.toast.show('الرجاء إدخال اسم المكتبة', 'error'); return; }
     
+    const cleanOwnerPhone = (this.editOwnerPhone || '').replace(/\s+/g, '');
+    const cleanRespPhone = (this.editResponsiblePhone || '').replace(/\s+/g, '');
+    const cleanLandline = this.editLandlinePhone ? this.editLandlinePhone.replace(/\s+/g, '') : '';
+
+    if (cleanOwnerPhone && !/^\d{8}$/.test(cleanOwnerPhone)) { this.toast.show('رقم هاتف صاحب المكتبة يجب أن يكون 8 أرقام', 'error'); return; }
+    if (cleanRespPhone && !/^\d{8}$/.test(cleanRespPhone)) { this.toast.show('رقم هاتف المسؤول يجب أن يكون 8 أرقام', 'error'); return; }
+    if (cleanLandline && !/^\d{8}$/.test(cleanLandline)) { this.toast.show('رقم التليفون الثابت يجب أن يكون 8 أرقام', 'error'); return; }
+
     const updatedLib: Library = { 
       ...lib, 
       name: this.editLibName, 
       logo: this.editLibLogo || lib.logo,
       ownerName: this.editOwnerName || '',
-      ownerPhone: this.editOwnerPhone || '',
+      ownerPhone: cleanOwnerPhone,
       responsibleName: this.editResponsibleName || '',
-      responsiblePhone: this.editResponsiblePhone || '',
-      landlinePhone: this.editLandlinePhone || undefined,
+      responsiblePhone: cleanRespPhone,
+      landlinePhone: cleanLandline || undefined,
       shift1Start: this.editShift1Start || '08:00',
       shift1End: this.editShift1End || '13:00',
       shift2Start: this.editShift2Start || undefined,
@@ -661,15 +669,23 @@ export class LibrariesComponent {
     if (!this.selectedGovernorateId) { this.toast.show('الرجاء اختيار المحافظة', 'error'); return; }
     if (!this.selectedCityId) { this.toast.show('الرجاء اختيار الولاية', 'error'); return; }
 
+    const cleanOwnerPhone = this.ownerPhone.replace(/\s+/g, '');
+    const cleanRespPhone = this.responsiblePhone.replace(/\s+/g, '');
+    const cleanLandline = this.landlinePhone ? this.landlinePhone.replace(/\s+/g, '') : '';
+
+    if (!/^\d{8}$/.test(cleanOwnerPhone)) { this.toast.show('رقم هاتف صاحب المكتبة يجب أن يكون 8 أرقام', 'error'); return; }
+    if (!/^\d{8}$/.test(cleanRespPhone)) { this.toast.show('رقم هاتف المسؤول يجب أن يكون 8 أرقام', 'error'); return; }
+    if (cleanLandline && !/^\d{8}$/.test(cleanLandline)) { this.toast.show('رقم التليفون الثابت يجب أن يكون 8 أرقام', 'error'); return; }
+
     const newLib: Partial<Library> = {
       name: this.libraryName,
       governorateId: this.selectedGovernorateId,
       cityId: this.selectedCityId,
       ownerName: this.ownerName,
-      ownerPhone: this.ownerPhone,
+      ownerPhone: cleanOwnerPhone,
       responsibleName: this.responsibleName,
-      responsiblePhone: this.responsiblePhone,
-      landlinePhone: this.landlinePhone || undefined,
+      responsiblePhone: cleanRespPhone,
+      landlinePhone: cleanLandline || undefined,
       shift1Start: this.shift1Start,
       shift1End: this.shift1End,
       shift2Start: this.shift2Start || undefined,
