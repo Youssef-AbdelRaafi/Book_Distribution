@@ -219,6 +219,30 @@ export class InvoicesComponent {
     return ids;
   });
 
+  govsWithHistoryIds = computed(() => {
+    const ids = new Set<number>();
+    const libIds = this.librariesWithHistoryIds();
+    const libs = this.librariesData();
+    libs.forEach(l => {
+      if (libIds.has(l.id)) {
+        ids.add(l.governorateId);
+      }
+    });
+    return ids;
+  });
+
+  citiesWithHistoryIds = computed(() => {
+    const ids = new Set<number>();
+    const libIds = this.librariesWithHistoryIds();
+    const libs = this.librariesData();
+    libs.forEach(l => {
+      if (libIds.has(l.id)) {
+        ids.add(l.cityId);
+      }
+    });
+    return ids;
+  });
+
   onFilterGovChange(id: number) {
     this.filterGovernorateId.set(id);
     this.filterCityId.set(0);

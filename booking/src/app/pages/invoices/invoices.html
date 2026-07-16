@@ -169,12 +169,22 @@
               </select>
               <select [ngModel]="filterGovernorateId()" (ngModelChange)="onFilterGovChange($event)" class="bg-surface-primary border border-outline-variant rounded-md px-2 py-1.5 text-xs focus:border-primary outline-none cursor-pointer">
                 <option [ngValue]="0">كل المحافظات</option>
-                <option *ngFor="let gov of libraryService.governorates(); trackBy: trackById" [ngValue]="gov.id">{{ gov.name }}</option>
+                <option *ngFor="let gov of libraryService.governorates(); trackBy: trackById" 
+                  [ngValue]="gov.id"
+                  [ngClass]="{'font-bold text-on-surface': govsWithHistoryIds().has(gov.id), 'text-on-surface-variant opacity-50': !govsWithHistoryIds().has(gov.id)}"
+                >
+                  {{ gov.name }} {{ govsWithHistoryIds().has(gov.id) ? '' : ' (لا يوجد عمليات)' }}
+                </option>
               </select>
 
               <select [ngModel]="filterCityId()" (ngModelChange)="onFilterCityChange($event)" class="bg-surface-primary border border-outline-variant rounded-md px-2 py-1.5 text-xs focus:border-primary outline-none cursor-pointer">
                 <option [ngValue]="0">كل المدن</option>
-                <option *ngFor="let city of filterHistoryCities(); trackBy: trackById" [ngValue]="city.id">{{ city.name }}</option>
+                <option *ngFor="let city of filterHistoryCities(); trackBy: trackById" 
+                  [ngValue]="city.id"
+                  [ngClass]="{'font-bold text-on-surface': citiesWithHistoryIds().has(city.id), 'text-on-surface-variant opacity-50': !citiesWithHistoryIds().has(city.id)}"
+                >
+                  {{ city.name }} {{ citiesWithHistoryIds().has(city.id) ? '' : ' (لا يوجد عمليات)' }}
+                </option>
               </select>
             </div>
             
