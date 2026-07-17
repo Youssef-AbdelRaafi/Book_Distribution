@@ -37,6 +37,9 @@ booking/.angular/
 .DS_Store
 Thumbs.db
 
+# Audit & documentation
+PRODUCTION_READINESS_AUDIT.md
+
 # Logs & temp
 *.log
 npm-debug.log*
