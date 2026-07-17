@@ -7,7 +7,8 @@
       "launchBrowser": false,
       "applicationUrl": "http://localhost:5291",
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "Auth__JwtSigningKey": "DevSecretKey_AtLeast32Chars_LocalDevelopment!!"
       }
     }
   }
