@@ -36,6 +36,13 @@ docker compose up -d
 - **Username**: admin
 - **Password**: Admin@2026
 
+## تنبيه مهم قبل التشغيل
+قبل تشغيل `docker compose up -d`، تأكد من:
+1. ملف `.env` موجود في نفس مجلد المشروع (جنب `docker-compose.yml`)
+2. ملف `.env` يحتوي على `JWT_SIGNING_KEY` قوي (أقل حاجة 32 حرف)
+3. ملف `.env` يحتوي على `ADMIN_PASSWORD_HASH` (اختياري — لو مش موجود، الباسورد هيكون `admin@123`)
+4. Docker Desktop شغال (العلامة الخضراء)
+
 ## خامسًا: إيقاف التطبيق
 - لو عاوز تطفى التطبيق: في PowerShell اكتب:
   ```powershell
