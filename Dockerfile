@@ -22,28 +22,25 @@ COPY --from=build-frontend /app/frontend/dist/booking/browser /app/publish/wwwro
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl sqlite3 cron \
+    curl sqlite3 \
     && rm -rf /var/lib/apt/lists/*
 
 # Create data and backup directories
 RUN mkdir -p /app/data /app/backups
 
 # Create non-root user for security
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup && \
+RUN groupadd --system appgroup && useradd --system --gid appgroup --home-dir /app --shell /usr/sbin/nologin appuser && \
     chown -R appuser:appgroup /app/data /app/backups
 
 COPY --from=build-backend /app/publish .
-COPY BookDistributionAPI/scripts/backup-db.sh /app/backup-db.sh
-COPY BookDistributionAPI/scripts/entrypoint.sh /app/entrypoint.sh
+COPY --chown=appuser:appgroup BookDistributionAPI/scripts/backup-db.sh /app/backup-db.sh
+COPY --chown=appuser:appgroup BookDistributionAPI/scripts/entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/backup-db.sh /app/entrypoint.sh
-
-# Install crontab for backups
-COPY BookDistributionAPI/scripts/crontab /tmp/backup-cron
-RUN crontab /tmp/backup-cron && rm /tmp/backup-cron
 
 # Set environment variables for production
 ENV ASPNETCORE_ENVIRONMENT=Production
 ENV ASPNETCORE_HTTP_PORTS=8080
+ENV APP_DATA_DIR=/app/data
 
 EXPOSE 8080
 

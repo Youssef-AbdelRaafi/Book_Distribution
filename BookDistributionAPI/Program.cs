@@ -12,6 +12,7 @@ using System.Text;
 using Serilog;
 using System.Security.Cryptography;
 using Microsoft.AspNetCore.Cryptography.KeyDerivation;
+using Microsoft.Extensions.FileProviders;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -111,6 +112,14 @@ using (var scope = app.Services.CreateScope())
 
 app.UseMiddleware<ApiExceptionMiddleware>();
 
+app.Use(async (context, next) =>
+{
+    context.Response.Headers.TryAdd("X-Content-Type-Options", "nosniff");
+    context.Response.Headers.TryAdd("Referrer-Policy", "no-referrer");
+    context.Response.Headers.TryAdd("X-Frame-Options", "DENY");
+    await next();
+});
+
 // Serving Angular SPA
 app.UseDefaultFiles();
 app.UseStaticFiles(new StaticFileOptions
@@ -129,10 +138,31 @@ app.UseStaticFiles(new StaticFileOptions
     }
 });
 
-app.UseCors("AllowAngularDev");
+var dataRoot = builder.Configuration["App:DataDirectory"]
+    ?? Environment.GetEnvironmentVariable("APP_DATA_DIR")
+    ?? Path.Combine(app.Environment.ContentRootPath, "data");
+var uploadsRoot = builder.Configuration["App:UploadsPath"]
+    ?? Environment.GetEnvironmentVariable("APP_UPLOADS_DIR")
+    ?? Path.Combine(dataRoot, "uploads");
+Directory.CreateDirectory(uploadsRoot);
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(uploadsRoot),
+    RequestPath = "/uploads",
+    OnPrepareResponse = ctx =>
+    {
+        ctx.Context.Response.Headers.Append("Cache-Control", "public,max-age=31536000");
+        ctx.Context.Response.Headers.Append("X-Content-Type-Options", "nosniff");
+    }
+});
+
+if (app.Environment.IsDevelopment())
+    app.UseCors("AllowAngularDev");
 
 app.UseAuthentication();
 app.UseAuthorization();
+app.MapGet("/api/health", () => Results.Ok(new { status = "ok", timestamp = DateTimeOffset.UtcNow }))
+    .AllowAnonymous();
 app.MapControllers();
 
 if (app.Environment.IsDevelopment())

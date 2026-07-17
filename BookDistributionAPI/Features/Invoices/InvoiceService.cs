@@ -35,6 +35,7 @@ public class InvoiceBusinessService
     public async Task<int> GetNextInvoiceNumberAsync(int libraryId, int semesterId, int invoiceYear, CancellationToken cancellationToken = default)
     {
         var maxNumber = await _db.Invoices
+            .IgnoreQueryFilters()
             .Where(i => i.LibraryId == libraryId
                      && i.SemesterId == semesterId
                      && i.InvoiceYear == invoiceYear)
@@ -532,27 +533,23 @@ public class InvoiceBusinessService
 
     public async Task DeleteInvoicesAsync(List<int> ids, CancellationToken cancellationToken = default)
     {
+        var requestedIds = ids.Distinct().ToList();
         var invoices = await _db.Invoices
-            .Include(i => i.Items)
-            .Where(i => ids.Contains(i.Id))
+            .Where(i => requestedIds.Contains(i.Id))
+            .Select(i => new { i.Id, i.Type, i.Date })
             .ToListAsync(cancellationToken);
 
-        if (invoices.Count == 0)
+        if (invoices.Count != requestedIds.Count)
             throw new InvalidOperationException("الفواتير غير موجودة");
 
-        var semesterId = invoices.First().SemesterId;
-        if (invoices.Any(i => i.SemesterId != semesterId))
-            throw new InvalidOperationException("لا يمكن حذف فواتير من فصول دراسية مختلفة في عملية واحدة");
+        var orderedIds = invoices
+            .OrderBy(i => i.Type == ClearanceType ? 0 : i.Type == RefundType ? 1 : 2)
+            .ThenByDescending(i => i.Date)
+            .Select(i => i.Id)
+            .ToList();
 
-        await using var transaction = await BeginInvoiceTransactionAsync(semesterId, cancellationToken);
-
-        foreach (var invoice in invoices)
-        {
-            invoice.IsActive = false;
-        }
-
-        await _db.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync();
+        foreach (var id in orderedIds)
+            await DeleteInvoiceAsync(id, cancellationToken);
     }
 
     public async Task RestoreInvoiceAsync(int invoiceId, CancellationToken cancellationToken = default)

@@ -78,10 +78,31 @@ public class BooksController : ControllerBase
 
         await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
 
-        if (await _db.Books.AnyAsync(b => b.SemesterId == dto.SemesterId && b.Name == dto.Name && b.Grade == dto.Grade, cancellationToken))
+        var existingBook = await _db.Books
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(b => b.SemesterId == dto.SemesterId && b.Name == dto.Name && b.Grade == dto.Grade, cancellationToken);
+
+        if (existingBook != null)
         {
-            await transaction.RollbackAsync(cancellationToken);
-            return Conflict(ApiResponse<object>.Fail("هذا الكتاب موجود بالفعل في نفس الفصل الدراسي"));
+            if (existingBook.IsActive)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return Conflict(ApiResponse<object>.Fail("هذا الكتاب موجود بالفعل في نفس الفصل الدراسي"));
+            }
+
+            existingBook.Subject = dto.Subject;
+            existingBook.Price = dto.Price;
+            existingBook.StockQuantity = dto.StockQuantity;
+            existingBook.IsActive = true;
+            await _db.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+
+            return Ok(ApiResponse<object>.Ok(new BookDto
+            {
+                Id = existingBook.Id, Name = existingBook.Name, Grade = existingBook.Grade,
+                Subject = existingBook.Subject, SemesterId = existingBook.SemesterId,
+                Price = existingBook.Price, StockQuantity = existingBook.StockQuantity
+            }, "تمت استعادة الكتاب وتحديث بياناته بنجاح"));
         }
 
         var book = new Book
@@ -128,8 +149,9 @@ public class BooksController : ControllerBase
         await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
 
         var existingBooks = await _db.Books
+            .IgnoreQueryFilters()
             .Where(b => semesterIds.Contains(b.SemesterId))
-            .Select(b => new { b.SemesterId, b.Name, b.Grade })
+            .Select(b => new { b.SemesterId, b.Name, b.Grade, b.IsActive })
             .ToListAsync(cancellationToken);
 
         var existingBookKeys = existingBooks
@@ -192,7 +214,7 @@ public class BooksController : ControllerBase
             book.StockQuantity = dto.StockQuantity.Value;
         }
 
-        var duplicate = await _db.Books.AnyAsync(b =>
+        var duplicate = await _db.Books.IgnoreQueryFilters().AnyAsync(b =>
             b.Id != id &&
             b.SemesterId == book.SemesterId &&
             b.Name == book.Name &&

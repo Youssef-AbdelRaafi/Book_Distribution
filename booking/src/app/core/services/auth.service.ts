@@ -8,7 +8,7 @@ import { ApiResponse } from '../models/api-response.model';
 import { environment } from '../../../environments/environment';
 import { LS_AUTH_TOKEN, LS_AUTH_EXPIRES_AT } from '../constants/local-storage-keys';
 
-interface LoginResponse {
+interface LoginPayload {
   success: boolean;
   token?: string;
   expiresAt?: string;
@@ -53,21 +53,22 @@ export class AuthService {
     return true;
   }
 
-  login(username: string, password: string): Observable<LoginResponse> {
-    return this.http.post<LoginResponse>(`${this.apiUrl}/login`, { username, password });
+  login(username: string, password: string): Observable<ApiResponse<LoginPayload>> {
+    return this.http.post<ApiResponse<LoginPayload>>(`${this.apiUrl}/login`, { username, password });
   }
 
   changePassword(currentPassword: string, newPassword: string): Observable<ApiResponse<unknown>> {
     return this.http.post<ApiResponse<unknown>>(`${this.apiUrl}/change-password`, { currentPassword, newPassword });
   }
 
-  handleLoginResponse(res: LoginResponse): void {
-    if (!res.success || !res.token || !res.expiresAt) {
-      this.toast.show(res.message || 'تعذر تسجيل الدخول', 'error');
+  handleLoginResponse(res: ApiResponse<LoginPayload>): void {
+    const payload = res.data;
+    if (!res.success || !payload?.success || !payload.token || !payload.expiresAt) {
+      this.toast.show(res.message || payload?.message || 'تعذر تسجيل الدخول', 'error');
       return;
     }
-    localStorage.setItem(this.AUTH_KEY, res.token);
-    localStorage.setItem(this.EXPIRY_KEY, res.expiresAt);
+    localStorage.setItem(this.AUTH_KEY, payload.token);
+    localStorage.setItem(this.EXPIRY_KEY, payload.expiresAt);
     this.isAuthenticated.set(true);
     this.appData.loadAuthenticatedData();
     const returnUrl = sessionStorage.getItem('returnUrl') || '/single-page';

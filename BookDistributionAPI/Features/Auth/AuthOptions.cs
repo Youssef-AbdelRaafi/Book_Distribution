@@ -42,22 +42,62 @@ public static class PasswordHasher
 
     public static bool Verify(string password, string storedHash)
     {
+        try
+        {
+            var parts = storedHash.Split('$');
+            if (parts.Length != 4 || parts[0] != "pbkdf2-sha256")
+                return false;
+
+            if (!int.TryParse(parts[1], out var iterations) || iterations <= 0)
+                return false;
+
+            var salt = Convert.FromBase64String(parts[2]);
+            var expectedHash = Convert.FromBase64String(parts[3]);
+            if (salt.Length == 0 || expectedHash.Length == 0)
+                return false;
+
+            var actualHash = Rfc2898DeriveBytes.Pbkdf2(
+                password,
+                salt,
+                iterations,
+                HashAlgorithmName.SHA256,
+                expectedHash.Length);
+
+            return CryptographicOperations.FixedTimeEquals(actualHash, expectedHash);
+        }
+        catch (FormatException)
+        {
+            return false;
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+    }
+
+    public static bool IsSupportedHashFormat(string storedHash)
+    {
+        if (string.IsNullOrWhiteSpace(storedHash))
+            return false;
+
         var parts = storedHash.Split('$');
-        if (parts.Length != 4 || parts[0] != "pbkdf2-sha256")
+        return parts.Length == 4
+            && parts[0] == "pbkdf2-sha256"
+            && int.TryParse(parts[1], out var iterations)
+            && iterations > 0
+            && IsBase64(parts[2])
+            && IsBase64(parts[3]);
+    }
+
+    private static bool IsBase64(string value)
+    {
+        try
+        {
+            return Convert.FromBase64String(value).Length > 0;
+        }
+        catch (FormatException)
+        {
             return false;
-
-        if (!int.TryParse(parts[1], out var iterations))
-            return false;
-
-        var salt = Convert.FromBase64String(parts[2]);
-        var expectedHash = Convert.FromBase64String(parts[3]);
-        var actualHash = Rfc2898DeriveBytes.Pbkdf2(
-            password,
-            salt,
-            iterations,
-            HashAlgorithmName.SHA256,
-            expectedHash.Length);
-
-        return CryptographicOperations.FixedTimeEquals(actualHash, expectedHash);
+        }
     }
 }

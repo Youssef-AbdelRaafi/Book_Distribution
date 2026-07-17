@@ -36,7 +36,7 @@ public class CreateLibraryDto
     [Range(1, int.MaxValue)]
     public int CityId { get; set; }
 
-    [StringLength(1000)]
+    [StringLength(500)]
     public string? Logo { get; set; }
 
     [StringLength(100)]

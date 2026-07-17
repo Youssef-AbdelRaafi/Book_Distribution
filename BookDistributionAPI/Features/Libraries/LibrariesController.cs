@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using BookDistributionAPI.Common;
 using BookDistributionAPI.Data;
+using System.Buffers;
 
 
 namespace BookDistributionAPI.Features.Libraries;
@@ -15,20 +16,26 @@ public class LibrariesController : ControllerBase
     private readonly AppDbContext _db;
     private readonly IWebHostEnvironment _env;
     private readonly IAcademicYearHelper _academicYearHelper;
-    public LibrariesController(AppDbContext db, IWebHostEnvironment env, IAcademicYearHelper academicYearHelper)
+    private readonly IConfiguration _configuration;
+
+    public LibrariesController(AppDbContext db, IWebHostEnvironment env, IAcademicYearHelper academicYearHelper, IConfiguration configuration)
     {
         _db = db;
         _env = env;
         _academicYearHelper = academicYearHelper;
+        _configuration = configuration;
     }
 
     [HttpGet]
     public async Task<IActionResult> GetAll([FromQuery] bool includeDeleted = false, CancellationToken cancellationToken = default)
     {
-        var query = _db.Libraries
+        var query = includeDeleted
+            ? _db.Libraries.IgnoreQueryFilters()
+            : _db.Libraries.AsQueryable();
+
+        query = query
             .Include(l => l.Governorate)
-            .Include(l => l.City)
-            .AsQueryable();
+            .Include(l => l.City);
 
         if (!includeDeleted)
             query = query.Where(l => l.IsActive);
@@ -163,13 +170,16 @@ public class LibrariesController : ControllerBase
     [HttpPost("{id}/logo")]
     [Authorize(Roles = "Admin")]
     [RequestSizeLimit(5 * 1024 * 1024)]
-    public async Task<IActionResult> UploadLogo(int id, IFormFile file, CancellationToken cancellationToken)
+    public async Task<IActionResult> UploadLogo(int id, [FromForm] IFormFile file, CancellationToken cancellationToken)
     {
         var lib = await _db.Libraries.FirstOrDefaultAsync(l => l.Id == id, cancellationToken);
         if (lib == null) return NotFound(ApiResponse<object>.Fail("المكتبة غير موجودة"));
 
         if (file == null || file.Length == 0)
             return BadRequest(ApiResponse<object>.Fail("الرجاء اختيار صورة"));
+
+        if (file.Length > 5 * 1024 * 1024)
+            return BadRequest(ApiResponse<object>.Fail("حجم الصورة يجب ألا يتجاوز 5 ميجابايت"));
 
         var fileName = file.FileName;
         if (string.IsNullOrEmpty(fileName))
@@ -181,21 +191,23 @@ public class LibrariesController : ControllerBase
             return BadRequest(ApiResponse<object>.Fail("صيغة الملف غير مدعومة. الصيغ المسموحة: jpg, png, gif, webp"));
 
         // Validate file content (magic bytes)
-        byte[] header;
+        var header = ArrayPool<byte>.Shared.Rent(12);
+        int bytesRead;
         await using (var stream = file.OpenReadStream())
         {
-            var buffer = new byte[8];
-            header = buffer;
-            await stream.ReadExactlyAsync(buffer, 0, buffer.Length, cancellationToken);
+            bytesRead = await stream.ReadAsync(header.AsMemory(0, 12), cancellationToken);
         }
-        var isImage = (header.Length >= 2 && header[0] == 0xFF && header[1] == 0xD8) // JPEG
-            || (header.Length >= 8 && header[0] == 0x89 && header[1] == 0x50 && header[2] == 0x4E && header[3] == 0x47) // PNG
-            || (header.Length >= 4 && header[0] == 0x47 && header[1] == 0x49 && header[2] == 0x46) // GIF
-            || (header.Length >= 8 && header[0] == 0x52 && header[1] == 0x49 && header[2] == 0x46 && header[3] == 0x46); // WEBP (RIFF)
+        var isImage = bytesRead >= 2 && header[0] == 0xFF && header[1] == 0xD8 // JPEG
+            || bytesRead >= 8 && header[0] == 0x89 && header[1] == 0x50 && header[2] == 0x4E && header[3] == 0x47 // PNG
+            || bytesRead >= 4 && header[0] == 0x47 && header[1] == 0x49 && header[2] == 0x46 // GIF
+            || bytesRead >= 12 && header[0] == 0x52 && header[1] == 0x49 && header[2] == 0x46 && header[3] == 0x46
+                && header[8] == 0x57 && header[9] == 0x45 && header[10] == 0x42 && header[11] == 0x50; // WEBP
+        ArrayPool<byte>.Shared.Return(header);
         if (!isImage)
             return BadRequest(ApiResponse<object>.Fail("الملف المرفوع ليس صورة صالحة"));
 
-        var uploadsDir = Path.Combine(_env.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot"), "uploads", "logos");
+        var uploadsRoot = GetUploadsRoot();
+        var uploadsDir = Path.Combine(uploadsRoot, "logos");
         Directory.CreateDirectory(uploadsDir);
         var savedFileName = $"lib_{id}_{Guid.NewGuid()}{ext}";
         var filePath = Path.Combine(uploadsDir, savedFileName);
@@ -204,6 +216,7 @@ public class LibrariesController : ControllerBase
             await file.CopyToAsync(stream, cancellationToken);
 
         var relativePath = $"/uploads/logos/{savedFileName}";
+        TryDeleteExistingLogo(lib.Logo);
         lib.Logo = relativePath;
         await _db.SaveChangesAsync(cancellationToken);
 
@@ -368,5 +381,31 @@ public class LibrariesController : ControllerBase
             return "الولاية لا تتبع المحافظة المختارة";
 
         return null;
+    }
+
+    private string GetUploadsRoot()
+    {
+        var configuredPath = _configuration["App:UploadsPath"] ?? Environment.GetEnvironmentVariable("APP_UPLOADS_DIR");
+        if (!string.IsNullOrWhiteSpace(configuredPath))
+            return configuredPath;
+
+        var dataRoot = _configuration["App:DataDirectory"]
+            ?? Environment.GetEnvironmentVariable("APP_DATA_DIR")
+            ?? Path.Combine(_env.ContentRootPath, "data");
+        return Path.Combine(dataRoot, "uploads");
+    }
+
+    private void TryDeleteExistingLogo(string? logoPath)
+    {
+        if (string.IsNullOrWhiteSpace(logoPath) || !logoPath.StartsWith("/uploads/logos/", StringComparison.OrdinalIgnoreCase))
+            return;
+
+        var fileName = Path.GetFileName(logoPath);
+        if (string.IsNullOrWhiteSpace(fileName))
+            return;
+
+        var fullPath = Path.Combine(GetUploadsRoot(), "logos", fileName);
+        if (System.IO.File.Exists(fullPath))
+            System.IO.File.Delete(fullPath);
     }
 }

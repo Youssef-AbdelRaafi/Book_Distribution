@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@import 'material-symbols/outlined.css';
 
 @theme {
   --color-primary-container: #1e3a8a;
@@ -166,4 +167,3 @@
   size: A4 portrait;
   margin: 0;
 }
-

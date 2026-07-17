@@ -101,7 +101,7 @@ public static class SeedData
                 new { Name = "العلوم البيئية أدبي (كتاب واحد)", Grade = "إصدارات الصف الثاني عشر", Subject = "علوم بيئية", Semester = "الفصل الثاني", Price = 3.500m }
             };
 
-            var existingBooks = await db.Books.ToListAsync();
+            var existingBooks = await db.Books.IgnoreQueryFilters().ToListAsync(cancellationToken);
             var booksToAdd = new List<Book>();
 
             var activeSem1 = await db.Semesters.FirstOrDefaultAsync(s => s.Name == "الفصل الأول" && s.AcademicYearId == activeYear.Id);
@@ -160,7 +160,11 @@ public static class SeedData
 
             if (!await db.Users.AnyAsync())
             {
-                var adminHash = PasswordHasher.Hash("admin@123");
+                var configuredAdminHash = Environment.GetEnvironmentVariable("ADMIN_PASSWORD_HASH");
+                var adminHash = PasswordHasher.IsSupportedHashFormat(configuredAdminHash ?? string.Empty)
+                    ? configuredAdminHash!
+                    : PasswordHasher.Hash("admin@123");
+
                 db.Users.Add(new User
                 {
                     Username = "admin",

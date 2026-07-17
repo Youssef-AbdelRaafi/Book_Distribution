@@ -24,6 +24,7 @@ public class ReceiptVoucherBusinessService
     public async Task<int> GetNextVoucherNumberAsync(int voucherYear, CancellationToken cancellationToken = default)
     {
         var maxNumber = await _db.ReceiptVouchers
+            .IgnoreQueryFilters()
             .Where(rv => rv.VoucherYear == voucherYear)
             .MaxAsync(rv => (int?)rv.VoucherNumber, cancellationToken) ?? 0;
         return maxNumber + 1;
