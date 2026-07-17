@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 import { Observable } from 'rxjs';
 import { ToastService } from './toast.service';
 import { AppDataService } from './app-data.service';
+import { ApiResponse } from '../models/api-response.model';
 import { environment } from '../../../environments/environment';
 import { LS_AUTH_TOKEN, LS_AUTH_EXPIRES_AT } from '../constants/local-storage-keys';
 
@@ -56,18 +57,17 @@ export class AuthService {
     return this.http.post<LoginResponse>(`${this.apiUrl}/login`, { username, password });
   }
 
-  changePassword(currentPassword: string, newPassword: string): Observable<any> {
-    return this.http.post(`${this.apiUrl}/change-password`, { currentPassword, newPassword });
+  changePassword(currentPassword: string, newPassword: string): Observable<ApiResponse<unknown>> {
+    return this.http.post<ApiResponse<unknown>>(`${this.apiUrl}/change-password`, { currentPassword, newPassword });
   }
 
-  handleLoginResponse(res: any): void {
-    const response = res.data || res;
-    if (!response.success || !response.token || !response.expiresAt) {
-      this.toast.show(res.message || response.message || 'تعذر تسجيل الدخول', 'error');
+  handleLoginResponse(res: LoginResponse): void {
+    if (!res.success || !res.token || !res.expiresAt) {
+      this.toast.show(res.message || 'تعذر تسجيل الدخول', 'error');
       return;
     }
-    localStorage.setItem(this.AUTH_KEY, response.token);
-    localStorage.setItem(this.EXPIRY_KEY, response.expiresAt);
+    localStorage.setItem(this.AUTH_KEY, res.token);
+    localStorage.setItem(this.EXPIRY_KEY, res.expiresAt);
     this.isAuthenticated.set(true);
     this.appData.loadAuthenticatedData();
     const returnUrl = sessionStorage.getItem('returnUrl') || '/single-page';

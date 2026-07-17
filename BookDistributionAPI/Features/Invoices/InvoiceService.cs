@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Threading;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using BookDistributionAPI.Data;
@@ -14,39 +15,17 @@ public class InvoiceBusinessService
     private const string RefundType = "refund";
     private const string ClearanceType = "clearance";
     private const string PendingPrintStatus = "pending";
+    private const int LockCleanupInterval = 50;
 
     private readonly AppDbContext _db;
+    // In-memory lock per semester for sequential invoice numbering.
+    // Safe for single-instance deployment (one Docker container).
     private static readonly ConcurrentDictionary<string, SemaphoreSlim> _locks = new();
-    private static readonly ConcurrentDictionary<string, DateTime> _lockTimestamps = new();
-    private static readonly TimeSpan LockCleanupInterval = TimeSpan.FromMinutes(30);
-    private static DateTime _lastCleanup = DateTime.UtcNow;
+    private static int _lockAccessCount;
 
     public InvoiceBusinessService(AppDbContext db)
     {
         _db = db;
-    }
-
-    private static void CleanupStaleLocks()
-    {
-        var now = DateTime.UtcNow;
-        if ((now - _lastCleanup) < LockCleanupInterval)
-            return;
-        _lastCleanup = now;
-
-        var cutoff = now.Add(-LockCleanupInterval);
-        foreach (var kvp in _lockTimestamps)
-        {
-            if (kvp.Value < cutoff && _locks.TryGetValue(kvp.Key, out var sem))
-            {
-                // Only clean up semaphores that are not currently acquired
-                if (sem.CurrentCount == 1)
-                {
-                    _locks.TryRemove(kvp.Key, out _);
-                    _lockTimestamps.TryRemove(kvp.Key, out _);
-                    sem.Dispose();
-                }
-            }
-        }
     }
 
     /// <summary>
@@ -627,16 +606,15 @@ public class InvoiceBusinessService
 
     private async Task<TransactionWithLock> BeginInvoiceTransactionAsync(int semesterId, CancellationToken cancellationToken = default)
     {
-        CleanupStaleLocks();
-
         var lockKey = $"invoice-semester:{semesterId}";
         var semaphore = _locks.GetOrAdd(lockKey, _ => new SemaphoreSlim(1, 1));
-        _lockTimestamps[lockKey] = DateTime.UtcNow;
         await semaphore.WaitAsync(cancellationToken);
+        if (Interlocked.Increment(ref _lockAccessCount) % LockCleanupInterval == 0)
+            CleanupStaleLocks();
         try
         {
             var transaction = await _db.Database.BeginTransactionAsync(System.Data.IsolationLevel.RepeatableRead, cancellationToken);
-            return new TransactionWithLock(transaction, semaphore, () => _lockTimestamps[lockKey] = DateTime.UtcNow);
+            return new TransactionWithLock(transaction, semaphore);
         }
         catch
         {
@@ -645,18 +623,27 @@ public class InvoiceBusinessService
         }
     }
 
+    private static void CleanupStaleLocks()
+    {
+        foreach (var kvp in _locks)
+        {
+            // CurrentCount == 1 means semaphore is available (not acquired).
+            // Safe to remove; will be re-created on next use.
+            if (kvp.Value.CurrentCount == 1)
+                _locks.TryRemove(kvp.Key, out _);
+        }
+    }
+
     private sealed class TransactionWithLock : IAsyncDisposable
     {
         private readonly IDbContextTransaction _transaction;
         private readonly SemaphoreSlim _semaphore;
-        private readonly Action _onRelease;
         private bool _disposed;
 
-        public TransactionWithLock(IDbContextTransaction transaction, SemaphoreSlim semaphore, Action? onRelease = null)
+        public TransactionWithLock(IDbContextTransaction transaction, SemaphoreSlim semaphore)
         {
             _transaction = transaction;
             _semaphore = semaphore;
-            _onRelease = onRelease ?? (() => { });
         }
 
         public async ValueTask DisposeAsync()
@@ -669,7 +656,6 @@ public class InvoiceBusinessService
             }
             finally
             {
-                _onRelease();
                 _semaphore.Release();
             }
         }
@@ -700,7 +686,7 @@ public class InvoiceBusinessService
 
     private async Task<Library> GetActiveLibraryAsync(int libraryId, CancellationToken cancellationToken = default)
     {
-        var library = await _db.Libraries.FindAsync(new object[] { libraryId }, cancellationToken)
+        var library = await _db.Libraries.FirstOrDefaultAsync(l => l.Id == libraryId, cancellationToken)
             ?? throw new InvalidOperationException("المكتبة غير موجودة");
 
         if (!library.IsActive)
@@ -711,7 +697,7 @@ public class InvoiceBusinessService
 
     private async Task<Library> GetLibraryForClearanceAsync(int libraryId, CancellationToken cancellationToken = default)
     {
-        var library = await _db.Libraries.FindAsync(new object[] { libraryId }, cancellationToken)
+        var library = await _db.Libraries.FirstOrDefaultAsync(l => l.Id == libraryId, cancellationToken)
             ?? throw new InvalidOperationException("المكتبة غير موجودة");
 
         if (!library.IsActive)

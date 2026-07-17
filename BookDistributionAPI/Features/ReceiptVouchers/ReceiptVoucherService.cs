@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Data;
+using System.Threading;
 using Microsoft.EntityFrameworkCore;
 using BookDistributionAPI.Common;
 using BookDistributionAPI.Data;
@@ -10,37 +11,14 @@ public class ReceiptVoucherBusinessService
 {
     private readonly AppDbContext _db;
     private readonly IAcademicYearHelper _academicYearHelper;
+    private const int LockCleanupInterval = 50;
     private static readonly ConcurrentDictionary<string, SemaphoreSlim> _locks = new();
-    private static readonly ConcurrentDictionary<string, DateTime> _lockTimestamps = new();
-    private static readonly TimeSpan LockCleanupInterval = TimeSpan.FromMinutes(30);
-    private static DateTime _lastCleanup = DateTime.UtcNow;
+    private static int _lockAccessCount;
 
     public ReceiptVoucherBusinessService(AppDbContext db, IAcademicYearHelper academicYearHelper)
     {
         _db = db;
         _academicYearHelper = academicYearHelper;
-    }
-
-    private static void CleanupStaleLocks()
-    {
-        var now = DateTime.UtcNow;
-        if ((now - _lastCleanup) < LockCleanupInterval)
-            return;
-        _lastCleanup = now;
-
-        var cutoff = now.Add(-LockCleanupInterval);
-        foreach (var kvp in _lockTimestamps)
-        {
-            if (kvp.Value < cutoff && _locks.TryGetValue(kvp.Key, out var sem))
-            {
-                if (sem.CurrentCount == 1)
-                {
-                    _locks.TryRemove(kvp.Key, out _);
-                    _lockTimestamps.TryRemove(kvp.Key, out _);
-                    sem.Dispose();
-                }
-            }
-        }
     }
 
     public async Task<int> GetNextVoucherNumberAsync(int voucherYear, CancellationToken cancellationToken = default)
@@ -53,7 +31,7 @@ public class ReceiptVoucherBusinessService
 
     public async Task<ReceiptVoucher> CreateAsync(CreateReceiptVoucherDto dto, CancellationToken cancellationToken = default)
     {
-        var library = await _db.Libraries.FindAsync([dto.LibraryId], cancellationToken)
+        var library = await _db.Libraries.FirstOrDefaultAsync(l => l.Id == dto.LibraryId, cancellationToken)
             ?? throw new InvalidOperationException("المكتبة غير موجودة");
 
         if (!library.IsActive)
@@ -79,12 +57,11 @@ public class ReceiptVoucherBusinessService
         if (dto.Date.Year < 2000 || dto.Date.Year > 2100)
             throw new InvalidOperationException("التاريخ غير صحيح");
 
-        CleanupStaleLocks();
-
         var lockKey = $"voucher-year:{dto.Date.Year}";
         var semaphore = _locks.GetOrAdd(lockKey, _ => new SemaphoreSlim(1, 1));
-        _lockTimestamps[lockKey] = DateTime.UtcNow;
         await semaphore.WaitAsync(cancellationToken);
+        if (Interlocked.Increment(ref _lockAccessCount) % LockCleanupInterval == 0)
+            CleanupStaleLocks();
         ReceiptVoucher voucher;
         try
         {
@@ -129,6 +106,15 @@ public class ReceiptVoucherBusinessService
         return created;
     }
 
+    private static void CleanupStaleLocks()
+    {
+        foreach (var kvp in _locks)
+        {
+            if (kvp.Value.CurrentCount == 1)
+                _locks.TryRemove(kvp.Key, out _);
+        }
+    }
+
     public async Task<List<ReceiptVoucher>> GetAllAsync(int? libraryId, int? semesterId, DateTime? fromDate, DateTime? toDate, CancellationToken cancellationToken = default)
     {
         var activeSemesterIds = await _academicYearHelper.GetActiveSemesterIdsAsync(cancellationToken);
@@ -165,7 +151,7 @@ public class ReceiptVoucherBusinessService
 
     public async Task DeleteAsync(int id, CancellationToken cancellationToken = default)
     {
-        var voucher = await _db.ReceiptVouchers.FindAsync([id], cancellationToken)
+        var voucher = await _db.ReceiptVouchers.FirstOrDefaultAsync(rv => rv.Id == id, cancellationToken)
             ?? throw new InvalidOperationException("سند القبض غير موجود");
 
         var hasClearance = voucher.SemesterId == null

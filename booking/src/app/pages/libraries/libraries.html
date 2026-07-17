@@ -147,7 +147,7 @@
         </div>
         <div class="grid gap-4 max-h-[460px] overflow-y-auto pr-1 custom-scrollbar" [ngClass]="isCompact ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'">
           <!-- Library Item -->
-          <div *ngFor="let lib of filteredLibraries$ | async; trackBy: trackById" 
+           <div *ngFor="let lib of filteredLibraries(); trackBy: trackById" 
                class="p-3.5 rounded-lg border hover:shadow-sm transition-all flex flex-col gap-2 cursor-pointer group"
                [ngClass]="lib.isActive === false ? 'bg-error/5 border-error/20 hover:border-error opacity-75' : 'bg-surface-container-lowest border-outline-variant hover:border-primary'">
             <div class="flex items-start gap-3">
@@ -318,8 +318,19 @@
 </div>
 
 <!-- Print Only Layout -->
+<!-- Single Clearance Print From Batch -->
+<div *ngIf="singleClearanceToPrint()" class="print-page invoice-print-page w-full bg-white text-black p-4" dir="rtl" style="font-family: 'Traditional Arabic', 'Amiri', 'Times New Roman', serif;">
+  <div class="flex flex-col mb-2">
+    <div class="text-center text-[22px] font-bold mb-3 mt-1">
+      <span class="text-black">مخالصة رقم</span>
+      <span class="text-[#d32f2f] mr-2">({{ singleClearanceToPrint()?.displayNumber || '' }})</span>
+    </div>
+  </div>
+  <app-invoice-print-footer></app-invoice-print-footer>
+</div>
+
 <!-- Single Clearance Print (same format as invoice history) -->
-<div *ngIf="clearanceToPrint() && clearanceBatchInvoices().length === 0" class="print-page invoice-print-page w-full bg-white text-black p-4" dir="rtl" style="font-family: 'Traditional Arabic', 'Amiri', 'Times New Roman', serif;">
+<div *ngIf="clearanceToPrint() && clearanceBatchInvoices().length === 0 && !singleClearanceToPrint()" class="print-page invoice-print-page w-full bg-white text-black p-4" dir="rtl" style="font-family: 'Traditional Arabic', 'Amiri', 'Times New Roman', serif;">
   <div class="flex flex-col mb-2">
     <div class="text-center text-[22px] font-bold mb-3 mt-1">
       <span class="text-black">{{ getPrintTypeLabel(clearanceToPrint()?.type) }}</span>
@@ -415,7 +426,7 @@
 </div>
 
 <!-- Batch Clearances -->
-<div *ngIf="clearanceBatchInvoices().length > 0" class="print-page invoice-print-page w-full bg-white text-black p-4" dir="rtl" style="font-family: 'Traditional Arabic', 'Amiri', 'Times New Roman', serif;">
+<div *ngIf="clearanceBatchInvoices().length > 0 && !singleClearanceToPrint()" class="print-page invoice-print-page w-full bg-white text-black p-4" dir="rtl" style="font-family: 'Traditional Arabic', 'Amiri', 'Times New Roman', serif;">
   <div *ngFor="let inv of clearanceBatchInvoices(); trackBy: trackById; let last = last" class="bg-white text-black p-4" [ngStyle]="{'page-break-after': last ? 'auto' : 'always'}" dir="rtl" style="font-family: 'Traditional Arabic', 'Amiri', 'Times New Roman', serif;">
     <div class="flex flex-col mb-2">
       <div class="text-center text-[22px] font-bold mb-3 mt-1">
@@ -611,7 +622,7 @@
     <div class="p-5 border-t border-surface-container-high bg-surface-container-low rounded-b-xl">
       <div class="flex justify-between items-center">
         <div class="text-sm text-on-surface-variant">
-          {{ clearanceBatchInvoices().reduce((sum, inv) => sum + (inv.items.length || 0), 0) }} مواد إجمالاً
+          {{ batchClearanceTotalItems() }} مواد إجمالاً
         </div>
         <div class="flex gap-3">
           <button type="button" (click)="closeBatchView()" class="px-5 py-2.5 border border-outline-variant rounded-lg text-sm font-medium text-on-surface-variant hover:bg-surface-container transition-colors">
@@ -916,7 +927,7 @@
       <!-- Amount -->
       <div>
         <label class="block text-xs font-medium text-on-surface-variant mb-1.5">المبلغ (ريال عماني) <span class="text-error">*</span></label>
-        <input type="number" [(ngModel)]="rvAmount" step="0.001" min="0.001"
+        <input type="number" [(ngModel)]="rvAmount" name="rv-amount" step="0.001" min="0.001"
                class="w-full px-3 py-2.5 bg-surface-container-lowest border border-outline-variant rounded-lg text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary">
       </div>
 
@@ -939,12 +950,12 @@
       <div *ngIf="rvPaymentMethod === 'cheque'" class="space-y-3 p-3 bg-surface-container-lowest rounded-lg border border-outline-variant">
         <div>
           <label class="block text-xs font-medium text-on-surface-variant mb-1.5">رقم الشيك <span class="text-error">*</span></label>
-          <input type="text" [(ngModel)]="rvChequeNumber"
+          <input type="text" [(ngModel)]="rvChequeNumber" name="rv-cheque"
                  class="w-full px-3 py-2.5 bg-surface border border-outline-variant rounded-lg text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary">
         </div>
         <div>
           <label class="block text-xs font-medium text-on-surface-variant mb-1.5">اسم البنك</label>
-          <input type="text" [(ngModel)]="rvBankName"
+          <input type="text" [(ngModel)]="rvBankName" name="rv-bank"
                  class="w-full px-3 py-2.5 bg-surface border border-outline-variant rounded-lg text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary">
         </div>
       </div>
@@ -952,14 +963,14 @@
       <!-- Date -->
       <div>
         <label class="block text-xs font-medium text-on-surface-variant mb-1.5">التاريخ <span class="text-error">*</span></label>
-        <input type="date" [(ngModel)]="rvDate"
+        <input type="date" [(ngModel)]="rvDate" name="rv-date"
                class="w-full px-3 py-2.5 bg-surface-container-lowest border border-outline-variant rounded-lg text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary">
       </div>
 
       <!-- Purpose -->
       <div>
         <label class="block text-xs font-medium text-on-surface-variant mb-1.5">وذلك عن <span class="text-error">*</span></label>
-        <textarea [(ngModel)]="rvPurpose" rows="2"
+        <textarea [(ngModel)]="rvPurpose" name="rv-purpose" rows="2"
                   class="w-full px-3 py-2.5 bg-surface-container-lowest border border-outline-variant rounded-lg text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary resize-none"></textarea>
       </div>
     </div>

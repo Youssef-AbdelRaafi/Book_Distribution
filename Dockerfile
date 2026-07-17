@@ -7,7 +7,7 @@ COPY booking/ ./
 RUN npm run build
 
 # Stage 2: Build .NET Backend
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build-backend
+FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build-backend
 WORKDIR /app/backend
 COPY BookDistributionAPI/BookDistributionAPI.csproj ./BookDistributionAPI/
 RUN dotnet restore ./BookDistributionAPI/BookDistributionAPI.csproj
@@ -19,32 +19,35 @@ RUN dotnet publish -c Release --no-restore -o /app/publish
 COPY --from=build-frontend /app/frontend/dist/booking/browser /app/publish/wwwroot
 
 # Stage 3: Runtime
-FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl sqlite3 cron su-exec \
+    curl sqlite3 cron \
     && rm -rf /var/lib/apt/lists/*
 
-# Create data directory with proper permissions
-RUN mkdir -p /app/data /app/backups \
-    && chown -R $APP_UID:$APP_UID /app/data /app/backups
+# Create data and backup directories
+RUN mkdir -p /app/data /app/backups
+
+# Create non-root user for security
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup && \
+    chown -R appuser:appgroup /app/data /app/backups
 
 COPY --from=build-backend /app/publish .
 COPY BookDistributionAPI/scripts/backup-db.sh /app/backup-db.sh
-COPY BookDistributionAPI/scripts/crontab /etc/cron.d/backup-cron
 COPY BookDistributionAPI/scripts/entrypoint.sh /app/entrypoint.sh
-RUN chmod +x /app/backup-db.sh /app/entrypoint.sh \
-    && chmod 0644 /etc/cron.d/backup-cron \
-    && crontab -u $APP_UID /etc/cron.d/backup-cron
+RUN chmod +x /app/backup-db.sh /app/entrypoint.sh
+
+# Install crontab for backups
+COPY BookDistributionAPI/scripts/crontab /tmp/backup-cron
+RUN crontab /tmp/backup-cron && rm /tmp/backup-cron
 
 # Set environment variables for production
 ENV ASPNETCORE_ENVIRONMENT=Production
-ENV ASPNETCORE_URLS=http://+:8080
 ENV ASPNETCORE_HTTP_PORTS=8080
 
 EXPOSE 8080
 
-HEALTHCHECK --start-period=15s --interval=30s --timeout=10s --retries=3 \
-    CMD curl -f http://localhost:8080/api/settings || exit 1
+# Switch to non-root user
+USER appuser
 
 ENTRYPOINT ["/app/entrypoint.sh"]

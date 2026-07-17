@@ -61,11 +61,11 @@ export class ReceiptVoucherService {
     );
   }
 
-  restoreVoucher(id: number): Observable<any> {
-    return this.http.post(`${this.apiUrl}/${id}/restore`, {});
+  restoreVoucher(id: number): Observable<ApiResponse<unknown>> {
+    return this.http.post<ApiResponse<unknown>>(`${this.apiUrl}/${id}/restore`, {});
   }
 
-  executeCompensation(activity: { type?: string; payload?: ActivityPayload }): Observable<any> {
+  executeCompensation(activity: { type?: string; payload?: ActivityPayload }): Observable<void> {
     const payload = activity?.payload;
     if (!payload || payload.entity !== 'receipt_voucher') {
       return throwError(() => new Error('لا يمكن التراجع عن هذا النشاط'));
@@ -83,7 +83,7 @@ export class ReceiptVoucherService {
     return throwError(() => new Error('لا يمكن التراجع عن هذا النشاط'));
   }
 
-  executeRedo(activity: { type?: string; payload?: ActivityPayload }): Observable<any> {
+  executeRedo(activity: { type?: string; payload?: ActivityPayload }): Observable<void> {
     const payload = activity?.payload;
     if (!payload || !payload.id || payload.entity !== 'receipt_voucher') {
       return throwError(() => new Error('لا يمكن إعادة هذا النشاط'));

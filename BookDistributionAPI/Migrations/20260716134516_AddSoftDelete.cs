@@ -15,14 +15,14 @@ namespace BookDistributionAPI.Migrations
                 table: "ReceiptVouchers",
                 type: "INTEGER",
                 nullable: false,
-                defaultValue: false);
+                defaultValue: true);
 
             migrationBuilder.AddColumn<bool>(
                 name: "IsActive",
                 table: "Invoices",
                 type: "INTEGER",
                 nullable: false,
-                defaultValue: false);
+                defaultValue: true);
         }
 
         /// <inheritdoc />

@@ -1,2 +1,3 @@
 # Daily backup at 2:00 AM
+# Log rotated by backup-db.sh (truncated when >1000 lines, old logs kept 7 days)
 0 2 * * * /app/backup-db.sh >> /app/backups/backup.log 2>&1

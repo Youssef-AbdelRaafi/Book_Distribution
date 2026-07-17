@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using BookDistributionAPI.Common;
 using BookDistributionAPI.Data;
@@ -7,6 +8,7 @@ using BookDistributionAPI.Data;
 namespace BookDistributionAPI.Features.Books;
 
 [ApiController]
+[Authorize]
 [Route("api/books")]
 public class BooksController : ControllerBase
 {
@@ -57,7 +59,7 @@ public class BooksController : ControllerBase
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(int id, CancellationToken cancellationToken)
     {
-        var book = await _db.Books.FindAsync([id], cancellationToken);
+        var book = await _db.Books.FirstOrDefaultAsync(b => b.Id == id, cancellationToken);
         if (book == null) return NotFound(ApiResponse<object>.Fail("الكتاب غير موجود"));
         return Ok(ApiResponse<object>.Ok(new BookDto
         {
@@ -68,6 +70,7 @@ public class BooksController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Create([FromBody] CreateBookDto dto, CancellationToken cancellationToken)
     {
         if (!await _db.Semesters.AnyAsync(s => s.Id == dto.SemesterId, cancellationToken))
@@ -102,6 +105,7 @@ public class BooksController : ControllerBase
     }
 
     [HttpPost("bulk")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> CreateBulk([FromBody] BulkCreateBooksDto dto, CancellationToken cancellationToken)
     {
         var semesterIds = dto.Books.Select(b => b.SemesterId).Distinct().ToList();
@@ -159,9 +163,10 @@ public class BooksController : ControllerBase
     }
 
     [HttpPut("{id}")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Update(int id, [FromBody] UpdateBookDto dto, CancellationToken cancellationToken)
     {
-        var book = await _db.Books.FindAsync([id], cancellationToken);
+        var book = await _db.Books.FirstOrDefaultAsync(b => b.Id == id, cancellationToken);
         if (book == null) return NotFound(ApiResponse<object>.Fail("الكتاب غير موجود"));
 
         if (dto.Name != null) book.Name = dto.Name;
@@ -206,9 +211,10 @@ public class BooksController : ControllerBase
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
     {
-        var book = await _db.Books.FindAsync([id], cancellationToken);
+        var book = await _db.Books.FirstOrDefaultAsync(b => b.Id == id, cancellationToken);
         if (book == null) return NotFound(ApiResponse<object>.Fail("الكتاب غير موجود"));
 
         var hasInvoices = await _db.InvoiceItems.AnyAsync(ii => ii.BookId == id, cancellationToken);
@@ -219,15 +225,16 @@ public class BooksController : ControllerBase
         if (hasLibraryQuantities)
             return BadRequest(ApiResponse<object>.Fail("لا يمكن حذف كتاب مرتبط بكميات مكتبات"));
 
-        _db.Books.Remove(book);
+        book.IsActive = false;
         await _db.SaveChangesAsync(cancellationToken);
         return Ok(ApiResponse<object>.Ok(true, "تم حذف الكتاب"));
     }
 
     [HttpPost("reset-stock")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> ResetStock([FromBody] ResetStockDto dto, CancellationToken cancellationToken)
     {
-        var semester = await _db.Semesters.FindAsync([dto.SemesterId], cancellationToken);
+        var semester = await _db.Semesters.FirstOrDefaultAsync(s => s.Id == dto.SemesterId, cancellationToken);
         if (semester == null) return NotFound(ApiResponse<object>.Fail("الفصل الدراسي غير موجود"));
 
         await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);

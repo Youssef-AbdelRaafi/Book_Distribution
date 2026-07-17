@@ -41,6 +41,7 @@ public class ReceiptVouchersController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Create([FromBody] CreateReceiptVoucherDto dto, CancellationToken cancellationToken)
     {
         try
@@ -55,6 +56,7 @@ public class ReceiptVouchersController : ControllerBase
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
     {
         try
@@ -69,6 +71,7 @@ public class ReceiptVouchersController : ControllerBase
     }
 
     [HttpPost("{id}/restore")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Restore(int id, CancellationToken cancellationToken)
     {
         try

@@ -34,7 +34,7 @@ public class InvoiceItem
     public int InvoiceId { get; set; }
     public Invoice Invoice { get; set; } = null!;
     public int BookId { get; set; }
-    public Books.Book Book { get; set; } = null!;
+    public Books.Book? Book { get; set; }
     public string BookName { get; set; } = string.Empty; 
     public string BookGrade { get; set; } = string.Empty;
     public int Quantity { get; set; }

@@ -8,6 +8,7 @@ import { ReceiptVoucherService } from '../../core/services/receipt-voucher.servi
 import { LibraryService } from '../../core/services/library.service';
 import { SettingsService } from '../../core/services/settings.service';
 import { ToastService } from '../../core/services/toast.service';
+import { HttpErrorResponse } from '@angular/common/http';
 import { Invoice } from '../../core/models/invoice.model';
 import { Book } from '../../core/models/inventory.model';
 import { LS_DASH_ANALYSIS_COLLAPSED, LS_DASH_CLASSIC_MODE } from '../../core/constants/local-storage-keys';
@@ -42,15 +43,15 @@ export class DashboardComponent {
       takeUntilDestroyed(this.destroyRef)
     ).subscribe({
       next: () => this.toast.show('تم تنشيط الفصل الدراسي', 'success'),
-      error: (err) => this.toast.show(err.error?.message || 'تعذر تغيير الفصل الدراسي', 'error')
+      error: (err: HttpErrorResponse) => this.toast.show(err.error?.message || 'تعذر تغيير الفصل الدراسي', 'error')
     });
   }
 
   isAnalysisCollapsed = signal(localStorage.getItem(LS_DASH_ANALYSIS_COLLAPSED) === 'true');
   isClassicMode = signal(localStorage.getItem(LS_DASH_CLASSIC_MODE) !== 'false');
   classicDisplayMode = signal<'revenue' | 'quantity'>('revenue');
-  private readonly LOW_STOCK_THRESHOLD = 150;
-  private readonly CRITICAL_STOCK_THRESHOLD = 200;
+  private readonly LOW_STOCK_THRESHOLD = 200;
+  private readonly CRITICAL_STOCK_THRESHOLD = 150;
 
   filterTermCode = signal<string>('');
 
@@ -227,7 +228,7 @@ export class DashboardComponent {
       .map(([term, revenue]) => ({ term: term === 'A' ? 'الترم الأول' : 'الترم الثاني', revenue: Math.max(revenue, 0) }))
       .sort((a, b) => b.revenue - a.revenue);
 
-    const maxRevenue = Math.max(...data.map(d => d.revenue), 1);
+    const maxRevenue = data.length > 0 ? Math.max(...data.map(d => d.revenue), 1) : 1;
 
     const colors = ['bg-primary hover:bg-primary-container', 'bg-info hover:bg-info/80', 'bg-warning/80 hover:bg-warning', 'bg-success/80 hover:bg-success'];
 
@@ -281,7 +282,7 @@ export class DashboardComponent {
         return { year, value: val };
       });
 
-    const maxValue = Math.max(...data.map(d => d.value), 1);
+    const maxValue = data.length > 0 ? Math.max(...data.map(d => d.value), 1) : 1;
     
     const colors = ['bg-[#C6D2FD]', 'bg-[#3A7CF6]', 'bg-[#002060]'];
 
@@ -330,11 +331,11 @@ export class DashboardComponent {
 
         if (inv.type === 'order') {
           group.ordered += qty;
-          group.net += total;
+          group.net += metric;
           group.libSales.set(libName, (group.libSales.get(libName) || 0) + metric);
         } else if (inv.type === 'refund') {
           group.refunded += qty;
-          group.net -= total;
+          group.net -= metric;
           group.libSales.set(libName, (group.libSales.get(libName) || 0) - metric);
         }
       });

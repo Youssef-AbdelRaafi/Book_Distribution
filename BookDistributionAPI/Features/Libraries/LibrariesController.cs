@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using BookDistributionAPI.Common;
 using BookDistributionAPI.Data;
@@ -7,6 +8,7 @@ using BookDistributionAPI.Data;
 namespace BookDistributionAPI.Features.Libraries;
 
 [ApiController]
+[Authorize]
 [Route("api/libraries")]
 public class LibrariesController : ControllerBase
 {
@@ -52,6 +54,7 @@ public class LibrariesController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Create([FromBody] CreateLibraryDto dto, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(dto.Name))
@@ -99,9 +102,10 @@ public class LibrariesController : ControllerBase
     }
 
     [HttpPut("{id}")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Update(int id, [FromBody] UpdateLibraryDto dto, CancellationToken cancellationToken)
     {
-        var lib = await _db.Libraries.FindAsync([id], cancellationToken);
+        var lib = await _db.Libraries.FirstOrDefaultAsync(l => l.Id == id, cancellationToken);
         if (lib == null) return NotFound(ApiResponse<object>.Fail("المكتبة غير موجودة"));
 
         var validationError = await ValidateLocationAsync(dto.GovernorateId, dto.CityId, cancellationToken);
@@ -142,9 +146,10 @@ public class LibrariesController : ControllerBase
     }
 
     [HttpPut("{id}/rating")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> UpdateRating(int id, [FromBody] UpdateLibraryRatingDto dto, CancellationToken cancellationToken)
     {
-        var lib = await _db.Libraries.FindAsync([id], cancellationToken);
+        var lib = await _db.Libraries.FirstOrDefaultAsync(l => l.Id == id, cancellationToken);
         if (lib == null) return NotFound(ApiResponse<object>.Fail("المكتبة غير موجودة"));
 
         lib.ResponseRating = dto.ResponseRating;
@@ -156,10 +161,11 @@ public class LibrariesController : ControllerBase
     }
 
     [HttpPost("{id}/logo")]
+    [Authorize(Roles = "Admin")]
     [RequestSizeLimit(5 * 1024 * 1024)]
     public async Task<IActionResult> UploadLogo(int id, IFormFile file, CancellationToken cancellationToken)
     {
-        var lib = await _db.Libraries.FindAsync([id], cancellationToken);
+        var lib = await _db.Libraries.FirstOrDefaultAsync(l => l.Id == id, cancellationToken);
         if (lib == null) return NotFound(ApiResponse<object>.Fail("المكتبة غير موجودة"));
 
         if (file == null || file.Length == 0)
@@ -175,9 +181,13 @@ public class LibrariesController : ControllerBase
             return BadRequest(ApiResponse<object>.Fail("صيغة الملف غير مدعومة. الصيغ المسموحة: jpg, png, gif, webp"));
 
         // Validate file content (magic bytes)
-        using var reader = new BinaryReader(file.OpenReadStream());
-        var header = reader.ReadBytes(8);
-        file.OpenReadStream().Position = 0;
+        byte[] header;
+        await using (var stream = file.OpenReadStream())
+        {
+            var buffer = new byte[8];
+            header = buffer;
+            await stream.ReadExactlyAsync(buffer, 0, buffer.Length, cancellationToken);
+        }
         var isImage = (header.Length >= 2 && header[0] == 0xFF && header[1] == 0xD8) // JPEG
             || (header.Length >= 8 && header[0] == 0x89 && header[1] == 0x50 && header[2] == 0x4E && header[3] == 0x47) // PNG
             || (header.Length >= 4 && header[0] == 0x47 && header[1] == 0x49 && header[2] == 0x46) // GIF
@@ -201,9 +211,10 @@ public class LibrariesController : ControllerBase
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
     {
-        var lib = await _db.Libraries.FindAsync([id], cancellationToken);
+        var lib = await _db.Libraries.FirstOrDefaultAsync(l => l.Id == id, cancellationToken);
         if (lib == null) return NotFound(ApiResponse<object>.Fail("المكتبة غير موجودة"));
 
         lib.IsActive = false; 
@@ -212,9 +223,10 @@ public class LibrariesController : ControllerBase
     }
 
     [HttpPut("{id}/restore")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Restore(int id, CancellationToken cancellationToken)
     {
-        var lib = await _db.Libraries.FindAsync([id], cancellationToken);
+        var lib = await _db.Libraries.IgnoreQueryFilters().FirstOrDefaultAsync(l => l.Id == id, cancellationToken);
         if (lib == null) return NotFound(ApiResponse<object>.Fail("المكتبة غير موجودة"));
 
         lib.IsActive = true; 
@@ -225,7 +237,7 @@ public class LibrariesController : ControllerBase
     [HttpGet("{id}/books")]
     public async Task<IActionResult> GetLibraryBooks(int id, [FromQuery] int? semesterId, CancellationToken cancellationToken)
     {
-        var lib = await _db.Libraries.FindAsync([id], cancellationToken);
+        var lib = await _db.Libraries.FirstOrDefaultAsync(l => l.Id == id, cancellationToken);
         if (lib == null) return NotFound(ApiResponse<object>.Fail("المكتبة غير موجودة"));
 
         var query = _db.Books.AsQueryable();
@@ -265,9 +277,10 @@ public class LibrariesController : ControllerBase
     }
 
     [HttpPut("{id}/books")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> UpdateLibraryBooks(int id, [FromBody] Books.UpdateLibraryBooksDto dto, CancellationToken cancellationToken)
     {
-        var lib = await _db.Libraries.FindAsync([id], cancellationToken);
+        var lib = await _db.Libraries.FirstOrDefaultAsync(l => l.Id == id, cancellationToken);
         if (lib == null) return NotFound(ApiResponse<object>.Fail("المكتبة غير موجودة"));
         if (!lib.IsActive) return BadRequest(ApiResponse<object>.Fail("لا يمكن تحديث كميات مكتبة غير نشطة"));
 

@@ -35,11 +35,13 @@ var authOptions = builder.Configuration.GetSection(AuthOptions.SectionName).Get<
 authOptions.Validate();
 builder.Services.Configure<AuthOptions>(builder.Configuration.GetSection(AuthOptions.SectionName));
 
+var isDevelopment = builder.Environment.IsDevelopment();
+
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
-        options.RequireHttpsMetadata = false; // Local Docker
-        options.SaveToken = false;
+        options.RequireHttpsMetadata = !isDevelopment;
+        options.SaveToken = true;
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
@@ -98,12 +100,13 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-    // Enable WAL mode for better concurrent read performance (must be set before migration)
-    await db.Database.ExecuteSqlRawAsync("PRAGMA journal_mode=WAL;");
+    // Enable WAL mode for better concurrent read performance
+    try { await db.Database.ExecuteSqlRawAsync("PRAGMA journal_mode=WAL;"); }
+    catch { /* WAL mode may not be supported on all systems */ }
     await db.Database.MigrateAsync();
 
     if (!await db.AcademicYears.AnyAsync())
-        await SeedData.InitializeAsync(db);
+        await SeedData.InitializeAsync(db, scope.ServiceProvider.GetRequiredService<ILogger<Program>>());
 }
 
 app.UseMiddleware<ApiExceptionMiddleware>();

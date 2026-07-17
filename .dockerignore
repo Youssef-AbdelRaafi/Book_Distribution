@@ -1,6 +1,6 @@
 **/bin/
 **/obj/
-node_modules/
+**/node_modules/
 .git/
 .vs/
 .github/
@@ -11,3 +11,6 @@ booking/dist/
 booking/.angular/
 app.db
 .env
+**/appsettings.*.json
+**/Thumbs.db
+**/.DS_Store

@@ -1,13 +1,13 @@
 import { Component, computed, signal, inject, ChangeDetectorRef, Input, DestroyRef, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { BehaviorSubject, combineLatest } from 'rxjs';
+import { HttpErrorResponse } from '@angular/common/http';
 import { switchMap, filter, map, of } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { LibraryService } from '../../core/services/library.service';
 import { InvoiceService } from '../../core/services/invoice.service';
 import { ReceiptVoucherService } from '../../core/services/receipt-voucher.service';
-import { Invoice, ClearanceLibraryPreview } from '../../core/models/invoice.model';
+import { Invoice, InvoiceItem, ClearanceLibraryPreview } from '../../core/models/invoice.model';
 import { ReceiptVoucher } from '../../core/models/receipt-voucher.model';
 import { ToastService } from '../../core/services/toast.service';
 import { ConfirmService } from '../../core/services/confirm.service';
@@ -116,43 +116,35 @@ export class LibrariesComponent {
       if (this.listEditTimeout) clearTimeout(this.listEditTimeout);
     }
   }
-  searchTerm = '';
-  private searchTerm$ = new BehaviorSubject<string>('');
+  searchTerm = signal('');
 
   showDeletedLibraries = signal(false);
-  private showDeletedLibraries$ = new BehaviorSubject<boolean>(false);
   hasDeletedLibraries = computed(() => this.librariesList().some(l => l.isActive === false));
 
   toggleShowDeleted() {
     this.showDeletedLibraries.update(v => !v);
-    this.showDeletedLibraries$.next(this.showDeletedLibraries());
   }
 
-  filteredLibraries$ = combineLatest([
-    this.searchTerm$,
-    this.libraryService.libraries$,
-    this.showDeletedLibraries$
-  ]).pipe(
-    map(([term, libs, showDeleted]) => {
-      let filtered = libs;
-      if (showDeleted) {
-        filtered = filtered.filter(l => l.isActive === false);
-      } else {
-        filtered = filtered.filter(l => l.isActive !== false);
-      }
-      const t = term.trim().toLowerCase();
-      if (!t) return filtered;
-      return filtered.filter(l =>
-        l.name.toLowerCase().includes(t) ||
-        (l.governorateName || l.region || '').toLowerCase().includes(t) ||
-        (l.cityName || l.city || '').toLowerCase().includes(t)
-      );
-    })
-  );
+  filteredLibraries = computed(() => {
+    const libs = this.librariesList();
+    const showDeleted = this.showDeletedLibraries();
+    let filtered = libs;
+    if (showDeleted) {
+      filtered = filtered.filter(l => l.isActive === false);
+    } else {
+      filtered = filtered.filter(l => l.isActive !== false);
+    }
+    const t = this.searchTerm().trim().toLowerCase();
+    if (!t) return filtered;
+    return filtered.filter(l =>
+      l.name.toLowerCase().includes(t) ||
+      (l.governorateName || '').toLowerCase().includes(t) ||
+      (l.cityName || '').toLowerCase().includes(t)
+    );
+  });
 
   onSearchTermChange(term: string) {
-    this.searchTerm = term;
-    this.searchTerm$.next(term);
+    this.searchTerm.set(term);
   }
 
   toggleList() {
@@ -191,7 +183,7 @@ export class LibrariesComponent {
 
   clearanceToPrint = signal<any | null>(null);
 
-  getInvoiceDisplayNumber(invoice: any): string {
+  getInvoiceDisplayNumber(invoice: Invoice | null): string {
     if (!invoice) return '';
     if (invoice.displayNumber) return invoice.displayNumber;
     return `${invoice.invoiceNumber ?? ''}${invoice.termCode ?? ''}`;
@@ -205,10 +197,10 @@ export class LibrariesComponent {
     }
   }
 
-  getPrintGroups(invoice: any): { grade: string, items: any[] }[] {
+  getPrintGroups(invoice: Invoice | null): { grade: string, items: (InvoiceItem & { globalIndex: number })[] }[] {
     if (!invoice) return [];
-    const groupsMap = new Map<string, any[]>();
-    (invoice.items || []).forEach((item: any, index: number) => {
+    const groupsMap = new Map<string, (InvoiceItem & { globalIndex: number })[]>();
+    (invoice.items || []).forEach((item, index) => {
       const grade = item.bookGrade || 'أخرى';
       if (!groupsMap.has(grade)) groupsMap.set(grade, []);
       groupsMap.get(grade)!.push({ ...item, globalIndex: index + 1 });
@@ -220,6 +212,7 @@ export class LibrariesComponent {
   showBatchClearanceView = signal(false);
   batchSearchTerm = signal('');
   expandedBatchCard = signal<number | null>(null);
+  singleClearanceToPrint = signal<Invoice | null>(null);
 
   filteredBatchClearances = computed(() => {
     const term = this.batchSearchTerm().trim().toLowerCase();
@@ -228,7 +221,10 @@ export class LibrariesComponent {
     );
   });
 
-  Math = Math;
+  batchClearanceTotalItems = computed(() =>
+    this.clearanceBatchInvoices().reduce((sum, inv) => sum + (inv.items?.length || 0), 0)
+  );
+
   formatAmountRials = formatAmountRials;
   formatAmountBaisa = formatAmountBaisa;
 
@@ -256,7 +252,6 @@ export class LibrariesComponent {
       takeUntilDestroyed(this.destroyRef)
     ).subscribe(items => {
       this.librariesList.set(items);
-      this.cdr.markForCheck();
     });
 
   }
@@ -374,8 +369,8 @@ export class LibrariesComponent {
 
   triggerEditLogoUpload(fileInput: HTMLInputElement) { fileInput.click(); }
 
-  onEditLogoSelected(event: any) {
-    const file = event.target.files[0];
+  onEditLogoSelected(event: Event) {
+    const file = (event.target as HTMLInputElement).files?.[0];
     const lib = this.selectedLibraryForDetails();
     if (file && lib) {
       this.libraryService.uploadLogo(lib.id, file).pipe(
@@ -503,7 +498,7 @@ export class LibrariesComponent {
           this.clearancePreviewAllData.set(data);
         }
       },
-      error: (err: any) => {
+      error: (err: HttpErrorResponse) => {
         this.clearancePreviewAllLoading = false;
         this.clearancePreviewAllError = err.error?.message || 'حدث خطأ في جلب البيانات';
       }
@@ -575,7 +570,7 @@ export class LibrariesComponent {
         this.clearanceItems.set(groupedArray);
         this.clearanceLoading.set(false);
       },
-      error: (err: any) => {
+      error: (err: HttpErrorResponse) => {
         this.clearanceLoading.set(false);
         this.clearanceError.set(err.error?.message || 'حدث خطأ في جلب بيانات المخالصة');
       }
@@ -606,35 +601,37 @@ export class LibrariesComponent {
   }
 
   printBatchInvoice(inv: any) {
-    const all = this.clearanceBatchInvoices();
-    this.clearanceBatchInvoices.set([inv]);
+    this.singleClearanceToPrint.set(inv);
     this.cdr.detectChanges();
-    if (inv.id) {
-      window.onafterprint = () => {
-        this.invoiceService.updatePrintStatus(inv.id, 'printed').pipe(
+    const invId = inv.id;
+    if (invId) {
+      const afterPrint = () => {
+        this.invoiceService.updatePrintStatus(invId, 'printed').pipe(
           takeUntilDestroyed(this.destroyRef)
-        ).subscribe({ error: () => {} });
-        window.onafterprint = null;
-        this.clearanceBatchInvoices.set(all);
+        ).subscribe({ error: () => console.error('Failed to update print status') });
+        this.singleClearanceToPrint.set(null);
       };
+      window.addEventListener('afterprint', afterPrint, { once: true });
     }
-    printWhenImagesReady('.invoice-print-page', () => {});
+    printWhenImagesReady('.invoice-print-page', () => {
+      this.singleClearanceToPrint.set(null);
+    });
   }
 
   printAllBatchClearances() {
     this.showBatchClearanceView.set(false);
     this.cdr.detectChanges();
     const invoices = this.clearanceBatchInvoices();
-    window.onafterprint = () => {
+    const handleAfterPrint = () => {
       invoices.forEach((inv: any) => {
         if (inv.id) {
-          this.invoiceService.updatePrintStatus(inv.id, 'printed').pipe(
-            takeUntilDestroyed(this.destroyRef)
-          ).subscribe({ error: () => {} });
+            this.invoiceService.updatePrintStatus(inv.id, 'printed').pipe(
+              takeUntilDestroyed(this.destroyRef)
+            ).subscribe({ error: () => console.error('Failed to update print status') });
         }
       });
-      window.onafterprint = null;
     };
+    window.addEventListener('afterprint', handleAfterPrint, { once: true });
     printWhenImagesReady('.invoice-print-page', () => {});
   }
 
@@ -657,19 +654,19 @@ export class LibrariesComponent {
           this.toast.show('تم تسجيل المخالصة بنجاح', 'success');
           this.cdr.detectChanges();
           if (invoice.id) {
-          window.onafterprint = () => {
+          const handleAfterPrint = () => {
             this.invoiceService.updatePrintStatus(invoice.id!, 'printed').pipe(
               takeUntilDestroyed(this.destroyRef)
-            ).subscribe({ error: () => {} });
-            window.onafterprint = null;
+            ).subscribe({ error: () => console.error('Failed to update print status') });
           };
+          window.addEventListener('afterprint', handleAfterPrint, { once: true });
           }
           printWhenImagesReady('.invoice-print-page', () => {
             this.clearanceToPrint.set(null);
             this.closeClearance();
           });
         },
-        error: (err: any) => {
+        error: (err: HttpErrorResponse) => {
           this.toast.show(err.error?.message || 'حدث خطأ في إنشاء المخالصة', 'error');
         }
       });
@@ -690,7 +687,7 @@ export class LibrariesComponent {
           this.toast.show(`تم تسجيل ${count} مخالصة بنجاح`, 'success');
           this.showBatchClearanceView.set(true);
         },
-        error: (err: any) => {
+        error: (err: HttpErrorResponse) => {
           this.toast.show(err.error?.message || 'حدث خطأ في إنشاء المخالصات', 'error');
         }
       });
@@ -705,6 +702,7 @@ export class LibrariesComponent {
     const file = (event.target as HTMLInputElement).files?.[0];
     if (file) {
       this.pendingLogoFile = file;
+      if (this.selectedLogoData) URL.revokeObjectURL(this.selectedLogoData);
       this.selectedLogoData = URL.createObjectURL(file);
       this.toast.show('تم تحديد الشعار بنجاح!', 'success');
     }
@@ -739,8 +737,8 @@ export class LibrariesComponent {
     };
 
     this.libraryService.addLibrary(newLib).pipe(
-      switchMap((res: any) => {
-        const libId = res.data?.id ?? res.id;
+      switchMap(res => {
+        const libId = (res as any).data?.id ?? (res as any).id;
         if (libId && this.pendingLogoFile) {
           const file = this.pendingLogoFile;
           this.pendingLogoFile = null;
@@ -750,8 +748,8 @@ export class LibrariesComponent {
       }),
       takeUntilDestroyed(this.destroyRef)
     ).subscribe({
-      next: (res: any) => {
-        const libId = res.data?.id ?? res.id;
+      next: res => {
+        const libId = (res as any).data?.id ?? (res as any).id;
         this.activityService.logActivity('إضافة مكتبة', `تم إضافة مكتبة جديدة باسم: ${this.libraryName}`, 'ADD', { entity: 'library', id: libId });
         this.libraryName = '';
         this.ownerName = '';
@@ -759,12 +757,13 @@ export class LibrariesComponent {
         this.responsibleName = '';
         this.responsiblePhone = '';
         this.landlinePhone = '';
+        if (this.selectedLogoData) URL.revokeObjectURL(this.selectedLogoData);
         this.selectedLogoData = null;
         this.selectedGovernorateId = 0;
         this.selectedCityId = 0;
         this.toast.show('تم حفظ المكتبة بنجاح!', 'success');
       },
-      error: (err: any) => {
+      error: (err: HttpErrorResponse) => {
         this.toast.show(err.error?.message || 'حدث خطأ في حفظ المكتبة', 'error');
       }
     });
@@ -802,7 +801,8 @@ export class LibrariesComponent {
           this.isReceiptVoucherModalOpen = true;
         },
         error: () => {
-          this.isReceiptVoucherModalOpen = true;
+          this.toast.show('تعذر تحميل بيانات المخالصة. يرجى المحاولة لاحقاً', 'error');
+          return;
         } 
       });
     } else {
@@ -860,7 +860,7 @@ export class LibrariesComponent {
           this.closeReceiptVoucher();
         });
       },
-      error: (err: any) => {
+      error: (err: HttpErrorResponse) => {
         this.toast.show(err.error?.message || 'حدث خطأ في إنشاء سند القبض', 'error');
       }
     });

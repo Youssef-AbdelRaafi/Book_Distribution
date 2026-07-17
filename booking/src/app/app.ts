@@ -38,7 +38,7 @@ export class App {
     this.router.events.pipe(
       filter(event => event instanceof NavigationEnd),
       takeUntilDestroyed(this.destroyRef)
-    ).subscribe((event: any) => {
+    ).subscribe((event: NavigationEnd) => {
       this.isLoginPage.set(event.urlAfterRedirects.includes('/login'));
     });
   }

@@ -85,16 +85,16 @@ export class InventoryService {
   }
 
   // Backward compat methods
-  addInventoryItem(item: any) {
+  addInventoryItem(item: Partial<Book>) {
     this.addBook(item).subscribe({ error: () => this.toast.show('تعذر إضافة العنصر', 'error') });
   }
-  updateInventoryItem(item: any) {
+  updateInventoryItem(item: Book) {
     this.updateBook(item.id, item).subscribe({ error: () => this.toast.show('تعذر تحديث العنصر', 'error') });
   }
   deleteInventoryItem(id: number) {
     this.deleteBook(id).subscribe({ error: () => this.toast.show('تعذر حذف العنصر', 'error') });
   }
-  executeCompensation(activity: { type?: string; payload?: ActivityPayload }): Observable<any> {
+  executeCompensation(activity: { type?: string; payload?: ActivityPayload }): Observable<void> {
     const payload = activity?.payload;
     if (!payload) return throwError(() => new Error('لا يمكن التراجع عن هذا النشاط'));
     if (activity.type === 'ADD' && payload.id) {
@@ -106,7 +106,7 @@ export class InventoryService {
     }
     return throwError(() => new Error('لا يمكن التراجع عن هذا النشاط'));
   }
-  executeRedo(activity: { type?: string; payload?: ActivityPayload }): Observable<any> {
+  executeRedo(activity: { type?: string; payload?: ActivityPayload }): Observable<void> {
     const payload = activity?.payload;
     if (!payload) return throwError(() => new Error('لا يمكن إعادة هذا النشاط'));
     if (activity.type === 'ADD' && payload) {

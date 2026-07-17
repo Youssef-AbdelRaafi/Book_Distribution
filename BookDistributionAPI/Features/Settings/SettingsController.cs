@@ -8,6 +8,7 @@ using BookDistributionAPI.Data;
 namespace BookDistributionAPI.Features.Settings;
 
 [ApiController]
+[Authorize]
 [Route("api/settings")]
 public class SettingsController : ControllerBase
 {
@@ -55,6 +56,7 @@ public class SettingsController : ControllerBase
     }
 
     [HttpPut]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Update([FromBody] SettingsDto dto, CancellationToken cancellationToken)
     {
         var settings = new[]

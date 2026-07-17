@@ -6,14 +6,13 @@ import { InvoicesComponent } from '../invoices/invoices';
 import { InventoryComponent } from '../inventory/inventory';
 import { DashboardComponent } from '../dashboard/dashboard';
 import { ActivityService } from '../../core/services/activity.service';
-import { RouterModule } from '@angular/router';
 import { SettingsService } from '../../core/services/settings.service';
 
 @Component({
   selector: 'app-single-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, LibrariesComponent, InvoicesComponent, InventoryComponent, DashboardComponent],
+  imports: [CommonModule, FormsModule, LibrariesComponent, InvoicesComponent, InventoryComponent, DashboardComponent],
   templateUrl: './single-page.html'
 })
 export class SinglePageComponent {
@@ -23,10 +22,6 @@ export class SinglePageComponent {
   
   isHistoryModalOpen = false;
 
-  getOrder(section: string): number {
-    const index = this.settingsService.sectionOrder().indexOf(section);
-    return index !== -1 ? index : 99;
-  }
   searchQuery = signal('');
   timeFilter = signal<'all'|'today'|'yesterday'|'week'>('all');
 

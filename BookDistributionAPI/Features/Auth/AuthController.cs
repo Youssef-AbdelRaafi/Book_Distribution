@@ -13,6 +13,7 @@ using System.Text;
 namespace BookDistributionAPI.Features.Auth;
 
 [ApiController]
+[Authorize]
 [Route("api/auth")]
 public class AuthController : ControllerBase
 {
@@ -73,13 +74,23 @@ public class AuthController : ControllerBase
         if (string.IsNullOrWhiteSpace(username))
             return Unauthorized(ApiResponse<object>.Fail("غير مصرح به"));
 
+        var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        var rateKey = $"change-password:{username}:{ip}";
+
+        if (_rateLimiter.IsBlocked(rateKey))
+            return StatusCode(429, ApiResponse<object>.Fail("محاولات كثيرة جداً. الرجاء الانتظار 15 دقيقة"));
+
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Username == username && u.IsActive, cancellationToken);
         if (user == null)
             return Unauthorized(ApiResponse<object>.Fail("المستخدم غير موجود"));
 
         if (!PasswordHasher.Verify(request.CurrentPassword, user.PasswordHash))
+        {
+            _rateLimiter.RecordAttempt(rateKey);
             return BadRequest(ApiResponse<object>.Fail("كلمة المرور الحالية غير صحيحة"));
+        }
 
+        _rateLimiter.Reset(rateKey);
         user.PasswordHash = PasswordHasher.Hash(request.NewPassword);
         await _db.SaveChangesAsync(cancellationToken);
 

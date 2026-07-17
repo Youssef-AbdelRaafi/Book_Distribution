@@ -4,6 +4,7 @@ services:
     container_name: book_distribution_app
     ports:
       - "8080:8080"
+    env_file: .env
     environment:
       - TZ=Asia/Muscat
       # JWT signing key (min 32 chars) — REQUIRED: must be set via .env or shell
@@ -20,7 +21,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
+      start_period: 15s
 
 volumes:
   book-data:

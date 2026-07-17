@@ -114,7 +114,7 @@ export class LibraryService {
     );
   }
 
-  executeCompensation(activity: { type?: string; payload?: ActivityPayload }): Observable<any> {
+  executeCompensation(activity: { type?: string; payload?: ActivityPayload }): Observable<void> {
     const payload = activity?.payload;
     if (!payload) return throwError(() => new Error('لا يمكن التراجع عن هذا النشاط'));
     if (activity.type === 'ADD' && payload.id) {
@@ -126,7 +126,7 @@ export class LibraryService {
     }
     return throwError(() => new Error('لا يمكن التراجع عن هذا النشاط'));
   }
-  executeRedo(activity: { type?: string; payload?: ActivityPayload }): Observable<any> {
+  executeRedo(activity: { type?: string; payload?: ActivityPayload }): Observable<void> {
     const payload = activity?.payload;
     if (!payload) return throwError(() => new Error('لا يمكن إعادة هذا النشاط'));
     if (activity.type === 'ADD' && payload?.id) {

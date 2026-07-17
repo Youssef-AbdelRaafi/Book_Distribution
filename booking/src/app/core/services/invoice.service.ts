@@ -165,8 +165,8 @@ export class InvoiceService {
     return this.http.get<ApiResponse<NextNumberResponse>>(`${this.apiUrl}/next-number`, { params: new HttpParams().set('semesterId', semesterId.toString()) });
   }
 
-  restoreInvoice(id: number): Observable<any> {
-    return this.http.post(`${this.apiUrl}/${id}/restore`, {}).pipe(
+  restoreInvoice(id: number): Observable<ApiResponse<unknown>> {
+    return this.http.post<ApiResponse<unknown>>(`${this.apiUrl}/${id}/restore`, {}).pipe(
       catchError(err => {
         const msg = err.error?.message || 'تعذر استعادة الفاتورة';
         return throwError(() => new Error(msg));
@@ -174,9 +174,9 @@ export class InvoiceService {
     );
   }
 
-  restoreInvoices(ids: number[]): Observable<any> {
+  restoreInvoices(ids: number[]): Observable<void> {
     if (ids.length === 0) return throwError(() => new Error('لا توجد فواتير لاستعادتها'));
-    if (ids.length === 1) return this.restoreInvoice(ids[0]);
+    if (ids.length === 1) return this.restoreInvoice(ids[0]).pipe(map(() => undefined));
     // For multiple, restore sequentially
     const requests = ids.map(id => this.restoreInvoice(id).pipe(map(() => undefined)));
     let result = requests[0];
@@ -186,7 +186,7 @@ export class InvoiceService {
     return result.pipe(tap(() => this.inventoryService.fetchBooks()));
   }
 
-  executeCompensation(activity: { type?: string; payload?: ActivityPayload }): Observable<any> {
+  executeCompensation(activity: { type?: string; payload?: ActivityPayload }): Observable<void> {
     const payload = activity?.payload;
     if (!payload || payload.entity !== 'invoice') {
       return throwError(() => new Error('لا يمكن التراجع عن هذا النشاط'));
@@ -222,7 +222,7 @@ export class InvoiceService {
     return throwError(() => new Error('لا يمكن التراجع عن هذا النشاط'));
   }
 
-  executeRedo(activity: { type?: string; payload?: ActivityPayload }): Observable<any> {
+  executeRedo(activity: { type?: string; payload?: ActivityPayload }): Observable<void> {
     const payload = activity?.payload;
     if (!payload || payload.entity !== 'invoice') {
       return throwError(() => new Error('لا يمكن إعادة هذا النشاط'));

@@ -18,7 +18,7 @@ namespace BookDistributionAPI.Migrations
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder.HasAnnotation("ProductVersion", "10.0.9");
+            modelBuilder.HasAnnotation("ProductVersion", "9.0.4");
 
             modelBuilder.Entity("BookDistributionAPI.Features.AcademicYears.AcademicYear", b =>
                 {

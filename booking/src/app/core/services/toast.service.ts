@@ -12,7 +12,7 @@ export interface Toast {
 export class ToastService {
   toasts = signal<Toast[]>([]);
   private idCounter = 0;
-  private timeouts = new Map<number, any>();
+  private timeouts = new Map<number, ReturnType<typeof setTimeout>>();
 
   show(message: string, type: 'success' | 'error' | 'info' = 'info') {
     const id = ++this.idCounter;

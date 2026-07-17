@@ -18,15 +18,25 @@ BACKUP_FILE="$BACKUP_DIR/bookdistribution_${TIMESTAMP}.db"
 
 # Use sqlite3 .backup for safe online backup
 if command -v sqlite3 &> /dev/null; then
-    # Checkpoint WAL to ensure consistency, then backup
-    sqlite3 "$DATA_DIR/$DB_NAME" "PRAGMA wal_checkpoint(TRUNCATE);"
     sqlite3 "$DATA_DIR/$DB_NAME" ".backup '$BACKUP_FILE'"
     echo "Backup created: $BACKUP_FILE ($(du -h "$BACKUP_FILE" | cut -f1))"
 else
     echo "sqlite3 not found. Falling back to file copy."
+    # WAL mode requires copying -wal and -shm files too
     cp "$DATA_DIR/$DB_NAME" "$BACKUP_FILE"
+    if [ -f "$DATA_DIR/${DB_NAME}-wal" ]; then
+        cp "$DATA_DIR/${DB_NAME}-wal" "${BACKUP_FILE}-wal"
+    fi
+    if [ -f "$DATA_DIR/${DB_NAME}-shm" ]; then
+        cp "$DATA_DIR/${DB_NAME}-shm" "${BACKUP_FILE}-shm"
+    fi
 fi
 
 # Clean up old backups
 find "$BACKUP_DIR" -name "bookdistribution_*.db" -mtime +$RETENTION_DAYS -delete
+# Truncate current log to 1000 lines
+LOG_FILE="$BACKUP_DIR/backup.log"
+if [ -f "$LOG_FILE" ] && [ "$(wc -l < "$LOG_FILE")" -gt 1000 ]; then
+    tail -n 500 "$LOG_FILE" > "${LOG_FILE}.tmp" && mv "${LOG_FILE}.tmp" "$LOG_FILE"
+fi
 echo "Cleaned up backups older than $RETENTION_DAYS days"

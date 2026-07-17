@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using BookDistributionAPI.Common;
 using BookDistributionAPI.Data;
@@ -7,6 +8,7 @@ using BookDistributionAPI.Data;
 namespace BookDistributionAPI.Features.AcademicYears;
 
 [ApiController]
+[Authorize]
 [Route("api/academic-years")]
 public class AcademicYearsController : ControllerBase
 {
@@ -49,6 +51,7 @@ public class AcademicYearsController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Create([FromBody] CreateAcademicYearDto dto, CancellationToken cancellationToken)
     {
         if (await _db.AcademicYears.AnyAsync(a => a.Name == dto.Name, cancellationToken))
@@ -80,6 +83,7 @@ public class AcademicYearsController : ControllerBase
     }
 
     [HttpPut("{id}/activate")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Activate(int id, CancellationToken cancellationToken)
     {
         var year = await _db.AcademicYears

@@ -11,14 +11,14 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BookDistributionAPI.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260716135802_AddSoftDeleteV2")]
-    partial class AddSoftDeleteV2
+    [Migration("20260717070555_AddBookSoftDelete")]
+    partial class AddBookSoftDelete
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder.HasAnnotation("ProductVersion", "10.0.9");
+            modelBuilder.HasAnnotation("ProductVersion", "9.0.4");
 
             modelBuilder.Entity("BookDistributionAPI.Features.AcademicYears.AcademicYear", b =>
                 {
@@ -52,6 +52,9 @@ namespace BookDistributionAPI.Migrations
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("Name")
                         .IsRequired()

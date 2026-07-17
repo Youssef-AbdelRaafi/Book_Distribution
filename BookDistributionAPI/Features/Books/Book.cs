@@ -9,7 +9,8 @@ public class Book
     public int SemesterId { get; set; }
     public Semesters.Semester Semester { get; set; } = null!;
     public decimal Price { get; set; }
-    public int StockQuantity { get; set; } 
+    public int StockQuantity { get; set; }
+    public bool IsActive { get; set; } = true;
     public ICollection<LibraryBook> LibraryBooks { get; set; } = new List<LibraryBook>();
 }
 
@@ -19,6 +20,6 @@ public class LibraryBook
     public int LibraryId { get; set; }
     public Libraries.Library Library { get; set; } = null!;
     public int BookId { get; set; }
-    public Book Book { get; set; } = null!;
+    public Book? Book { get; set; }
     public int Quantity { get; set; }
 }

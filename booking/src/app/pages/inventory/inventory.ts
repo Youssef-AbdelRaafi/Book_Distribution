@@ -2,6 +2,7 @@ import { Component, inject, signal, computed, Input, effect, DestroyRef, ChangeD
 import { CommonModule } from '@angular/common';
 import { InventoryService } from '../../core/services/inventory.service';
 import { Book } from '../../core/models/inventory.model';
+import { ApiResponse } from '../../core/models/api-response.model';
 import { FormsModule } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { SettingsService } from '../../core/services/settings.service';
@@ -106,8 +107,12 @@ export class InventoryComponent {
     this.isEditMode.set(!this.isEditMode());
   }
 
+  selectInputContent(event: FocusEvent) {
+    (event.target as HTMLInputElement).select();
+  }
+
   updatePrice(book: Book, newPrice: number | null) {
-    if (newPrice === null || newPrice < 0) return;
+    if (newPrice === null || isNaN(newPrice) || newPrice < 0) return;
     if (!book.id) return;
 
     this.inventoryService.updateBook(book.id, { price: newPrice }).pipe(
@@ -122,7 +127,7 @@ export class InventoryComponent {
   }
 
   updateStockQuantity(book: Book, newStock: number | null) {
-    if (newStock === null || newStock < 0) return;
+    if (newStock === null || isNaN(newStock) || newStock < 0) return;
     if (!book.id) return;
 
     this.inventoryService.updateBook(book.id, { stockQuantity: newStock }).pipe(
@@ -178,8 +183,13 @@ export class InventoryComponent {
     this.inventoryService.addBook(bookToAdd).pipe(
       takeUntilDestroyed(this.destroyRef)
     ).subscribe({
-      next: (res: any) => {
-        const createdBook = res.data || { ...bookToAdd, id: res.id || Date.now() };
+      next: (res: ApiResponse<Book>) => {
+        const createdBook = res.data;
+        if (!createdBook || !createdBook.id) {
+          this.toastService.show('تم إضافة الكتاب لكن لم يتم تسجيل النشاط - معرف الكتاب غير متوفر', 'info');
+          this.closeAddModal();
+          return;
+        }
         this.activityService.logActivity('إضافة كتاب', `تم إضافة ${bookToAdd.name} للمخزون`, 'ADD', { entity: 'inventory', id: createdBook.id, data: createdBook });
         this.toastService.show('تم إضافة الكتاب للمخزون العام بنجاح', 'success');
         this.closeAddModal();

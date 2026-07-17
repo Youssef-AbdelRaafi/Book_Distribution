@@ -2,7 +2,7 @@ import { Component, OnInit, inject, DestroyRef, ChangeDetectionStrategy } from '
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { tap, filter, switchMap } from 'rxjs/operators';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ThemeService } from '../../core/services/theme.service';
@@ -13,8 +13,12 @@ import { ASSET_URLS } from '../../core/constants/asset-urls';
 import { AppDataService } from '../../core/services/app-data.service';
 import { ToastService } from '../../core/services/toast.service';
 import { ConfirmService } from '../../core/services/confirm.service';
+import { ApiResponse } from '../../core/models/api-response.model';
 import { environment } from '../../../environments/environment';
 import { LS_INV_IS_MERGED } from '../../core/constants/local-storage-keys';
+
+interface SemesterDto { id: number; name: string; code: string; isActive: boolean; }
+interface AcademicYearDto { id: number; name: string; isActive: boolean; semesters: SemesterDto[]; }
 
 @Component({
   selector: 'app-header',
@@ -40,12 +44,12 @@ export class HeaderComponent implements OnInit {
   confirmService = inject(ConfirmService);
   readonly assetUrls = ASSET_URLS;
   private destroyRef = inject(DestroyRef);
-  allYears: any[] = [];
+  allYears: AcademicYearDto[] = [];
 
   ngOnInit() {
           this.fetchAcademicYears().pipe(
             takeUntilDestroyed(this.destroyRef)
-          ).subscribe({ error: () => {} });
+          )          .subscribe({ error: () => this.toast?.show?.('تعذر تحميل السنوات الدراسية', 'error') });
   }
 
   get currentYearName(): string {
@@ -66,7 +70,7 @@ export class HeaderComponent implements OnInit {
         next: () => {
           this.appDataService.loadAuthenticatedData();
         },
-        error: (err: any) => {
+        error: (err: HttpErrorResponse) => {
           this.toast.show(err.error?.message || 'حدث خطأ أثناء تغيير الترم', 'error');
         }
       });
@@ -107,7 +111,7 @@ export class HeaderComponent implements OnInit {
         this.toast.show('تم تغيير كلمة المرور بنجاح', 'success');
         this.changePasswordData = { currentPassword: '', newPassword: '', confirmPassword: '' };
       },
-      error: (err: any) => {
+      error: (err: HttpErrorResponse) => {
         this.toast.show(err.error?.message || 'حدث خطأ أثناء تغيير كلمة المرور', 'error');
       }
     });
@@ -149,11 +153,13 @@ export class HeaderComponent implements OnInit {
     this.settingsService.updatePrintSettings(this.editPrintSettings).pipe(
       takeUntilDestroyed(this.destroyRef)
     ).subscribe({
-      next: () => this.toast?.show?.('تم حفظ الإعدادات', 'success'),
-      error: () => {}
+      next: () => {
+        this.toast?.show?.('تم حفظ الإعدادات', 'success');
+        this.settingsService.updateSectionOrder(this.editSectionOrder);
+        this.closeSettings();
+      },
+      error: () => this.toast?.show?.('حدث خطأ في حفظ الإعدادات', 'error')
     });
-    this.settingsService.updateSectionOrder(this.editSectionOrder);
-    this.closeSettings();
   }
 
   getSectionName(id: string): string {
@@ -225,20 +231,20 @@ export class HeaderComponent implements OnInit {
       switchMap(() => this.settingsService.startNewYear(nextYear)),
       takeUntilDestroyed(this.destroyRef)
     ).subscribe({
-      next: (res: any) => {
+      next: () => {
         this.toast.show('تم بدء العام الدراسي الجديد بنجاح', 'success');
         window.location.reload();
       },
-      error: (err: any) => {
+      error: (err: HttpErrorResponse) => {
         this.toast.show(err.error?.message || 'حدث خطأ أثناء بدء العام الدراسي الجديد', 'error');
       }
     });
   }
 
   fetchAcademicYears() {
-    return this.http.get<any>(`${environment.apiUrl}/academic-years`).pipe(
+    return this.http.get<ApiResponse<AcademicYearDto[]>>(`${environment.apiUrl}/academic-years`).pipe(
       tap((res) => {
-        this.allYears = res.data;
+        this.allYears = res.data ?? [];
       })
     );
   }
@@ -248,12 +254,12 @@ export class HeaderComponent implements OnInit {
     const yearId = target?.value;
     if (!yearId) return;
 
-    const selectedYear = this.allYears.find((y: any) => y.id == yearId);
+    const selectedYear = this.allYears.find(y => y.id == Number(yearId));
     if (!selectedYear) return;
 
     this.confirmService.confirm(`هل أنت متأكد من تفعيل السنة الدراسية "${selectedYear.name}"؟\n\nسيتم:\n• تفعيل السنة المختارة\n• تفعيل الفصل الأول منها\n• إيقاف السنة الحالية`).pipe(
       filter(result => !!result),
-      switchMap(() => this.http.put<any>(`${environment.apiUrl}/academic-years/${yearId}/activate`, {})),
+      switchMap(() => this.http.put<ApiResponse<unknown>>(`${environment.apiUrl}/academic-years/${yearId}/activate`, {})),
       tap(() => {
         this.toast.show(`تم تفعيل السنة الدراسية ${selectedYear.name} بنجاح`, 'success');
         this.settingsService.reloadAfterAuth();
@@ -263,7 +269,7 @@ export class HeaderComponent implements OnInit {
       switchMap(() => this.fetchAcademicYears()),
       takeUntilDestroyed(this.destroyRef)
     ).subscribe({
-      error: (err: any) => {
+      error: (err: HttpErrorResponse) => {
         this.toast.show(err.error?.message || 'حدث خطأ أثناء تفعيل السنة الدراسية', 'error');
       }
     });

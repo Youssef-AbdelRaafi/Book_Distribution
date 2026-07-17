@@ -107,15 +107,15 @@
         <div class="space-y-3">
           <div>
             <label class="block text-[10px] text-on-surface-variant mb-1">كلمة المرور الحالية</label>
-            <input type="password" [(ngModel)]="changePasswordData.currentPassword" class="w-full bg-surface-container-lowest border border-outline-variant rounded px-2 py-1.5 text-xs focus:border-primary outline-none">
+            <input type="password" [(ngModel)]="changePasswordData.currentPassword" name="current-password" class="w-full bg-surface-container-lowest border border-outline-variant rounded px-2 py-1.5 text-xs focus:border-primary outline-none">
           </div>
           <div>
             <label class="block text-[10px] text-on-surface-variant mb-1">كلمة المرور الجديدة</label>
-            <input type="password" [(ngModel)]="changePasswordData.newPassword" class="w-full bg-surface-container-lowest border border-outline-variant rounded px-2 py-1.5 text-xs focus:border-primary outline-none">
+            <input type="password" [(ngModel)]="changePasswordData.newPassword" name="new-password" class="w-full bg-surface-container-lowest border border-outline-variant rounded px-2 py-1.5 text-xs focus:border-primary outline-none">
           </div>
           <div>
             <label class="block text-[10px] text-on-surface-variant mb-1">تأكيد كلمة المرور الجديدة</label>
-            <input type="password" [(ngModel)]="changePasswordData.confirmPassword" class="w-full bg-surface-container-lowest border border-outline-variant rounded px-2 py-1.5 text-xs focus:border-primary outline-none">
+            <input type="password" [(ngModel)]="changePasswordData.confirmPassword" name="confirm-password" class="w-full bg-surface-container-lowest border border-outline-variant rounded px-2 py-1.5 text-xs focus:border-primary outline-none">
           </div>
           <button type="button" (click)="changePassword()" class="w-full py-2 bg-primary text-on-primary rounded-lg text-sm font-medium hover:bg-primary-container transition-colors shadow-sm">
             تغيير كلمة المرور
@@ -128,31 +128,31 @@
         <div class="space-y-3">
           <div>
             <label class="block text-[10px] text-on-surface-variant mb-1">اسم المؤسسة (العلامة التجارية)</label>
-            <input type="text" [(ngModel)]="editPrintSettings.brandName" class="w-full bg-surface-container-lowest border border-outline-variant rounded px-2 py-1.5 text-xs focus:border-primary outline-none">
+            <input type="text" [(ngModel)]="editPrintSettings.brandName" name="brand-name" class="w-full bg-surface-container-lowest border border-outline-variant rounded px-2 py-1.5 text-xs focus:border-primary outline-none">
           </div>
           <div>
             <label class="block text-[10px] text-on-surface-variant mb-1">بيانات التواصل (الإدارة والهواتف)</label>
-            <input type="text" [(ngModel)]="editPrintSettings.phones" class="w-full bg-surface-container-lowest border border-outline-variant rounded px-2 py-1.5 text-xs focus:border-primary outline-none">
+            <input type="text" [(ngModel)]="editPrintSettings.phones" name="phones" class="w-full bg-surface-container-lowest border border-outline-variant rounded px-2 py-1.5 text-xs focus:border-primary outline-none">
           </div>
             <div class="flex gap-2">
               <div class="flex-1">
                 <label class="block text-[10px] text-on-surface-variant mb-1">العملة الأساسية (مثال: R.O. أو ج.م)</label>
-                <input type="text" [(ngModel)]="editPrintSettings.mainCurrency" class="w-full bg-surface-container-lowest border border-outline-variant rounded px-2 py-1.5 text-xs focus:border-primary outline-none">
+                <input type="text" [(ngModel)]="editPrintSettings.mainCurrency" name="main-currency" class="w-full bg-surface-container-lowest border border-outline-variant rounded px-2 py-1.5 text-xs focus:border-primary outline-none">
               </div>
               <div class="flex-1">
                 <label class="block text-[10px] text-on-surface-variant mb-1">العملة الفرعية (مثال: Bz أو قرش)</label>
-                <input type="text" [(ngModel)]="editPrintSettings.subCurrency" class="w-full bg-surface-container-lowest border border-outline-variant rounded px-2 py-1.5 text-xs focus:border-primary outline-none">
+                <input type="text" [(ngModel)]="editPrintSettings.subCurrency" name="sub-currency" class="w-full bg-surface-container-lowest border border-outline-variant rounded px-2 py-1.5 text-xs focus:border-primary outline-none">
               </div>
             </div>
 
             <div class="flex gap-2">
               <div class="flex-1">
                 <label class="block text-[10px] text-on-surface-variant mb-1">اسم صاحب السلسلة</label>
-                <input type="text" [(ngModel)]="editPrintSettings.ownerSignatureName" class="w-full bg-surface-container-lowest border border-outline-variant rounded px-2 py-1.5 text-xs focus:border-primary outline-none">
+                <input type="text" [(ngModel)]="editPrintSettings.ownerSignatureName" name="owner-signature" class="w-full bg-surface-container-lowest border border-outline-variant rounded px-2 py-1.5 text-xs focus:border-primary outline-none">
               </div>
               <div class="flex-1">
                 <label class="block text-[10px] text-on-surface-variant mb-1">رقم الواتساب</label>
-                <input type="text" [(ngModel)]="editPrintSettings.whatsappNumber" class="w-full bg-surface-container-lowest border border-outline-variant rounded px-2 py-1.5 text-xs focus:border-primary outline-none">
+                <input type="text" [(ngModel)]="editPrintSettings.whatsappNumber" name="whatsapp" class="w-full bg-surface-container-lowest border border-outline-variant rounded px-2 py-1.5 text-xs focus:border-primary outline-none">
               </div>
             </div>
           </div>

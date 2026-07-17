@@ -1,6 +1,7 @@
 import { Component, computed, signal, inject, Input, ChangeDetectorRef, effect, Output, EventEmitter, DestroyRef, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { HttpErrorResponse } from '@angular/common/http';
 import { filter, switchMap } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { InventoryService } from '../../core/services/inventory.service';
@@ -42,7 +43,6 @@ export class InvoicesComponent {
   trackById = (i: number, item: any) => item?.id ?? i;
   trackByIndex = (i: number) => i;
   @Output() addInventoryBook = new EventEmitter<void>();
-  protected Math = Math;
   formatAmountRials = formatAmountRials;
   formatAmountBaisa = formatAmountBaisa;
   
@@ -266,8 +266,8 @@ export class InvoicesComponent {
     const mappedVouchers = vouchers.map(v => ({
       ...v,
       type: 'receipt_voucher',
-      totalAmount: v.amount, // Map amount to totalAmount for unified display
-      items: [] // No items for voucher
+      totalAmount: v.amount,
+      items: []
     }));
     
     list = [...list, ...mappedVouchers];
@@ -346,7 +346,6 @@ export class InvoicesComponent {
 
   invoicesList = this.invoiceService.invoices$;
   draftItems = signal<DraftInvoiceItem[]>([]);
-  private draftVersion = signal(0);
 
   invoiceSemesterId = signal<number>(0);
   filterDraftGrade = signal<string>('');
@@ -390,7 +389,6 @@ export class InvoicesComponent {
   });
 
   draftTotal = computed(() => {
-    this.draftVersion();
     const semId = this.invoiceSemesterId();
     return this.draftItems()
       .filter(i => semId <= 0 || i.semesterId === semId)
@@ -417,7 +415,6 @@ export class InvoicesComponent {
       takeUntilDestroyed(this.destroyRef)
     ).subscribe(items => {
       this.librariesData.set(items);
-      this.cdr.markForCheck();
     });
 
     this.inventoryService.inventory$.pipe(
@@ -443,13 +440,16 @@ export class InvoicesComponent {
     });
   }
 
+  selectInputContent(event: FocusEvent) {
+    (event.target as HTMLInputElement).select();
+  }
+
   updateItemTotal(item: DraftInvoiceItem) {
-    if (item.quantity !== null && item.quantity !== undefined && item.quantity > 0) {
-      item.total = item.quantity * item.price;
-    } else {
-      item.total = null;
-    }
-    this.draftVersion.update(v => v + 1);
+    this.draftItems.update(items => items.map(i =>
+      i.bookId === item.bookId
+        ? { ...i, total: (item.quantity ?? 0) > 0 ? item.quantity! * item.price : null }
+        : i
+    ));
   }
 
   processOrder() {
@@ -459,6 +459,10 @@ export class InvoicesComponent {
     }
 
     const currentSemId = this.invoiceSemesterId();
+    if (!currentSemId) {
+      this.toast.show('لم يتم تحميل الفصل الدراسي بعد، يرجى الانتظار', 'error');
+      return;
+    }
     const itemsToProcess = this.draftItems().filter(i => (i.quantity || 0) > 0 && i.semesterId === currentSemId);
     
     if (itemsToProcess.length === 0) {
@@ -482,7 +486,7 @@ export class InvoicesComponent {
         this.inventoryService.fetchBooks(); // Refresh stock
         this.printInvoice(invoice);
       },
-      error: (err: any) => {
+      error: (err: HttpErrorResponse) => {
         this.toast.show(err.error?.message || 'حدث خطأ في التسجيل', 'error');
       }
     });
@@ -495,6 +499,10 @@ export class InvoicesComponent {
     }
 
     const currentSemId = this.invoiceSemesterId();
+    if (!currentSemId) {
+      this.toast.show('لم يتم تحميل الفصل الدراسي بعد، يرجى الانتظار', 'error');
+      return;
+    }
     const itemsToProcess = this.draftItems().filter(i => (i.quantity || 0) > 0 && i.semesterId === currentSemId);
     
     if (itemsToProcess.length === 0) {
@@ -518,7 +526,7 @@ export class InvoicesComponent {
         this.inventoryService.fetchBooks(); // Refresh stock
         this.printInvoice(invoice);
       },
-      error: (err: any) => {
+      error: (err: HttpErrorResponse) => {
         this.toast.show(err.error?.message || 'حدث خطأ في التسجيل', 'error');
       }
     });
@@ -546,12 +554,12 @@ export class InvoicesComponent {
     this.invoiceToPrint.set(invoice);
     this.cdr.detectChanges();
     if (invoice.type !== 'receipt_voucher' && invoice.id) {
-      window.onafterprint = () => {
+      const handleAfterPrint = () => {
         this.invoiceService.updatePrintStatus(invoice.id, 'printed').pipe(
           takeUntilDestroyed(this.destroyRef)
-        ).subscribe({ error: () => {} });
-        window.onafterprint = null;
+        ).subscribe({ error: () => console.error('Failed to update print status') });
       };
+      window.addEventListener('afterprint', handleAfterPrint, { once: true });
     }
     const selector = invoice.type === 'receipt_voucher' ? '.receipt-voucher-print-page' : '.invoice-print-page';
     printWhenImagesReady(selector, () => {
@@ -559,7 +567,7 @@ export class InvoicesComponent {
     });
   }
 
-  retryPrint(invoice: Invoice) {
+  retryPrint(invoice: any) {
     this.printInvoice(invoice);
   }
 
@@ -587,7 +595,7 @@ export class InvoicesComponent {
           this.inventoryService.fetchBooks();
         }
       },
-      error: (err: any) => this.toast.show(err.error?.message || 'تعذر الحذف', 'error')
+      error: (err: HttpErrorResponse) => this.toast.show(err.error?.message || 'تعذر الحذف', 'error')
     });
   }
 

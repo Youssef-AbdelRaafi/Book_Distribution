@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using BookDistributionAPI.Common;
 using BookDistributionAPI.Data;
@@ -7,6 +8,7 @@ using BookDistributionAPI.Data;
 namespace BookDistributionAPI.Features.Invoices;
 
 [ApiController]
+[Authorize]
 [Route("api/invoices")]
 public class InvoicesController : ControllerBase
 {
@@ -80,6 +82,7 @@ public class InvoicesController : ControllerBase
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
     {
         try
@@ -94,6 +97,7 @@ public class InvoicesController : ControllerBase
     }
 
     [HttpPost("{id}/restore")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Restore(int id, CancellationToken cancellationToken)
     {
         try
@@ -108,6 +112,7 @@ public class InvoicesController : ControllerBase
     }
 
     [HttpPost("delete-batch")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> DeleteBatch([FromBody] DeleteBatchDto dto, CancellationToken cancellationToken)
     {
         try
@@ -122,6 +127,7 @@ public class InvoicesController : ControllerBase
     }
 
     [HttpPost("order")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> CreateOrder([FromBody] CreateOrderDto dto, CancellationToken cancellationToken)
     {
         try
@@ -143,6 +149,7 @@ public class InvoicesController : ControllerBase
     }
 
     [HttpPost("refund")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> CreateRefund([FromBody] CreateRefundDto dto, CancellationToken cancellationToken)
     {
         try
@@ -164,6 +171,7 @@ public class InvoicesController : ControllerBase
     }
 
     [HttpPost("clearance")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> CreateClearance([FromBody] CreateClearanceDto dto, CancellationToken cancellationToken)
     {
         try
@@ -185,6 +193,7 @@ public class InvoicesController : ControllerBase
     }
 
     [HttpPost("clearance/batch")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> CreateBatchClearances([FromBody] CreateBatchClearanceDto dto, CancellationToken cancellationToken)
     {
         try
@@ -252,9 +261,10 @@ public class InvoicesController : ControllerBase
     }
 
     [HttpPut("{id}/print-status")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> UpdatePrintStatus(int id, [FromBody] UpdatePrintStatusDto dto, CancellationToken cancellationToken)
     {
-        var invoice = await _db.Invoices.FindAsync([id], cancellationToken);
+        var invoice = await _db.Invoices.FirstOrDefaultAsync(i => i.Id == id, cancellationToken);
         if (invoice == null) return NotFound(ApiResponse<object>.Fail("الفاتورة غير موجودة"));
 
         invoice.PrintStatus = dto.PrintStatus;

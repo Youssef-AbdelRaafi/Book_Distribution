@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using BookDistributionAPI.Common;
 using BookDistributionAPI.Data;
@@ -10,6 +11,7 @@ using BookDistributionAPI.Features.Books;
 namespace BookDistributionAPI.Features.Semesters;
 
 [ApiController]
+[Authorize]
 [Route("api/semesters")]
 public class SemestersController : ControllerBase
 {
@@ -51,6 +53,7 @@ public class SemestersController : ControllerBase
     }
 
     [HttpPut("{id}/activate")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Activate(int id, CancellationToken cancellationToken)
     {
         var semester = await _db.Semesters.Include(s => s.AcademicYear).FirstOrDefaultAsync(s => s.Id == id, cancellationToken);
@@ -75,6 +78,7 @@ public class SemestersController : ControllerBase
     }
 
     [HttpPost("start-new-year")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> StartNewYear([FromBody] StartNewYearDto dto, CancellationToken cancellationToken)
     {
         var nextYearName = $"{dto.StartYear}-{dto.StartYear + 1}";

@@ -163,6 +163,9 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<Library>()
             .HasIndex(l => new { l.GovernorateId, l.CityId, l.Name });
 
+        modelBuilder.Entity<Library>()
+            .HasQueryFilter(l => l.IsActive);
+
         modelBuilder.Entity<LibraryBook>()
             .ToTable(t => t.HasCheckConstraint("CK_LibraryBooks_Quantity_NonNegative", "[Quantity] >= 0"));
 
@@ -265,6 +268,9 @@ public class AppDbContext : DbContext
             .WithMany()
             .HasForeignKey(l => l.CityId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<Book>()
+            .HasQueryFilter(b => b.IsActive);
 
         modelBuilder.Entity<Book>()
             .HasOne(b => b.Semester)

@@ -1,4 +1,4 @@
-using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Microsoft.EntityFrameworkCore;
 using BookDistributionAPI.Features.AcademicYears;
 using BookDistributionAPI.Features.Semesters;
@@ -13,9 +13,9 @@ namespace BookDistributionAPI.Data;
 
 public static class SeedData
 {
-    public static async Task InitializeAsync(AppDbContext db)
+    public static async Task InitializeAsync(AppDbContext db, ILogger logger, CancellationToken cancellationToken = default)
     {
-        await using var transaction = await db.Database.BeginTransactionAsync();
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
         try
         {
             if (!await db.AcademicYears.AnyAsync())
@@ -259,7 +259,7 @@ public static class SeedData
         catch (Exception ex)
         {
             await transaction.RollbackAsync();
-            Console.Error.WriteLine($"Seed failed: {ex.Message}");
+            logger.LogError(ex, "Seed failed: {Message}", ex.Message);
             throw;
         }
     }
