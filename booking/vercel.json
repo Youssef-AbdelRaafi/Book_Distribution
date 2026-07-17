@@ -1,6 +1,6 @@
 {
-  "framework": "angular",
-  "buildCommand": "npm run build",
+  "framework": null,
+  "buildCommand": "ng build",
   "outputDirectory": "dist/booking/browser",
   "routes": [
     { "handle": "filesystem" },
