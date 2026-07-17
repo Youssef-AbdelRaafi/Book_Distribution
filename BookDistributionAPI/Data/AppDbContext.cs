@@ -272,6 +272,11 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<Book>()
             .HasQueryFilter(b => b.IsActive);
 
+        modelBuilder.Entity<LibraryBook>()
+            .HasQueryFilter(lb => lb.Book!.IsActive);
+        modelBuilder.Entity<InvoiceItem>()
+            .HasQueryFilter(ii => ii.Book!.IsActive);
+
         modelBuilder.Entity<Book>()
             .HasOne(b => b.Semester)
             .WithMany(s => s.Books)
