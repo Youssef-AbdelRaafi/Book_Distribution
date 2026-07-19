@@ -205,7 +205,7 @@ public class BooksController : ControllerBase
 
     [HttpPut("{id}")]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> Update(int id, [FromBody] UpdateBookDto dto, CancellationToken cancellationToken)
+    public async Task<IActionResult> Update(int id, [FromBody] UpdateBookDto dto, [FromQuery] bool isCompensation = false, CancellationToken cancellationToken = default)
     {
         var book = await _db.Books.FirstOrDefaultAsync(b => b.Id == id, cancellationToken);
         if (book == null) return NotFound(ApiResponse<object>.Fail("الكتاب غير موجود"));
@@ -223,8 +223,7 @@ public class BooksController : ControllerBase
         }
         if (dto.StockQuantity.HasValue && dto.StockQuantity.Value != book.StockQuantity)
         {
-            var hasInvoiceItems = await _db.InvoiceItems.AnyAsync(ii => ii.BookId == id, cancellationToken);
-            if (hasInvoiceItems && dto.StockQuantity.Value < book.StockQuantity)
+            if (!isCompensation && dto.StockQuantity.Value < book.StockQuantity)
                 return BadRequest(ApiResponse<object>.Fail("لا يمكن تقليل المخزون يدوياً لكتاب له فواتير. استخدم فواتير البيع والمرتجعات"));
 
             if (dto.StockQuantity.Value < 0)

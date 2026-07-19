@@ -200,14 +200,20 @@ export class InvoicesComponent {
     const libraryId = refundInvoice.libraryId;
     const semId = refundInvoice.semesterId;
 
-    // Get all orders for this library+semester
+    // Get all orders for this library+semester up to this specific refund invoice
     const orders = this.invoicesList().filter((i: any) =>
-      i.libraryId === libraryId && i.semesterId === semId && i.type === 'order'
+      i.libraryId === libraryId &&
+      i.semesterId === semId &&
+      i.type === 'order' &&
+      (refundInvoice.id && i.id ? i.id <= refundInvoice.id : new Date(i.date) <= new Date(refundInvoice.date))
     );
 
-    // Get all refunds for this library+semester
+    // Get all refunds for this library+semester up to this specific refund invoice
     const refunds = this.invoicesList().filter((i: any) =>
-      i.libraryId === libraryId && i.semesterId === semId && i.type === 'refund'
+      i.libraryId === libraryId &&
+      i.semesterId === semId &&
+      i.type === 'refund' &&
+      (refundInvoice.id && i.id ? i.id <= refundInvoice.id : new Date(i.date) <= new Date(refundInvoice.date))
     );
 
     // Build per-book totals
@@ -716,9 +722,32 @@ export class InvoicesComponent {
       items: itemsToProcess.map(i => ({ bookId: i.bookId, quantity: i.quantity as number }))
     };
 
+    // Check if the library has already performed a refund in this semester
+    const hasExistingRefund = this.invoicesList().some((i: any) =>
+      i.libraryId === this.selectedLibraryId &&
+      i.semesterId === currentSemId &&
+      i.type === 'refund'
+    );
+
+    if (hasExistingRefund) {
+      const msg = `لقد أجرت هذه المكتبة عملية استرجاع سابقة في هذا الفصل الدراسي بالفعل. هل أنت متأكد من تسجيل عملية استرجاع أخرى؟`;
+      this.confirmService.confirm(msg).subscribe({
+        next: (confirmed) => {
+          if (confirmed) {
+            this.executeRefund(refundData);
+          }
+        }
+      });
+    } else {
+      this.executeRefund(refundData);
+    }
+  }
+
+  private executeRefund(refundData: any) {
     this.invoiceService.createRefund(refundData).pipe(
       takeUntilDestroyed(this.destroyRef)
-    ).subscribe({      next: (res) => {
+    ).subscribe({
+      next: (res) => {
         const invoice = res.data!;
         this.activityService.logActivity('مرتجع', `تم تسجيل مرتجع للمكتبة "${invoice.libraryName}" بقيمة ${invoice.totalAmount} ريال`, 'ADD', { entity: 'invoice', id: invoice.id, current: invoice as any });
         this.toast.show('تم تسجيل المرتجعات بنجاح وإعادتها للمخزون!', 'success');

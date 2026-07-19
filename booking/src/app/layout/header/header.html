@@ -14,8 +14,8 @@
       <span class="text-xs font-bold text-primary whitespace-nowrap">{{ currentYearName }}</span>
       <div class="h-4 w-px bg-surface-container-highest"></div>
       <select class="bg-transparent text-xs font-bold text-on-surface outline-none cursor-pointer" [value]="currentTermCode" (change)="onTermChange($event)">
-        <option value="A">الترم الأول</option>
-        <option value="B">الترم الثاني</option>
+        <option value="A">الفصل الأول</option>
+        <option value="B">الفصل الثاني</option>
       </select>
     </div>
   </div>
@@ -43,7 +43,7 @@
         <span class="material-symbols-outlined">history</span> سجل الأحداث
       </h2>
       <div class="flex items-center gap-2">
-        <button type="button" (click)="activityService.clearHistory()" class="text-xs text-error hover:bg-error/10 px-2 py-1 rounded transition-colors">مسح الكل</button>
+        
         <button type="button" (click)="closeActivityLog()" class="text-on-surface-variant hover:text-error transition-colors">
           <span class="material-symbols-outlined">close</span>
         </button>
@@ -260,7 +260,7 @@
               <span class="material-symbols-outlined text-[14px] text-on-surface-variant">inventory_2</span>
             </div>
             <h4 class="font-bold text-text-heading text-sm">تغذية المخزون الحر</h4>
-            <p class="text-xs text-on-surface-variant mt-1 leading-relaxed">إضافة الكميات المتاحة من هذه الكتب إلى المخزن الرئيسي لتكون جاهزة للموسم. (هذه العملية مستمرة قبل وخلال الترم).</p>
+            <p class="text-xs text-on-surface-variant mt-1 leading-relaxed">إضافة الكميات المتاحة من هذه الكتب إلى المخزن الرئيسي لتكون جاهزة للموسم. (هذه العملية مستمرة قبل وخلال الفصل).</p>
           </div>
 
         </div>
@@ -270,7 +270,7 @@
       <div class="mb-8">
         <h3 class="text-sm font-bold text-info mb-4 flex items-center gap-2">
           <span class="material-symbols-outlined text-[18px]">sync</span>
-          المرحلة الثانية: التشغيل (خلال وبعد الترم)
+          المرحلة الثانية: التشغيل (خلال وبعد الفصل)
         </h3>
         <div class="space-y-4 relative before:absolute before:inset-y-0 before:right-[15px] before:w-[2px] before:bg-surface-container-high pl-2 pr-2">
           
@@ -287,7 +287,7 @@
               <span class="material-symbols-outlined text-[14px] text-error">assignment_return</span>
             </div>
             <h4 class="font-bold text-text-heading text-sm">عملية الاسترجاع (المرتجعات)</h4>
-            <p class="text-xs text-on-surface-variant mt-1 leading-relaxed">في نهاية الترم، الكتب التي لم تُباع تُعاد للمخزن عن طريق فاتورة "مرتجع"، ليتم إعادتها للمخزون الحر وتحديث الحسابات.</p>
+            <p class="text-xs text-on-surface-variant mt-1 leading-relaxed">في نهاية الفصل، الكتب التي لم تُباع تُعاد للمخزن عن طريق فاتورة "مرتجع"، ليتم إعادتها للمخزون الحر وتحديث الحسابات.</p>
           </div>
 
           <div class="relative pr-8">

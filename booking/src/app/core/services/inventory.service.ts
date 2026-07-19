@@ -35,8 +35,35 @@ export class InventoryService {
     return this.inventorySubject.value.find(item => item.id === id);
   }
 
+  private sortBooks(books: Book[]): Book[] {
+    const gradeOrder: Record<string, number> = {
+      'إصدارات الصف التاسع': 1,
+      'إصدارات الصف العاشر': 2,
+      'إصدارات الصف الحادي عشر': 3,
+      'إصدارات الصف الثاني عشر': 4
+    };
+
+    const subjectOrder: Record<string, number> = {
+      'فيزياء': 1,
+      'كيمياء': 2,
+      'علوم بيئية': 3
+    };
+
+    return [...books].sort((a, b) => {
+      const gA = gradeOrder[a.grade] ?? 99;
+      const gB = gradeOrder[b.grade] ?? 99;
+      if (gA !== gB) return gA - gB;
+
+      const sA = subjectOrder[a.subject] ?? 99;
+      const sB = subjectOrder[b.subject] ?? 99;
+      if (sA !== sB) return sA - sB;
+
+      return (a.name || '').localeCompare(b.name || '');
+    });
+  }
+
   private prependBook(book: Book): void {
-    this.inventorySubject.next([book, ...this.inventorySubject.value]);
+    this.inventorySubject.next(this.sortBooks([book, ...this.inventorySubject.value]));
   }
 
   private replaceBook(id: number, book: Book): void {
@@ -64,13 +91,14 @@ export class InventoryService {
     return this.http.post<ApiResponse<Book[]>>(`${this.apiUrl}/bulk`, { books }).pipe(
       tap(res => {
         const created = res.data;
-        if (Array.isArray(created)) this.inventorySubject.next([...created, ...this.inventorySubject.value]);
+        if (Array.isArray(created)) this.inventorySubject.next(this.sortBooks([...created, ...this.inventorySubject.value]));
       })
     );
   }
 
-  updateBook(id: number, book: Partial<Book>): Observable<ApiResponse<Book>> {
-    return this.http.put<ApiResponse<Book>>(`${this.apiUrl}/${id}`, book).pipe(
+  updateBook(id: number, book: Partial<Book>, isCompensation = false): Observable<ApiResponse<Book>> {
+    const url = isCompensation ? `${this.apiUrl}/${id}?isCompensation=true` : `${this.apiUrl}/${id}`;
+    return this.http.put<ApiResponse<Book>>(url, book).pipe(
       tap(res => {
         const updated = res.data;
         if (updated?.id) this.replaceBook(id, updated);
@@ -123,7 +151,7 @@ export class InventoryService {
       }
       return throwError(() => new Error('لا يمكن التراجع عن هذا النشاط'));
     } else if (activity.type === 'UPDATE' && payload?.id && payload?.previous) {
-      return this.updateBook(payload.id, payload.previous as unknown as Partial<Book>).pipe(map(() => undefined));
+      return this.updateBook(payload.id, payload.previous as unknown as Partial<Book>, true).pipe(map(() => undefined));
     }
     return throwError(() => new Error('لا يمكن التراجع عن هذا النشاط'));
   }
@@ -144,7 +172,7 @@ export class InventoryService {
     } else if (activity.type === 'DELETE' && payload?.id) {
       return this.deleteBook(payload.id).pipe(map(() => undefined));
     } else if (activity.type === 'UPDATE' && payload?.id && payload?.current) {
-      return this.updateBook(payload.id, payload.current as unknown as Partial<Book>).pipe(map(() => undefined));
+      return this.updateBook(payload.id, payload.current as unknown as Partial<Book>, true).pipe(map(() => undefined));
     }
     return throwError(() => new Error('لا يمكن إعادة هذا النشاط'));
   }

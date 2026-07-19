@@ -124,12 +124,12 @@
           <span class="material-symbols-outlined text-primary">store</span> قائمة المكتبات
         </h3>
         <div class="flex items-center gap-2">
-          <button type="button" (click)="toggleListEditMode()" class="w-8 h-8 rounded-full flex items-center justify-center transition-colors" [ngClass]="isListEditMode() ? 'bg-primary text-on-primary' : 'bg-surface-container-high text-on-surface hover:bg-surface-container-highest'">
+          <button type="button" *ngIf="!showDeletedLibraries()" (click)="toggleListEditMode()" class="w-8 h-8 rounded-full flex items-center justify-center transition-colors" [ngClass]="isListEditMode() ? 'bg-primary text-on-primary' : 'bg-surface-container-high text-on-surface hover:bg-surface-container-highest'">
             <span class="material-symbols-outlined text-[16px]">edit</span>
           </button>
-          <div *ngIf="hasDeletedLibraries() || showDeletedLibraries()" class="flex items-center gap-2 cursor-pointer" (click)="toggleShowDeleted()" title="عرض سلة المحذوفات">
-            <span class="material-symbols-outlined text-[20px] transition-colors" [ngClass]="showDeletedLibraries() ? 'text-error' : 'text-on-surface-variant'">delete</span>
-          </div>
+          <button type="button" *ngIf="hasDeletedLibraries() || showDeletedLibraries()" (click)="toggleShowDeleted()" class="w-8 h-8 rounded-full flex items-center justify-center transition-colors" [ngClass]="showDeletedLibraries() ? 'bg-error/10 text-error border border-error/30' : 'bg-surface-container-high text-error hover:bg-surface-container-highest'" title="عرض سلة المحذوفات">
+            <span class="material-symbols-outlined text-[16px]">delete</span>
+          </button>
           <div class="flex items-center gap-2 cursor-pointer" (click)="toggleList()">
             <span class="bg-surface-container text-on-surface text-xs font-medium px-2 py-1 rounded-full">{{ librariesList().length }} مكتبة</span>
             <span class="material-symbols-outlined text-on-surface-variant transition-transform duration-300" [ngClass]="{'rotate-180': isListCollapsed()}">expand_more</span>
@@ -152,7 +152,7 @@
                [ngClass]="lib.isActive === false ? 'bg-error/5 border-error/20 hover:border-error opacity-75' : 'bg-surface-container-lowest border-outline-variant hover:border-primary'">
             <div class="flex items-start gap-3">
               <div class="w-10 h-10 rounded-md bg-surface-container-high flex items-center justify-center shrink-0 text-primary group-hover:bg-primary group-hover:text-on-primary transition-colors overflow-hidden">
-                <img *ngIf="lib.logo" [src]="lib.logo" class="w-full h-full object-cover">
+                <img *ngIf="lib.logo" [src]="getLogoUrl(lib.logo)" class="w-full h-full object-cover">
                 <span *ngIf="!lib.logo" class="material-symbols-outlined">menu_book</span>
               </div>
               <div class="flex-1">
@@ -161,9 +161,7 @@
                   <button type="button" *ngIf="isListEditMode() && lib.isActive !== false" (click)="deleteLibraryQuick(lib, $event)" class="text-error hover:bg-error/10 w-6 h-6 rounded flex items-center justify-center transition-colors shrink-0" title="حذف">
                     <span class="material-symbols-outlined text-[16px]">delete</span>
                   </button>
-                  <button type="button" *ngIf="isListEditMode() && lib.isActive === false" (click)="restoreLibraryQuick(lib, $event)" class="text-success hover:bg-success/10 w-6 h-6 rounded flex items-center justify-center transition-colors shrink-0" title="استعادة">
-                    <span class="material-symbols-outlined text-[16px]">restore</span>
-                  </button>
+
                 </div>
                 <div class="flex flex-wrap gap-2 mt-0.5">
                   <div class="text-xs text-on-surface-variant flex items-center gap-1">
@@ -428,7 +426,7 @@
     <div class="flex-1 overflow-y-auto p-5 custom-scrollbar space-y-6">
       <div class="flex items-center gap-4 border-b border-surface-container-high pb-4">
         <div class="w-16 h-16 rounded-lg bg-surface-container-high flex items-center justify-center text-primary overflow-hidden shrink-0 relative group">
-           <img *ngIf="isEditingLibrary ? editLibLogo : selectedLibraryForDetails()?.logo" [src]="isEditingLibrary ? editLibLogo : selectedLibraryForDetails()?.logo" class="w-full h-full object-cover">
+           <img *ngIf="isEditingLibrary ? editLibLogo : selectedLibraryForDetails()?.logo" [src]="getLogoUrl(isEditingLibrary ? editLibLogo : selectedLibraryForDetails()?.logo)" class="w-full h-full object-cover">
            <span *ngIf="isEditingLibrary ? !editLibLogo : !selectedLibraryForDetails()?.logo" class="material-symbols-outlined text-3xl">menu_book</span>
            <div *ngIf="isEditingLibrary" (click)="triggerEditLogoUpload(editFileInput)" class="absolute inset-0 bg-black/50 hidden group-hover:flex items-center justify-center cursor-pointer transition-colors">
              <span class="material-symbols-outlined text-white text-[20px]">edit</span>

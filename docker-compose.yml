@@ -11,7 +11,7 @@ services:
       # Generate: openssl rand -base64 48
       - Auth__JwtSigningKey=${JWT_SIGNING_KEY:?JWT_SIGNING_KEY is required. Create a .env file with JWT_SIGNING_KEY=$(openssl rand -base64 48)}
       # SQLite connection string (uses persistent volume)
-      - ConnectionStrings__DefaultConnection=Data Source=/app/data/app.db;Cache=Shared;Pooling=True
+      - ConnectionStrings__DefaultConnection=Data Source=/app/data/new_database.db;Cache=Shared;Pooling=True
     volumes:
       - book-data:/app/data
       - book-backups:/app/backups

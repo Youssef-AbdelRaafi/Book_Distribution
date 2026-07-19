@@ -35,10 +35,15 @@ export class InventoryComponent {
     return 'low';
   }
 
+  getSemesterName(semesterId: number): string {
+    const sem = this.settingsService.allSemesters().find(s => s.id === semesterId);
+    return sem ? sem.name : '';
+  }
+
   // Filters
   selectedSubject = signal('كل المواد');
   selectedGrade = signal('كل الصفوف');
-  selectedTerm = signal('كل الأترام');
+  selectedTerm = signal('كل الفصول');
 
   isListCollapsed = signal(localStorage.getItem(LS_INVNT_LIST_COLLAPSED) === 'true');
   toggleList() {
@@ -108,7 +113,7 @@ export class InventoryComponent {
     return this.inventoryList().filter(item => {
       const matchSubject = this.selectedSubject() === 'كل المواد' || item.subject === this.selectedSubject();
       const matchGrade = this.selectedGrade() === 'كل الصفوف' || item.grade === this.selectedGrade();
-      const matchTerm = this.selectedTerm() === 'كل الأترام'
+      const matchTerm = this.selectedTerm() === 'كل الفصول'
         ? activeSemIds.includes(item.semesterId)
         : (this.selectedTerm() === 'الفصل الأول' ? item.semesterId === sem1Id : item.semesterId === sem2Id);
       return matchSubject && matchGrade && matchTerm;
@@ -142,9 +147,22 @@ export class InventoryComponent {
     });
   }
 
-  updateStockQuantity(book: Book, newStock: number | null) {
-    if (newStock === null || isNaN(newStock) || newStock < 0) return;
+  updateStockQuantity(book: Book, newStock: number | null, inputElement?: HTMLInputElement) {
+    if (newStock === null || isNaN(newStock) || newStock < 0) {
+      if (inputElement) {
+        inputElement.value = book.stockQuantity.toString();
+      }
+      return;
+    }
     if (!book.id) return;
+
+    if (newStock < book.stockQuantity) {
+      this.toastService.show('لا يمكن تقليل المخزون يدوياً لكتاب له فواتير. استخدم فواتير البيع والمرتجعات', 'error');
+      if (inputElement) {
+        inputElement.value = book.stockQuantity.toString();
+      }
+      return;
+    }
 
     this.inventoryService.updateBook(book.id, { stockQuantity: newStock }).pipe(
       takeUntilDestroyed(this.destroyRef)
@@ -153,17 +171,28 @@ export class InventoryComponent {
         this.activityService.logActivity('تحديث المخزون', `تم تحديث مخزون ${book.name} إلى ${newStock}`, 'UPDATE', { entity: 'inventory', id: book.id, previous: { ...book }, current: { ...book, stockQuantity: newStock } });
         this.toastService.show('تم تحديث المخزون بنجاح', 'success');
       },
-      error: (err) => this.toastService.show(err.error?.message || 'تعذر تحديث المخزون', 'error')
+      error: (err) => {
+        this.toastService.show(err.error?.message || 'تعذر تحديث المخزون', 'error');
+        if (inputElement) {
+          inputElement.value = book.stockQuantity.toString();
+        }
+      }
     });
   }
 
   showAddModal = signal(false);
-  newBook = {
+  newBook: {
+    name: string;
+    grade: string;
+    subject: string;
+    price: number | null;
+    stockQuantity: number | null;
+  } = {
     name: '',
     grade: '',
     subject: '',
-    price: 0,
-    stockQuantity: 0
+    price: null,
+    stockQuantity: null
   };
 
   openAddModal() {
@@ -172,7 +201,7 @@ export class InventoryComponent {
 
   closeAddModal() {
     this.showAddModal.set(false);
-    this.newBook = { name: '', grade: '', subject: '', price: 0, stockQuantity: 0 };
+    this.newBook = { name: '', grade: '', subject: '', price: null, stockQuantity: null };
   }
 
   saveNewBook() {
@@ -191,8 +220,8 @@ export class InventoryComponent {
       name: this.newBook.name,
       grade: this.newBook.grade,
       subject: this.newBook.subject,
-      price: this.newBook.price,
-      stockQuantity: this.newBook.stockQuantity,
+      price: this.newBook.price ?? 0,
+      stockQuantity: this.newBook.stockQuantity ?? 0,
       semesterId
     };
 

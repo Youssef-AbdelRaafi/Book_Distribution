@@ -19,6 +19,7 @@ import { ASSET_URLS } from '../../core/constants/asset-urls';
 import { LS_LIB_ADD_FORM_COLLAPSED, LS_LIB_LIST_COLLAPSED } from '../../core/constants/local-storage-keys';
 import { printWhenImagesReady } from '../../core/utils/print.utils';
 import { InvoicePrintFooterComponent } from '../../shared/invoice-print-footer/invoice-print-footer';
+import { environment } from '../../../environments/environment';
 
 interface ClearanceSummaryItem {
   id: number;
@@ -108,6 +109,10 @@ export class LibrariesComponent {
   toggleListEditMode() {
     this.isListEditMode.update(v => !v);
     if (this.isListEditMode()) {
+      if (this.isListCollapsed()) {
+        this.isListCollapsed.set(false);
+        localStorage.setItem(LS_LIB_LIST_COLLAPSED, 'false');
+      }
       if (this.listEditTimeout) clearTimeout(this.listEditTimeout);
       this.listEditTimeout = setTimeout(() => {
         this.isListEditMode.set(false);
@@ -123,6 +128,13 @@ export class LibrariesComponent {
 
   toggleShowDeleted() {
     this.showDeletedLibraries.update(v => !v);
+    if (this.showDeletedLibraries()) {
+      this.isListEditMode.set(false);
+      if (this.isListCollapsed()) {
+        this.isListCollapsed.set(false);
+        localStorage.setItem(LS_LIB_LIST_COLLAPSED, 'false');
+      }
+    }
   }
 
   filteredLibraries = computed(() => {
@@ -537,6 +549,16 @@ export class LibrariesComponent {
   }
 
   selectedLogoData: string | null = null;
+  getLogoUrl(logoPath: string | null | undefined): string {
+    if (!logoPath) return '';
+    if (logoPath.startsWith('data:') || logoPath.startsWith('http://') || logoPath.startsWith('https://')) {
+      return logoPath;
+    }
+    const serverUrl = environment.apiUrl.replace('/api', '');
+    const prefix = serverUrl.endsWith('/') ? serverUrl.slice(0, -1) : serverUrl;
+    const path = logoPath.startsWith('/') ? logoPath : '/' + logoPath;
+    return prefix + path;
+  }
   private pendingLogoFile: File | null = null;
   triggerLogoUpload(fileInput: HTMLInputElement) { fileInput.click(); }
 
@@ -544,8 +566,15 @@ export class LibrariesComponent {
     const file = (event.target as HTMLInputElement).files?.[0];
     if (file) {
       this.pendingLogoFile = file;
-      if (this.selectedLogoData) URL.revokeObjectURL(this.selectedLogoData);
-      this.selectedLogoData = URL.createObjectURL(file);
+      if (this.selectedLogoData && this.selectedLogoData.startsWith('blob:')) {
+        URL.revokeObjectURL(this.selectedLogoData);
+      }
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        this.selectedLogoData = e.target?.result as string;
+        this.cdr.markForCheck();
+      };
+      reader.readAsDataURL(file);
       this.toast.show('تم تحديد الشعار بنجاح!', 'success');
     }
   }

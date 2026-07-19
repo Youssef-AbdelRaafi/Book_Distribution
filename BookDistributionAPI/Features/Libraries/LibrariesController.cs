@@ -212,8 +212,13 @@ public class LibrariesController : ControllerBase
         var savedFileName = $"lib_{id}_{Guid.NewGuid()}{ext}";
         var filePath = Path.Combine(uploadsDir, savedFileName);
 
-        await using (var stream = new FileStream(filePath, FileMode.Create))
-            await file.CopyToAsync(stream, cancellationToken);
+        await using (var fileStream = new FileStream(filePath, FileMode.Create))
+        await using (var uploadedStream = file.OpenReadStream())
+        {
+            if (uploadedStream.CanSeek)
+                uploadedStream.Position = 0;
+            await uploadedStream.CopyToAsync(fileStream, cancellationToken);
+        }
 
         var relativePath = $"/uploads/logos/{savedFileName}";
         TryDeleteExistingLogo(lib.Logo);
