@@ -1,5 +1,7 @@
 import { Component, inject, signal, computed, Input, effect, DestroyRef, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
+import { filter, switchMap } from 'rxjs';
 import { InventoryService } from '../../core/services/inventory.service';
 import { Book } from '../../core/models/inventory.model';
 import { ApiResponse } from '../../core/models/api-response.model';
@@ -8,6 +10,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { SettingsService } from '../../core/services/settings.service';
 import { ToastService } from '../../core/services/toast.service';
 import { ActivityService } from '../../core/services/activity.service';
+import { ConfirmService } from '../../core/services/confirm.service';
 import { LS_INVNT_LIST_COLLAPSED } from '../../core/constants/local-storage-keys';
 
 @Component({
@@ -24,6 +27,7 @@ export class InventoryComponent {
   public settingsService = inject(SettingsService);
   private toastService = inject(ToastService);
   private activityService = inject(ActivityService);
+  private confirmService = inject(ConfirmService);
 
   getStockStatus(qty: number): string {
     if (qty > 50) return 'high';
@@ -62,6 +66,18 @@ export class InventoryComponent {
   gradesList = computed(() => {
     const grades = this.inventoryList().map(b => b.grade).filter(g => !!g);
     return ['كل الصفوف', ...Array.from(new Set(grades))];
+  });
+
+  modalGrades = computed(() => {
+    const grades = this.inventoryList().map(b => b.grade).filter(g => !!g);
+    const unique = Array.from(new Set(grades));
+    return unique.length > 0 ? unique : ['إصدارات الصف التاسع', 'إصدارات الصف العاشر', 'إصدارات الصف الحادي عشر', 'إصدارات الصف الثاني عشر'];
+  });
+
+  modalSubjects = computed(() => {
+    const subjects = this.inventoryList().map(b => b.subject).filter(s => !!s);
+    const unique = Array.from(new Set(subjects));
+    return unique.length > 0 ? unique : ['فيزياء', 'كيمياء', 'علوم بيئية'];
   });
 
   private destroyRef = inject(DestroyRef);
@@ -195,6 +211,21 @@ export class InventoryComponent {
         this.closeAddModal();
       },
       error: (err) => this.toastService.show(err.error?.message || 'تعذر إضافة الكتاب', 'error')
+    });
+  }
+
+  deleteBook(book: Book, event: Event) {
+    event.stopPropagation();
+    this.confirmService.confirm(`هل أنت متأكد من حذف "${book.name}"؟`).pipe(
+      filter(result => !!result),
+      switchMap(() => this.inventoryService.deleteBook(book.id)),
+      takeUntilDestroyed(this.destroyRef)
+    ).subscribe({
+      next: () => {
+        this.activityService.logActivity('حذف كتاب', `تم حذف ${book.name} من المخزون`, 'DELETE', { entity: 'inventory', ...book });
+        this.toastService.show('تم حذف الكتاب بنجاح', 'success');
+      },
+      error: (err: HttpErrorResponse) => this.toastService.show(err.error?.message || 'تعذر حذف الكتاب', 'error')
     });
   }
 }

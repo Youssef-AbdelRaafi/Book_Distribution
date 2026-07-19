@@ -196,8 +196,7 @@
               </div>
               <div class="flex gap-3" *ngIf="lib.isActive !== false">
                 <button type="button" (click)="showDetails(lib)" class="text-secondary text-xs hover:underline">التفاصيل</button>
-                <button type="button" (click)="clearance(lib)" class="text-tertiary text-xs hover:underline">مخالصة</button>
-                <button type="button" (click)="openReceiptVoucher(lib)" class="text-primary text-xs hover:underline">سند قبض</button>
+                <button type="button" (click)="clearance(lib)" class="text-primary text-xs font-bold hover:underline">سند قبض (تسوية)</button>
               </div>
               <div class="flex gap-3" *ngIf="lib.isActive === false">
                 <button type="button" (click)="restoreLibraryQuick(lib, $event)" class="text-success font-medium text-xs hover:underline flex items-center gap-1">
@@ -208,15 +207,6 @@
           </div>
         </div>
         
-        <!-- List Footer Actions -->
-        <div class="flex gap-2 mt-4">
-          <button type="button" (click)="openClearancePreviewAll()" class="flex-1 py-2 bg-surface-container-low border border-surface-container-highest rounded-lg text-sm text-primary hover:bg-surface-container transition-colors flex items-center justify-center gap-2">
-            <span class="material-symbols-outlined text-[18px]">visibility</span> معاينة الكل
-          </button>
-          <button type="button" (click)="clearance()" class="flex-1 py-2 bg-surface-container-low border border-surface-container-highest rounded-lg text-sm text-secondary hover:bg-surface-container transition-colors flex items-center justify-center gap-2">
-            <span class="material-symbols-outlined text-[18px]">payments</span> مخالصة الكل
-          </button>
-        </div>
       </div>
     </div>
   </div>
@@ -308,8 +298,8 @@
           <button type="button" (click)="closeClearance()" class="px-5 py-2.5 border border-outline-variant rounded-lg text-sm font-medium text-on-surface-variant hover:bg-surface-container transition-colors">
             إغلاق
           </button>
-          <button type="button" (click)="printClearance()" [disabled]="clearanceItems().length === 0 || clearanceLoading()" class="px-5 py-2.5 bg-secondary text-on-secondary rounded-lg text-sm font-medium hover:bg-on-secondary-fixed-variant transition-colors flex items-center gap-2 disabled:opacity-50">
-            <span class="material-symbols-outlined text-[20px]">print</span> طباعة الفاتورة
+          <button type="button" (click)="openReceiptVoucherFromClearance()" [disabled]="clearanceItems().length === 0 || clearanceLoading() || clearanceTotal() <= 0" class="px-5 py-2.5 bg-primary text-on-primary rounded-lg text-sm font-medium hover:bg-primary-container transition-colors flex items-center gap-2 disabled:opacity-50">
+            <span class="material-symbols-outlined text-[20px]">receipt_long</span> إصدار سند قبض بالمبلغ
           </button>
         </div>
       </div>
@@ -318,19 +308,8 @@
 </div>
 
 <!-- Print Only Layout -->
-<!-- Single Clearance Print From Batch -->
-<div *ngIf="singleClearanceToPrint()" class="print-page invoice-print-page w-full bg-white text-black p-4" dir="rtl" style="font-family: 'Traditional Arabic', 'Amiri', 'Times New Roman', serif;">
-  <div class="flex flex-col mb-2">
-    <div class="text-center text-[22px] font-bold mb-3 mt-1">
-      <span class="text-black">مخالصة رقم</span>
-      <span class="text-[#d32f2f] mr-2">({{ singleClearanceToPrint()?.displayNumber || '' }})</span>
-    </div>
-  </div>
-  <app-invoice-print-footer></app-invoice-print-footer>
-</div>
-
 <!-- Single Clearance Print (same format as invoice history) -->
-<div *ngIf="clearanceToPrint() && clearanceBatchInvoices().length === 0 && !singleClearanceToPrint()" class="print-page invoice-print-page w-full bg-white text-black p-4" dir="rtl" style="font-family: 'Traditional Arabic', 'Amiri', 'Times New Roman', serif;">
+<div *ngIf="clearanceToPrint()" class="print-page invoice-print-page w-full bg-white text-black p-4" dir="rtl" style="font-family: 'Traditional Arabic', 'Amiri', 'Times New Roman', serif;">
   <div class="flex flex-col mb-2">
     <div class="text-center text-[22px] font-bold mb-3 mt-1">
       <span class="text-black">{{ getPrintTypeLabel(clearanceToPrint()?.type) }}</span>
@@ -421,221 +400,15 @@
 
   <app-invoice-print-footer
     [responsibleName]="clearanceToPrint()?.responsibleName || clearanceLibrary()?.responsibleName || ''"
-    [responsiblePhone]="clearanceToPrint()?.responsiblePhone || clearanceLibrary()?.responsiblePhone || ''">
+    [responsiblePhone]="clearanceToPrint()?.responsiblePhone || clearanceLibrary()?.responsiblePhone || ''"
+    [ownerName]="clearanceLibrary()?.ownerName || ''"
+    [ownerPhone]="clearanceLibrary()?.ownerPhone || ''"
+    [landlinePhone]="clearanceLibrary()?.landlinePhone || ''"
+    [showInstructions]="false">
   </app-invoice-print-footer>
 </div>
 
-<!-- Batch Clearances -->
-<div *ngIf="clearanceBatchInvoices().length > 0 && !singleClearanceToPrint()" class="print-page invoice-print-page w-full bg-white text-black p-4" dir="rtl" style="font-family: 'Traditional Arabic', 'Amiri', 'Times New Roman', serif;">
-  <div *ngFor="let inv of clearanceBatchInvoices(); trackBy: trackById; let last = last" class="bg-white text-black p-4" [ngStyle]="{'page-break-after': last ? 'auto' : 'always'}" dir="rtl" style="font-family: 'Traditional Arabic', 'Amiri', 'Times New Roman', serif;">
-    <div class="flex flex-col mb-2">
-      <div class="text-center text-[22px] font-bold mb-3 mt-1">
-        <span class="text-black">مخالصة رقم</span>
-        <span class="text-[#d32f2f] mr-2">({{ inv.displayNumber || '' }})</span>
-      </div>
-      <div class="flex justify-between items-end mb-2">
-        <div>
-          <img [src]="assetUrls.logo" class="h-14 object-contain" alt="Logo">
-        </div>
-        <div class="text-[14px] pb-1 font-bold">
-          <span>{{ settingsService.printSettings().phones }}</span>
-        </div>
-      </div>
-      <div class="border-2 border-black flex items-stretch font-bold text-[14px]">
-        <div class="flex-grow py-1 px-3 text-right">
-          الفاضل/ <span class="text-[#d32f2f]">{{ inv.libraryName }}</span> - {{ inv.governorateName }}
-        </div>
-        <div class="py-1 px-4 whitespace-nowrap flex items-center justify-center">
-          التاريخ: {{ inv.date | date:'yyyy/M/d' }}
-        </div>
-      </div>
-    </div>
 
-    <table class="w-full border-collapse border border-black text-center text-[13px]">
-      <thead class="bg-[#dcedc8] text-black">
-        <tr>
-          <th class="border border-black p-1 w-10 font-normal">م</th>
-          <th class="border border-black p-1 w-1/3 font-normal">
-            <div>التفاصيل</div>
-            <div class="text-[11px]">Description</div>
-          </th>
-          <th class="border border-black p-1 font-normal">
-            <div>الكمية</div>
-            <div class="text-[11px]">Qty</div>
-          </th>
-          <th class="border border-black p-0 font-normal text-[12px]">
-            <div class="border-b border-black p-1">السعر Rate</div>
-            <div class="flex">
-              <div class="flex-1 p-1 border-l border-black">{{ settingsService.printSettings().subCurrency }}</div>
-              <div class="flex-1 p-1">{{ settingsService.printSettings().mainCurrency }}</div>
-            </div>
-          </th>
-          <th class="border border-black p-0 font-normal text-[12px]">
-            <div class="border-b border-black p-1">المبلغ Amount</div>
-            <div class="flex">
-              <div class="flex-1 p-1 border-l border-black">{{ settingsService.printSettings().subCurrency }}</div>
-              <div class="flex-1 p-1">{{ settingsService.printSettings().mainCurrency }}</div>
-            </div>
-          </th>
-        </tr>
-      </thead>
-      <tbody>
-        <ng-container *ngFor="let group of getPrintGroups(inv); trackBy: trackByIndex">
-          <tr class="bg-[#90caf9]">
-            <td colspan="5" class="border border-black p-1 font-bold text-white text-[14px]">
-              {{ group.grade }}
-            </td>
-          </tr>
-          <tr *ngFor="let item of group.items; trackBy: trackById; let i = index">
-            <td class="border border-black p-1">{{ item.globalIndex }}</td>
-            <td class="border border-black p-1 text-right pr-2 font-bold">{{ item.bookName }}</td>
-            <td class="border border-black p-1">{{ item.quantity }}</td>
-            <td class="border border-black p-0 font-bold">
-              <div class="flex h-full min-h-[24px]">
-                <div class="flex-1 p-0.5 border-l border-black">{{ formatAmountBaisa(item.unitPrice) }}</div>
-                <div class="flex-1 p-0.5">{{ formatAmountRials(item.unitPrice) }}</div>
-              </div>
-            </td>
-            <td class="border border-black p-0 font-bold">
-              <div class="flex h-full min-h-[24px]">
-                <div class="flex-1 p-0.5 border-l border-black">{{ formatAmountBaisa(item.total) }}</div>
-                <div class="flex-1 p-0.5">{{ formatAmountRials(item.total) }}</div>
-              </div>
-            </td>
-          </tr>
-        </ng-container>
-        <tr>
-          <td colspan="4" class="border border-black p-1 text-left font-bold text-[14px]">الإجمالي الكلي</td>
-          <td class="border border-black p-0 font-bold text-[14px] text-[#d32f2f] bg-[#fff9c4]">
-            <div class="flex h-full min-h-[28px]">
-              <div class="flex-1 p-0.5 border-l border-black">{{ formatAmountBaisa(inv.totalAmount) }}</div>
-              <div class="flex-1 p-0.5">{{ formatAmountRials(inv.totalAmount) }}</div>
-            </div>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-
-    <app-invoice-print-footer
-      [responsibleName]="inv.responsibleName || ''"
-      [responsiblePhone]="inv.responsiblePhone || ''">
-    </app-invoice-print-footer>
-  </div>
-</div>
-
-<!-- Batch Clearance Results View -->
-<div *ngIf="showBatchClearanceView()" class="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 print:hidden p-4" (click)="closeBatchView()">
-  <div class="bg-surface-container-lowest rounded-xl shadow-lg w-full max-w-4xl max-h-[90vh] flex flex-col" (click)="$event.stopPropagation()">
-    <!-- Header -->
-    <div class="flex justify-between items-center p-5 border-b border-surface-container-high">
-      <div class="flex items-center gap-3">
-        <span class="material-symbols-outlined text-[24px] text-secondary">payments</span>
-        <h2 class="text-lg font-bold text-on-surface">
-          نتائج المخالصات
-          <span class="text-on-surface-variant text-sm font-normal">({{ clearanceBatchInvoices().length }} مخالصة)</span>
-        </h2>
-      </div>
-      <button type="button" (click)="closeBatchView()" class="text-on-surface-variant hover:text-error transition-colors">
-        <span class="material-symbols-outlined">close</span>
-      </button>
-    </div>
-
-    <!-- Search Filter -->
-    <div class="px-5 py-3 border-b border-surface-container-high bg-surface-container-low">
-      <div class="relative">
-        <span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">search</span>
-        <input type="text" [ngModel]="batchSearchTerm()" (ngModelChange)="batchSearchTerm.set($event)" placeholder="ابحث عن مكتبة..." class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg pr-9 pl-3 py-2 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all">
-      </div>
-    </div>
-
-    <!-- List -->
-    <div class="flex-1 overflow-y-auto p-5 custom-scrollbar space-y-3">
-      <div *ngFor="let inv of filteredBatchClearances(); trackBy: trackById" class="bg-surface-container-lowest border border-outline-variant rounded-xl p-4 hover:border-primary transition-all shadow-sm">
-        <!-- Card Header -->
-        <div class="flex justify-between items-start">
-          <div class="flex-1">
-            <div class="flex items-center gap-2 mb-1">
-              <span class="text-xs font-bold px-2 py-0.5 rounded-full bg-secondary/10 text-secondary">مخالصة</span>
-              <span class="text-[10px] text-on-surface-variant font-mono">#{{ inv.displayNumber || '' }}</span>
-            </div>
-            <h4 class="font-bold text-text-heading text-sm">{{ inv.libraryName }}</h4>
-            <div class="text-xs text-on-surface-variant mt-1 flex items-center gap-1">
-              <span class="material-symbols-outlined text-[12px]">map</span>
-              {{ inv.governorateName }} - {{ inv.cityName }}
-            </div>
-          </div>
-          <div class="text-left">
-            <div class="font-bold font-mono text-secondary">{{ inv.totalAmount | number:'1.3-3' }} {{ settingsService.printSettings().mainCurrency }}</div>
-            <div class="text-[10px] text-on-surface-variant mt-0.5">{{ inv.date | date:'yyyy/M/d' }}</div>
-          </div>
-        </div>
-
-        <!-- Card Actions -->
-        <div class="flex gap-2 mt-3 pt-3 border-t border-surface-container-high">
-          <button type="button" (click)="toggleBatchCard(inv.id)" class="text-xs font-medium py-1.5 px-3 rounded bg-surface-container-high hover:bg-surface-variant text-on-surface transition-colors flex items-center gap-1">
-            <span class="material-symbols-outlined text-[14px]">{{ expandedBatchCard() === inv.id ? 'expand_less' : 'expand_more' }}</span>
-            {{ expandedBatchCard() === inv.id ? 'إخفاء الأصناف' : 'عرض الأصناف' }}
-          </button>
-          <button type="button" (click)="printBatchInvoice(inv)" class="text-xs font-medium py-1.5 px-3 rounded bg-secondary/10 hover:bg-secondary/20 text-secondary transition-colors flex items-center gap-1">
-            <span class="material-symbols-outlined text-[14px]">print</span> طباعة
-          </button>
-        </div>
-
-        <!-- Expanded Items Table -->
-        <div *ngIf="expandedBatchCard() === inv.id" class="mt-3 pt-3 border-t border-surface-container-high overflow-x-auto custom-scrollbar">
-          <table class="w-full text-sm text-right">
-            <thead class="text-xs text-on-surface-variant bg-surface-container-low">
-              <tr>
-                <th class="px-3 py-2 rounded-r-lg font-medium w-10">م</th>
-                <th class="px-3 py-2 font-medium">الكتاب</th>
-                <th class="px-3 py-2 font-medium text-center">الكمية</th>
-                <th class="px-3 py-2 font-medium text-left">السعر</th>
-                <th class="px-3 py-2 rounded-l-lg font-medium text-left">الإجمالي</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let item of inv.items; trackBy: trackById; let i = index" class="border-b border-surface-container last:border-0 hover:bg-surface-container-lowest transition-colors">
-                <td class="px-3 py-2 text-center text-on-surface-variant">{{ i + 1 }}</td>
-                <td class="px-3 py-2 font-medium text-on-surface">{{ item.bookName }}</td>
-                <td class="px-3 py-2 text-center font-bold">{{ item.quantity }}</td>
-                <td class="px-3 py-2 text-left font-mono text-on-surface-variant">{{ item.unitPrice | number:'1.3-3' }}</td>
-                <td class="px-3 py-2 text-left font-bold text-primary">{{ item.total | number:'1.3-3' }}</td>
-              </tr>
-            </tbody>
-          </table>
-          <div class="flex justify-end mt-3">
-            <div class="p-3 bg-secondary/5 border border-secondary/20 rounded-lg min-w-[200px]">
-              <div class="text-xs text-on-surface-variant mb-1">الإجمالي</div>
-              <div class="text-lg font-bold text-secondary">{{ inv.totalAmount | number:'1.3-3' }} {{ settingsService.printSettings().mainCurrency }}</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div *ngIf="filteredBatchClearances().length === 0" class="text-center text-on-surface-variant py-10 flex flex-col items-center gap-2">
-        <span class="material-symbols-outlined text-4xl opacity-50">search_off</span>
-        <p>لا توجد مخالصات مطابقة للبحث</p>
-      </div>
-    </div>
-
-    <!-- Footer -->
-    <div class="p-5 border-t border-surface-container-high bg-surface-container-low rounded-b-xl">
-      <div class="flex justify-between items-center">
-        <div class="text-sm text-on-surface-variant">
-          {{ batchClearanceTotalItems() }} مواد إجمالاً
-        </div>
-        <div class="flex gap-3">
-          <button type="button" (click)="closeBatchView()" class="px-5 py-2.5 border border-outline-variant rounded-lg text-sm font-medium text-on-surface-variant hover:bg-surface-container transition-colors">
-            إغلاق
-          </button>
-          <button type="button" (click)="printAllBatchClearances()" class="px-5 py-2.5 bg-secondary text-on-secondary rounded-lg text-sm font-medium hover:bg-on-secondary-fixed-variant transition-colors flex items-center gap-2">
-            <span class="material-symbols-outlined text-[20px]">print</span> طباعة الكل
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
 
 <!-- Details Modal -->
 <div *ngIf="isDetailsModalOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 print-only-hide p-4">
@@ -1122,87 +895,4 @@
   </div>
 </div>
 
-<!-- Clearance Preview All Modal -->
-<div *ngIf="isClearancePreviewAllOpen" class="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 print:hidden p-4" (click)="closeClearancePreviewAll()">
-  <div class="bg-surface-container-lowest rounded-xl shadow-lg w-full max-w-3xl max-h-[90vh] flex flex-col" (click)="$event.stopPropagation()">
-    <div class="flex justify-between items-center p-5 border-b border-surface-container-high">
-      <h2 class="text-lg font-bold text-primary flex items-center gap-2">
-        <span class="material-symbols-outlined">visibility</span> معاينة المخالصات
-      </h2>
-      <button type="button" (click)="closeClearancePreviewAll()" class="text-on-surface-variant hover:text-error transition-colors">
-        <span class="material-symbols-outlined">close</span>
-      </button>
-    </div>
-    
-    <div class="flex-1 overflow-y-auto p-5 custom-scrollbar">
-      <div *ngIf="clearancePreviewAllLoading" class="flex items-center justify-center py-12">
-        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        <span class="mr-3 text-on-surface-variant">جاري التحميل...</span>
-      </div>
-      
-      <div *ngIf="clearancePreviewAllError" class="text-center py-8 text-error flex flex-col items-center gap-2">
-        <span class="material-symbols-outlined text-4xl">error</span>
-        <span>{{ clearancePreviewAllError }}</span>
-      </div>
 
-      <div *ngIf="!clearancePreviewAllLoading && !clearancePreviewAllError && clearancePreviewAllData().length === 0" class="text-center py-8 text-on-surface-variant flex flex-col items-center gap-2">
-        <span class="material-symbols-outlined text-4xl text-on-surface-variant/50">check_circle</span>
-        لا توجد مبالغ مستحقة لأي مكتبة
-      </div>
-
-      <div *ngIf="!clearancePreviewAllLoading && clearancePreviewAllData().length > 0" class="space-y-4">
-        <!-- Summary -->
-        <div class="bg-surface-container-low rounded-lg p-4 border border-surface-container-high grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
-          <div>
-            <span class="text-on-surface-variant">عدد المكتبات:</span>
-            <span class="font-bold text-text-heading block">{{ clearancePreviewAllData().length }}</span>
-          </div>
-          <div>
-            <span class="text-on-surface-variant">إجمالي المبيعات:</span>
-            <span class="font-bold text-text-heading block">{{ getPreviewAllTotal('total') | number:'1.0-3' }} ر.ع</span>
-          </div>
-          <div>
-            <span class="text-on-surface-variant">المدفوع:</span>
-            <span class="font-bold text-text-heading block">{{ getPreviewAllTotal('paid') | number:'1.0-3' }} ر.ع</span>
-          </div>
-          <div>
-            <span class="text-on-surface-variant">الصافي المستحق:</span>
-            <span class="font-bold text-success block">{{ getPreviewAllTotal('net') | number:'1.0-3' }} ر.ع</span>
-          </div>
-        </div>
-
-        <!-- Libraries Table -->
-        <div class="overflow-x-auto border border-surface-container-high rounded-lg">
-          <table class="w-full text-sm text-right">
-            <thead class="bg-surface-container-low text-on-surface-variant text-xs">
-              <tr>
-                <th class="px-4 py-3 font-medium">المكتبة</th>
-                <th class="px-4 py-3 font-medium">المحافظة</th>
-                <th class="px-4 py-3 font-medium text-center">المدينة</th>
-                <th class="px-4 py-3 font-medium text-center">إجمالي المبيعات</th>
-                <th class="px-4 py-3 font-medium text-center">المدفوع</th>
-                <th class="px-4 py-3 font-medium text-center">المستحق</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-surface-container-high text-text-heading">
-              <tr *ngFor="let lib of clearancePreviewAllData(); trackBy: trackById" class="hover:bg-surface-container-lowest transition-colors">
-                <td class="px-4 py-3 font-medium">{{ lib.libraryName }}</td>
-                <td class="px-4 py-3 text-on-surface-variant">{{ lib.governorateName }}</td>
-                <td class="px-4 py-3 text-center text-on-surface-variant">{{ lib.cityName }}</td>
-                <td class="px-4 py-3 text-center">{{ lib.totalAmount | number:'1.0-3' }}</td>
-                <td class="px-4 py-3 text-center">{{ lib.paidAmount | number:'1.0-3' }}</td>
-                <td class="px-4 py-3 text-center font-bold" [ngClass]="lib.netAmount > 0 ? 'text-success' : 'text-on-surface-variant'">{{ lib.netAmount | number:'1.0-3' }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-    
-    <div class="p-5 border-t border-surface-container-high bg-surface-container-low rounded-b-xl flex justify-end">
-      <button type="button" (click)="closeClearancePreviewAll()" class="px-5 py-2.5 border border-outline-variant rounded-lg text-sm font-medium text-on-surface-variant hover:bg-surface-container transition-colors">
-        إغلاق
-      </button>
-    </div>
-  </div>
-</div>

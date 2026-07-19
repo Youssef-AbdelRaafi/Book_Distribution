@@ -62,7 +62,9 @@ export class ReceiptVoucherService {
   }
 
   restoreVoucher(id: number): Observable<ApiResponse<unknown>> {
-    return this.http.post<ApiResponse<unknown>>(`${this.apiUrl}/${id}/restore`, {});
+    return this.http.post<ApiResponse<unknown>>(`${this.apiUrl}/${id}/restore`, {}).pipe(
+      tap(() => this.fetchVouchers())
+    );
   }
 
   executeCompensation(activity: { type?: string; payload?: ActivityPayload }): Observable<void> {

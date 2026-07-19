@@ -208,22 +208,6 @@ export class LibrariesComponent {
     return Array.from(groupsMap.entries()).map(([grade, items]) => ({ grade, items }));
   }
 
-  clearanceBatchInvoices = signal<Invoice[]>([]);
-  showBatchClearanceView = signal(false);
-  batchSearchTerm = signal('');
-  expandedBatchCard = signal<number | null>(null);
-  singleClearanceToPrint = signal<Invoice | null>(null);
-
-  filteredBatchClearances = computed(() => {
-    const term = this.batchSearchTerm().trim().toLowerCase();
-    return this.clearanceBatchInvoices().filter(inv =>
-      !term || inv.libraryName?.toLowerCase().includes(term)
-    );
-  });
-
-  batchClearanceTotalItems = computed(() =>
-    this.clearanceBatchInvoices().reduce((sum, inv) => sum + (inv.items?.length || 0), 0)
-  );
 
   formatAmountRials = formatAmountRials;
   formatAmountBaisa = formatAmountBaisa;
@@ -422,6 +406,7 @@ export class LibrariesComponent {
       next: () => {
         this.selectedLibraryForDetails.set(updatedLib);
         this.isEditingLibrary = false;
+        this.activityService.logActivity('تعديل مكتبة', `تم تعديل بيانات المكتبة "${updatedLib.name}"`, 'UPDATE', { entity: 'library', id: lib.id, previous: lib as any, current: updatedLib as any });
         this.toast.show('تم تحديث بيانات المكتبة بنجاح!', 'success');
       },
       error: () => this.toast.show('حدث خطأ في تحديث البيانات', 'error')
@@ -437,6 +422,7 @@ export class LibrariesComponent {
       takeUntilDestroyed(this.destroyRef)
     ).subscribe({
       next: () => {
+        this.activityService.logActivity('حذف مكتبة', `تم حذف المكتبة "${lib.name}"`, 'DELETE', { entity: 'library', id: lib.id });
         this.toast.show('تم حذف المكتبة بنجاح', 'success');
         this.closeDetails();
       },
@@ -451,7 +437,10 @@ export class LibrariesComponent {
       switchMap(() => this.libraryService.deleteLibrary(lib.id)),
       takeUntilDestroyed(this.destroyRef)
     ).subscribe({
-      next: () => this.toast.show('تم حذف المكتبة بنجاح', 'success'),
+      next: () => {
+        this.activityService.logActivity('حذف مكتبة', `تم حذف المكتبة "${lib.name}"`, 'DELETE', { entity: 'library', id: lib.id });
+        this.toast.show('تم حذف المكتبة بنجاح', 'success');
+      },
       error: () => this.toast.show('حدث خطأ في حذف المكتبة', 'error')
     });
   }
@@ -461,7 +450,10 @@ export class LibrariesComponent {
     this.libraryService.restoreLibrary(lib.id).pipe(
       takeUntilDestroyed(this.destroyRef)
     ).subscribe({
-      next: () => this.toast.show('تم استعادة المكتبة بنجاح', 'success'),
+      next: () => {
+        this.activityService.logActivity('استعادة مكتبة', `تم استعادة المكتبة "${lib.name}"`, 'ADD', { entity: 'library', id: lib.id });
+        this.toast.show('تم استعادة المكتبة بنجاح', 'success');
+      },
       error: () => this.toast.show('حدث خطأ في استعادة المكتبة', 'error')
     });
   }
@@ -471,49 +463,6 @@ export class LibrariesComponent {
   clearanceLoading = signal(false);
   clearanceError = signal('');
 
-  // Clearance Preview All
-  isClearancePreviewAllOpen = false;
-  clearancePreviewAllLoading = false;
-  clearancePreviewAllError = '';
-  clearancePreviewAllData = signal<ClearanceLibraryPreview[]>([]);
-
-  openClearancePreviewAll() {
-    const semesterId = this.settingsService.getActiveSemesterId();
-    if (!semesterId) {
-      this.toast.show('لا يوجد فصل دراسي نشط', 'error');
-      return;
-    }
-    this.isClearancePreviewAllOpen = true;
-    this.clearancePreviewAllLoading = true;
-    this.clearancePreviewAllError = '';
-    this.clearancePreviewAllData.set([]);
-
-    this.invoiceService.getClearancePreviewAll(semesterId).pipe(
-      takeUntilDestroyed(this.destroyRef)
-    ).subscribe({
-      next: (res) => {
-        this.clearancePreviewAllLoading = false;
-        const data = res.data;
-        if (Array.isArray(data)) {
-          this.clearancePreviewAllData.set(data);
-        }
-      },
-      error: (err: HttpErrorResponse) => {
-        this.clearancePreviewAllLoading = false;
-        this.clearancePreviewAllError = err.error?.message || 'حدث خطأ في جلب البيانات';
-      }
-    });
-  }
-
-  closeClearancePreviewAll() {
-    this.isClearancePreviewAllOpen = false;
-    this.clearancePreviewAllData.set([]);
-    this.clearancePreviewAllError = '';
-  }
-
-  getPreviewAllTotal(field: 'total' | 'paid' | 'net'): number {
-    return this.clearancePreviewAllData().reduce((sum, lib) => sum + (field === 'total' ? lib.totalAmount : field === 'paid' ? lib.paidAmount : lib.netAmount), 0);
-  }
 
   clearance(lib?: Library) {
     const semesterId = this.settingsService.getActiveSemesterId();
@@ -534,7 +483,6 @@ export class LibrariesComponent {
     this.clearanceTotal.set(0);
     this.clearanceOriginalTotal.set(0);
     this.clearancePaidAmount.set(0);
-    this.clearanceBatchInvoices.set([]);
     this.clearanceSearchTerm.set('');
     this.clearanceGradeFilter.set('');
 
@@ -582,116 +530,10 @@ export class LibrariesComponent {
     this.clearanceError.set('');
   }
 
-  closeBatchView() {
-    this.showBatchClearanceView.set(false);
-    this.batchSearchTerm.set('');
-    this.expandedBatchCard.set(null);
-    this.clearanceBatchInvoices.set([]);
-  }
-
-  toggleBatchCard(id: number | undefined) {
-    if (id == null) return;
-    this.expandedBatchCard.set(this.expandedBatchCard() === id ? null : id);
-  }
-
   toggleInvoiceDetails(inv: any) {
     const id = inv?.id ?? inv?.voucherNumber;
     if (id == null) return;
     this.expandedInvoiceId.set(this.expandedInvoiceId() === id ? null : id);
-  }
-
-  printBatchInvoice(inv: any) {
-    this.singleClearanceToPrint.set(inv);
-    this.cdr.detectChanges();
-    const invId = inv.id;
-    if (invId) {
-      const afterPrint = () => {
-        this.invoiceService.updatePrintStatus(invId, 'printed').pipe(
-          takeUntilDestroyed(this.destroyRef)
-        ).subscribe({ error: () => console.error('Failed to update print status') });
-        this.singleClearanceToPrint.set(null);
-      };
-      window.addEventListener('afterprint', afterPrint, { once: true });
-    }
-    printWhenImagesReady('.invoice-print-page', () => {
-      this.singleClearanceToPrint.set(null);
-    });
-  }
-
-  printAllBatchClearances() {
-    this.showBatchClearanceView.set(false);
-    this.cdr.detectChanges();
-    const invoices = this.clearanceBatchInvoices();
-    const handleAfterPrint = () => {
-      invoices.forEach((inv: any) => {
-        if (inv.id) {
-            this.invoiceService.updatePrintStatus(inv.id, 'printed').pipe(
-              takeUntilDestroyed(this.destroyRef)
-            ).subscribe({ error: () => console.error('Failed to update print status') });
-        }
-      });
-    };
-    window.addEventListener('afterprint', handleAfterPrint, { once: true });
-    printWhenImagesReady('.invoice-print-page', () => {});
-  }
-
-  printClearance() {
-    const lib = this.clearanceLibrary();
-    const semesterId = this.settingsService.getActiveSemesterId();
-    if (semesterId == null) { this.toast.show('الرجاء تحديد فصل دراسي فعال', 'error'); return; }
-
-    if (lib && lib.id) {
-      this.invoiceService.createClearance({
-        libraryId: lib.id,
-        semesterId
-      }).pipe(
-        takeUntilDestroyed(this.destroyRef)
-      ).subscribe({
-        next: (res) => {
-          const invoice = res.data!;
-          this.clearanceToPrint.set(invoice);
-          this.activityService.logActivity('مخالصة', `تم إنشاء مخالصة للمكتبة "${invoice.libraryName}" بقيمة ${invoice.totalAmount} ريال`, 'ADD', { entity: 'invoice', id: invoice.id });
-          this.toast.show('تم تسجيل المخالصة بنجاح', 'success');
-          this.cdr.detectChanges();
-          if (invoice.id) {
-          const handleAfterPrint = () => {
-            this.invoiceService.updatePrintStatus(invoice.id!, 'printed').pipe(
-              takeUntilDestroyed(this.destroyRef)
-            ).subscribe({ error: () => console.error('Failed to update print status') });
-          };
-          window.addEventListener('afterprint', handleAfterPrint, { once: true });
-          }
-          printWhenImagesReady('.invoice-print-page', () => {
-            this.clearanceToPrint.set(null);
-            this.closeClearance();
-          });
-        },
-        error: (err: HttpErrorResponse) => {
-          this.toast.show(err.error?.message || 'حدث خطأ في إنشاء المخالصة', 'error');
-        }
-      });
-    } else {
-      this.confirmService.confirm('سيتم إنشاء مخالصة لكل مكتبة لديها رصيد مستحق. هل تريد المتابعة؟').pipe(
-        filter(result => !!result),
-        switchMap(() => this.invoiceService.createBatchClearance(semesterId)),
-        takeUntilDestroyed(this.destroyRef)
-      ).subscribe({
-        next: (res) => {
-          const result = res.data!;
-          const count = result.count;
-          const invoices = result.invoices;
-          this.clearanceBatchInvoices.set(invoices);
-          (invoices || []).forEach((inv: any) => {
-            this.activityService.logActivity('مخالصة', `تم إنشاء مخالصة للمكتبة "${inv.libraryName}" بقيمة ${inv.totalAmount} ريال`, 'ADD', { entity: 'invoice', id: inv.id });
-          });
-          this.toast.show(`تم تسجيل ${count} مخالصة بنجاح`, 'success');
-          this.showBatchClearanceView.set(true);
-        },
-        error: (err: HttpErrorResponse) => {
-          this.toast.show(err.error?.message || 'حدث خطأ في إنشاء المخالصات', 'error');
-        }
-      });
-    }
   }
 
   selectedLogoData: string | null = null;
@@ -717,8 +559,8 @@ export class LibrariesComponent {
     const cleanRespPhone = this.responsiblePhone.replace(/\s+/g, '');
     const cleanLandline = this.landlinePhone ? this.landlinePhone.replace(/\s+/g, '') : '';
 
-    if (!/^\d{8}$/.test(cleanOwnerPhone)) { this.toast.show('رقم هاتف صاحب المكتبة يجب أن يكون 8 أرقام', 'error'); return; }
-    if (!/^\d{8}$/.test(cleanRespPhone)) { this.toast.show('رقم هاتف المسؤول يجب أن يكون 8 أرقام', 'error'); return; }
+    if (cleanOwnerPhone && !/^\d{8}$/.test(cleanOwnerPhone)) { this.toast.show('رقم هاتف صاحب المكتبة يجب أن يكون 8 أرقام', 'error'); return; }
+    if (cleanRespPhone && !/^\d{8}$/.test(cleanRespPhone)) { this.toast.show('رقم هاتف المسؤول يجب أن يكون 8 أرقام', 'error'); return; }
     if (cleanLandline && !/^\d{8}$/.test(cleanLandline)) { this.toast.show('رقم التليفون الثابت يجب أن يكون 8 أرقام', 'error'); return; }
 
     const newLib: Partial<Library> = {
@@ -771,6 +613,28 @@ export class LibrariesComponent {
 
   // ===== Receipt Voucher Methods =====
 
+  openReceiptVoucherFromClearance() {
+    const lib = this.clearanceLibrary();
+    if (!lib || !lib.id) return;
+    
+    this.closeClearance();
+    
+    this.receiptVoucherLibrary.set(lib);
+    this.rvMaxAmount = this.clearanceTotal();
+    this.rvAmount = this.clearanceTotal(); // Fill it automatically as requested
+    this.rvPaymentMethod = 'cash';
+    this.rvChequeNumber = '';
+    this.rvBankName = '';
+    
+    const semesterId = this.settingsService.getActiveSemesterId();
+    const semName = this.settingsService.allSemesters().find(s => s.id === semesterId)?.name || '';
+    this.rvPurpose = semName ? `تسوية حساب الفصل الدراسي ${semName}` : 'تسوية حساب';
+    this.rvDate = new Date().toISOString().split('T')[0];
+    
+    this.isReceiptVoucherModalOpen = true;
+  }
+
+  // Fallback direct open (used by batch view maybe)
   openReceiptVoucher(lib: Library) {
     this.receiptVoucherLibrary.set(lib);
     this.rvAmount = null as any;
@@ -795,13 +659,13 @@ export class LibrariesComponent {
             return;
           }
           
-          // this.rvAmount = netAmount; // Commented out so user has to type it manually
+          this.rvAmount = netAmount; // Autofill
           this.rvMaxAmount = netAmount;
           this.rvPurpose = `تسوية حساب الفصل الدراسي ${preview.semesterName || ''}`;
           this.isReceiptVoucherModalOpen = true;
         },
         error: () => {
-          this.toast.show('تعذر تحميل بيانات المخالصة. يرجى المحاولة لاحقاً', 'error');
+          this.toast.show('تعذر تحميل بيانات التسوية. يرجى المحاولة لاحقاً', 'error');
           return;
         } 
       });

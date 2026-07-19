@@ -77,7 +77,7 @@
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-surface-container-high relative">
-                  <ng-container *ngFor="let gradeGroup of draftItemsGrouped()">
+                  <ng-container *ngFor="let gradeGroup of draftItemsGrouped(); trackBy: trackByGrade">
                     <tr class="bg-surface-container-lowest">
                       <td colspan="5" class="py-2 px-4 text-xs font-bold text-secondary bg-secondary/5 border-b border-secondary/10">
                         {{ gradeGroup.grade }}
@@ -120,9 +120,11 @@
             </button>
             <button type="button" (click)="processRefund()" class="flex-1 bg-surface-primary border-2 border-error text-error py-3 px-4 rounded-xl font-medium hover:bg-error hover:text-white transition-all flex items-center justify-center gap-2 group">
               <span class="material-symbols-outlined text-[20px] group-hover:-translate-y-1 transition-transform">assignment_return</span>
-              مرتجع من المكتبة
+              مرتجع ختامي من المكتبة
             </button>
-            <button type="button" (click)="onAddInventoryBook()" class="flex-1 bg-surface-primary border-2 border-secondary text-secondary py-3 px-4 rounded-xl font-medium hover:bg-secondary hover:text-white transition-all flex items-center justify-center gap-2 group">
+          </div>
+          <div class="mt-3">
+            <button type="button" (click)="onAddInventoryBook()" class="w-full bg-surface-primary border-2 border-secondary text-secondary py-3 px-4 rounded-xl font-medium hover:bg-secondary hover:text-white transition-all flex items-center justify-center gap-2 group">
               <span class="material-symbols-outlined text-[20px] group-hover:scale-110 transition-transform">library_add</span>
               إضافة كتاب جديد للمخزون
             </button>
@@ -383,8 +385,8 @@
   </div>
 </div>
 
-<!-- Print Layout -->
-<div *ngIf="invoiceToPrint() && invoiceToPrint()?.type !== 'receipt_voucher'" class="print-page invoice-print-page w-full bg-white text-black p-4" dir="rtl" style="font-family: 'Traditional Arabic', 'Amiri', 'Times New Roman', serif;">
+<!-- ==================== ORDER Print Layout ==================== -->
+<div *ngIf="invoiceToPrint() && invoiceToPrint()?.type === 'order'" class="print-page invoice-print-page w-full bg-white text-black p-4" dir="rtl" style="font-family: 'Traditional Arabic', 'Amiri', 'Times New Roman', serif;">
   <!-- Header -->
   <div class="flex flex-col mb-2">
     <!-- Title -->
@@ -416,7 +418,7 @@
     </div>
   </div>
 
-  <!-- Table -->
+  <!-- Table - ALL Books -->
   <table class="w-full border-collapse border border-black text-center text-[13px]">
     <thead class="bg-[#dcedc8] text-black">
       <tr>
@@ -446,11 +448,185 @@
       </tr>
     </thead>
     <tbody>
-      <ng-container *ngFor="let group of getPrintGroups(invoiceToPrint()); trackBy: trackByIndex">
+      <ng-container *ngFor="let group of getOrderPrintGroupsWithAllBooks(invoiceToPrint()); trackBy: trackByIndex">
         <tr class="bg-[#90caf9]">
           <td colspan="5" class="border border-black p-1 font-bold text-white text-[14px]">
             {{ group.grade }}
           </td>
+        </tr>
+        <tr *ngFor="let item of group.items; trackBy: trackByIndex">
+          <td class="border border-black p-1">{{ item.globalIndex }}</td>
+          <td class="border border-black p-1 text-right pr-2 font-bold">{{ item.bookName }}</td>
+          <td class="border border-black p-1">{{ item.isOrdered ? item.quantity : '-' }}</td>
+           <td class="border border-black p-0 font-bold">
+            <div class="flex h-full min-h-[24px]">
+              <div class="flex-1 p-0.5 border-l border-black">{{ item.unitPrice > 0 ? formatAmountBaisa(item.unitPrice) : '-' }}</div>
+              <div class="flex-1 p-0.5">{{ item.unitPrice > 0 ? formatAmountRials(item.unitPrice) : '-' }}</div>
+            </div>
+          </td>
+          <td class="border border-black p-0 font-bold">
+            <div class="flex h-full min-h-[24px]">
+              <div class="flex-1 p-0.5 border-l border-black">{{ item.isOrdered ? formatAmountBaisa(item.total) : '-' }}</div>
+              <div class="flex-1 p-0.5">{{ item.isOrdered ? formatAmountRials(item.total) : '-' }}</div>
+            </div>
+          </td>
+        </tr>
+      </ng-container>
+      <!-- Total Sent Count -->
+      <tr>
+        <td colspan="2" class="border border-black p-1 text-right font-bold text-[13px]">إجمالي عدد الكتب المرسلة</td>
+        <td class="border border-black p-1 font-bold text-[14px] text-[#d32f2f]">{{ getTotalBooksCount(invoiceToPrint()) }}</td>
+        <td class="border border-black p-1 text-left font-bold text-[14px]" colspan="1">الإجمالي الكلي</td>
+        <td class="border border-black p-0 font-bold text-[14px] text-[#d32f2f] bg-[#fff9c4]">
+          <div class="flex h-full min-h-[28px]">
+            <div class="flex-1 p-0.5 border-l border-black">{{ formatAmountBaisa(invoiceToPrint()?.totalAmount ?? 0) }}</div>
+            <div class="flex-1 p-0.5">{{ formatAmountRials(invoiceToPrint()?.totalAmount ?? 0) }}</div>
+          </div>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- Footer with full library details -->
+  <app-invoice-print-footer
+    [responsibleName]="getLibraryFullDetails(invoiceToPrint()?.libraryId || 0).responsibleName || invoiceToPrint()?.responsibleName || ''"
+    [responsiblePhone]="getLibraryFullDetails(invoiceToPrint()?.libraryId || 0).responsiblePhone || invoiceToPrint()?.responsiblePhone || ''"
+    [ownerName]="getLibraryFullDetails(invoiceToPrint()?.libraryId || 0).ownerName"
+    [ownerPhone]="getLibraryFullDetails(invoiceToPrint()?.libraryId || 0).ownerPhone"
+    [landlinePhone]="getLibraryFullDetails(invoiceToPrint()?.libraryId || 0).landlinePhone"
+    [showInstructions]="true">
+  </app-invoice-print-footer>
+</div>
+
+<!-- ==================== REFUND (Settlement) Print Layout ==================== -->
+<div *ngIf="invoiceToPrint() && invoiceToPrint()?.type === 'refund'" class="print-page invoice-print-page w-full bg-white text-black p-4" dir="rtl" style="font-family: 'Traditional Arabic', 'Amiri', 'Times New Roman', serif;">
+  <!-- Header -->
+  <div class="flex flex-col mb-2">
+    <!-- Top: Brand & Phone -->
+    <div class="flex justify-between items-end mb-3">
+      <div>
+        <img [src]="assetUrls.logo" class="h-14 object-contain" alt="Logo">
+      </div>
+      <div class="text-[14px] pb-1 font-bold text-black">{{ settingsService.printSettings().phones }}</div>
+    </div>
+
+    <!-- Title -->
+    <div class="text-center text-[20px] font-bold mb-2 leading-relaxed">
+      <div class="text-[#d32f2f]">الحساب الختامي نهاية {{ invoiceToPrint()?.semesterName }} {{ getAcademicYearForSemester(invoiceToPrint()?.semesterId || 0) }}</div>
+      <div class="text-black text-[18px] mt-1">حساب <span class="text-[#d32f2f]">{{ invoiceToPrint()?.libraryName }}</span> بـ{{ invoiceToPrint()?.governorateName }} - بتاريخ {{ invoiceToPrint()?.date | date:'d/M/yyyy' }}</div>
+    </div>
+  </div>
+
+  <!-- Settlement Table -->
+  <table class="w-full border-collapse border-2 border-black text-center text-[13px]">
+    <thead class="bg-[#dcedc8] text-black">
+      <tr>
+        <th class="border border-black p-1.5 font-bold text-[13px]">الصنف</th>
+        <th class="border border-black p-1.5 font-bold text-[13px]">إجمالي ما تم إرساله</th>
+        <th class="border border-black p-1.5 font-bold text-[13px]">عدد المرتجع</th>
+        <th class="border border-black p-1.5 font-bold text-[13px]">عدد المباع</th>
+        <th class="border border-black p-1.5 font-bold text-[13px]">إجمالي المبلغ المستحق سداده</th>
+      </tr>
+    </thead>
+    <tbody>
+      <ng-container *ngFor="let group of computeRefundSettlement(invoiceToPrint()); trackBy: trackByIndex">
+        <tr *ngFor="let item of group.items; trackBy: trackByIndex">
+          <td class="border border-black p-1.5 text-right pr-3 font-bold">{{ item.bookName }}</td>
+          <td class="border border-black p-1.5 font-bold">{{ item.totalSent || '-' }}</td>
+          <td class="border border-black p-1.5 font-bold">{{ item.totalReturned || '-' }}</td>
+          <td class="border border-black p-1.5 font-bold">{{ item.totalSold || '-' }}</td>
+          <td class="border border-black p-1.5 font-bold">{{ item.amountDue > 0 ? (item.amountDue | number:'1.3-3') : '-' }}</td>
+        </tr>
+      </ng-container>
+      <!-- Totals Row -->
+      <tr class="bg-[#fff9c4]">
+        <td class="border border-black p-1.5 font-bold text-[14px]">إجمالي عدد الكتب المرتجعة</td>
+        <td class="border border-black p-1.5 font-bold text-[14px]"></td>
+        <td class="border border-black p-1.5 font-bold text-[14px] text-[#d32f2f]">{{ getSettlementTotalReturned(computeRefundSettlement(invoiceToPrint())) }}</td>
+        <td class="border border-black p-1.5 font-bold text-[14px]"></td>
+        <td class="border border-black p-1.5 font-bold text-[14px]"></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- Settlement Total -->
+  <div class="mt-4 text-center">
+    <div class="text-[16px] font-bold text-[#d32f2f]">
+      الإجمالي: {{ getSettlementTotal(computeRefundSettlement(invoiceToPrint())) | number:'1.3-3' }} ريال
+    </div>
+  </div>
+
+  <!-- Footer with full library details (no instructions) -->
+  <app-invoice-print-footer
+    [responsibleName]="getLibraryFullDetails(invoiceToPrint()?.libraryId || 0).responsibleName || invoiceToPrint()?.responsibleName || ''"
+    [responsiblePhone]="getLibraryFullDetails(invoiceToPrint()?.libraryId || 0).responsiblePhone || invoiceToPrint()?.responsiblePhone || ''"
+    [ownerName]="getLibraryFullDetails(invoiceToPrint()?.libraryId || 0).ownerName"
+    [ownerPhone]="getLibraryFullDetails(invoiceToPrint()?.libraryId || 0).ownerPhone"
+    [landlinePhone]="getLibraryFullDetails(invoiceToPrint()?.libraryId || 0).landlinePhone"
+    [showInstructions]="false">
+  </app-invoice-print-footer>
+
+  <!-- Bank Details -->
+  <div class="mt-4 pt-3 border-t-2 border-black text-center">
+    <h3 class="text-[18px] font-bold text-[#1a237e] mb-3" style="text-decoration: underline;">حساب بنك مسقط</h3>
+    <div class="inline-block text-right text-[16px] font-bold space-y-2">
+      <p>رقم الحساب: <span class="border-2 border-[#1a237e] px-3 py-1 font-mono text-[15px]">0204017838410021</span></p>
+      <p>اسم المستفيد: <span class="border-2 border-[#1a237e] px-3 py-1 font-mono text-[15px]">MADHAT MOHAMMED</span></p>
+      <p>رقم التليفون المُسجّل في البنك: <span class="border-2 border-[#1a237e] px-3 py-1 font-mono text-[15px]">98877925</span></p>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== CLEARANCE Print Layout ==================== -->
+<div *ngIf="invoiceToPrint() && invoiceToPrint()?.type === 'clearance'" class="print-page invoice-print-page w-full bg-white text-black p-4" dir="rtl" style="font-family: 'Traditional Arabic', 'Amiri', 'Times New Roman', serif;">
+  <!-- Header -->
+  <div class="flex flex-col mb-2">
+    <div class="text-center text-[22px] font-bold mb-3 mt-1">
+      <span class="text-black">{{ getPrintTypeLabel(invoiceToPrint()?.type) }}</span>
+      <span class="text-[#d32f2f] mr-2">({{ getInvoiceDisplayNumber(invoiceToPrint()) }})</span>
+    </div>
+    <div class="flex justify-between items-end mb-2">
+      <div><img [src]="assetUrls.logo" class="h-14 object-contain" alt="Logo"></div>
+      <div class="text-[14px] pb-1 font-bold text-black"><span>{{ settingsService.printSettings().phones }}</span></div>
+    </div>
+    <div class="border-2 border-black flex items-stretch font-bold text-[14px]">
+      <div class="flex-grow py-1 px-3 text-right">
+        الفاضل/ <span class="text-[#d32f2f]">{{ invoiceToPrint()?.libraryName }}</span> - {{ invoiceToPrint()?.governorateName }}
+      </div>
+      <div class="py-1 px-4 whitespace-nowrap flex items-center justify-center">
+        التاريخ: {{ invoiceToPrint()?.date | date:'yyyy/M/d' }}
+      </div>
+    </div>
+  </div>
+
+  <table class="w-full border-collapse border border-black text-center text-[13px]">
+    <thead class="bg-[#dcedc8] text-black">
+      <tr>
+        <th class="border border-black p-1 w-10 font-normal">م</th>
+        <th class="border border-black p-1 w-1/3 font-normal">
+          <div>التفاصيل</div><div class="text-[11px]">Description</div>
+        </th>
+        <th class="border border-black p-1 font-normal"><div>الكمية</div><div class="text-[11px]">Qty</div></th>
+        <th class="border border-black p-0 font-normal text-[12px]">
+          <div class="border-b border-black p-1">السعر Rate</div>
+          <div class="flex">
+            <div class="flex-1 p-1 border-l border-black">{{ settingsService.printSettings().subCurrency }}</div>
+            <div class="flex-1 p-1">{{ settingsService.printSettings().mainCurrency }}</div>
+          </div>
+        </th>
+        <th class="border border-black p-0 font-normal text-[12px]">
+          <div class="border-b border-black p-1">المبلغ Amount</div>
+          <div class="flex">
+            <div class="flex-1 p-1 border-l border-black">{{ settingsService.printSettings().subCurrency }}</div>
+            <div class="flex-1 p-1">{{ settingsService.printSettings().mainCurrency }}</div>
+          </div>
+        </th>
+      </tr>
+    </thead>
+    <tbody>
+      <ng-container *ngFor="let group of getPrintGroups(invoiceToPrint()); trackBy: trackByIndex">
+        <tr class="bg-[#90caf9]">
+          <td colspan="5" class="border border-black p-1 font-bold text-white text-[14px]">{{ group.grade }}</td>
         </tr>
         <tr *ngFor="let item of group.items; trackBy: trackById; let i = index">
           <td class="border border-black p-1">{{ item.globalIndex }}</td>
@@ -482,10 +658,13 @@
     </tbody>
   </table>
 
-  <!-- قسم التوقيع والختم -->
   <app-invoice-print-footer
-    [responsibleName]="invoiceToPrint()?.responsibleName || getLibraryResponsible(invoiceToPrint()?.libraryId || 0).name"
-    [responsiblePhone]="invoiceToPrint()?.responsiblePhone || getLibraryResponsible(invoiceToPrint()?.libraryId || 0).phone">
+    [responsibleName]="getLibraryFullDetails(invoiceToPrint()?.libraryId || 0).responsibleName || invoiceToPrint()?.responsibleName || ''"
+    [responsiblePhone]="getLibraryFullDetails(invoiceToPrint()?.libraryId || 0).responsiblePhone || invoiceToPrint()?.responsiblePhone || ''"
+    [ownerName]="getLibraryFullDetails(invoiceToPrint()?.libraryId || 0).ownerName"
+    [ownerPhone]="getLibraryFullDetails(invoiceToPrint()?.libraryId || 0).ownerPhone"
+    [landlinePhone]="getLibraryFullDetails(invoiceToPrint()?.libraryId || 0).landlinePhone"
+    [showInstructions]="false">
   </app-invoice-print-footer>
 </div>
 
@@ -620,5 +799,4 @@
   <!-- Voucher Number Footer -->
   <div class="text-left text-[12px] text-gray-400 font-sans" dir="ltr">
     Voucher No: {{ invoiceToPrint()?.displayNumber }}
-  </div>
 </div>

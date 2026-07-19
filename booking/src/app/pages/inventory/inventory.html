@@ -58,6 +58,7 @@
             <th class="p-3.5 text-sm font-semibold text-on-surface-variant border-b border-surface-container-high">الصف</th>
             <th class="p-3.5 text-sm font-semibold text-on-surface-variant border-b border-surface-container-high text-left">السعر ({{ settingsService.printSettings().mainCurrency }})</th>
             <th class="p-3.5 text-sm font-semibold text-on-surface-variant border-b border-surface-container-high text-left">المخزون المتاح</th>
+            <th *ngIf="isEditMode()" class="p-3.5 text-sm font-semibold text-on-surface-variant border-b border-surface-container-high w-20 text-center">إجراءات</th>
           </tr>
         </thead>
         <tbody class="text-sm text-on-surface divide-y divide-surface-container-high">
@@ -87,9 +88,14 @@
                 <input #inputStock type="number" [ngModel]="item.stockQuantity" (blur)="updateStockQuantity(item, inputStock.valueAsNumber)" (focus)="selectInputContent($event)" class="w-24 bg-surface-primary border border-outline-variant rounded-md px-2 py-1 text-left font-mono focus:border-primary outline-none" min="0">
               </div>
             </td>
+            <td *ngIf="isEditMode()" class="p-3.5 text-center">
+              <button type="button" (click)="deleteBook(item, $event)" class="text-error hover:bg-error/10 w-8 h-8 rounded flex items-center justify-center mx-auto transition-colors" title="حذف">
+                <span class="material-symbols-outlined text-[18px]">delete</span>
+              </button>
+            </td>
           </tr>
           <tr *ngIf="filteredInventory().length === 0">
-            <td colspan="5" class="p-8 text-center text-on-surface-variant">لا توجد مواد تطابق الفلاتر المحددة.</td>
+            <td colspan="6" class="p-8 text-center text-on-surface-variant">لا توجد مواد تطابق الفلاتر المحددة.</td>
           </tr>
         </tbody>
       </table>
@@ -114,11 +120,17 @@
       </div>
       <div>
         <label class="block text-xs font-medium text-on-surface-variant mb-1.5">المادة</label>
-        <input [(ngModel)]="newBook.subject" name="book-subject" type="text" class="w-full bg-surface-primary border border-outline-variant rounded-lg px-3 py-2 text-sm focus:border-primary outline-none" placeholder="مثال: فيزياء">
+        <select [(ngModel)]="newBook.subject" name="book-subject" class="w-full bg-surface-primary border border-outline-variant rounded-lg px-3 py-2.5 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all cursor-pointer">
+          <option value="" disabled>اختر المادة</option>
+          <option *ngFor="let s of modalSubjects(); trackBy: trackByIndex" [value]="s">{{ s }}</option>
+        </select>
       </div>
       <div>
         <label class="block text-xs font-medium text-on-surface-variant mb-1.5">الصف / الفئة</label>
-        <input [(ngModel)]="newBook.grade" name="book-grade" type="text" class="w-full bg-surface-primary border border-outline-variant rounded-lg px-3 py-2 text-sm focus:border-primary outline-none" placeholder="مثال: إصدارات الصف التاسع">
+        <select [(ngModel)]="newBook.grade" name="book-grade" class="w-full bg-surface-primary border border-outline-variant rounded-lg px-3 py-2.5 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all cursor-pointer">
+          <option value="" disabled>اختر الصف</option>
+          <option *ngFor="let g of modalGrades(); trackBy: trackByIndex" [value]="g">{{ g }}</option>
+        </select>
       </div>
       <div class="grid grid-cols-2 gap-4">
         <div>

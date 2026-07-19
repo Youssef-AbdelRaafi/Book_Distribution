@@ -99,7 +99,8 @@ export class ActivityService {
           this.toast.show(`تم التراجع عن: ${activity.action}`, 'success');
         },
         error: (err) => {
-          this.toast.show(err?.message || 'حدث خطأ في التراجع', 'error');
+          const msg = err.error?.message || err.error?.title || err?.message || 'حدث خطأ في التراجع';
+          this.toast.show(msg, 'error');
         }
       });
     };

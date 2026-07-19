@@ -31,6 +31,39 @@ interface DraftInvoiceItem {
   semesterId: number;
 }
 
+interface RefundSettlementItem {
+  bookName: string;
+  bookGrade: string;
+  totalSent: number;
+  totalReturned: number;
+  totalSold: number;
+  unitPrice: number;
+  amountDue: number;
+}
+
+interface RefundSettlementGroup {
+  grade: string;
+  items: RefundSettlementItem[];
+}
+
+interface AllBooksPrintItem {
+  globalIndex: number;
+  bookId: number;
+  bookName: string;
+  bookGrade: string;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+  isOrdered: boolean;
+}
+
+const GRADE_ORDER = [
+  'إصدارات الصف التاسع',
+  'إصدارات الصف العاشر',
+  'إصدارات الصف الحادي عشر',
+  'إصدارات الصف الثاني عشر'
+];
+
 @Component({
   selector: 'app-invoices',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -56,6 +89,11 @@ export class InvoicesComponent {
   public settingsService = inject(SettingsService);
   private cdr = inject(ChangeDetectorRef);
 
+  getAcademicYearForSemester(semesterId: number): string {
+    const sem = this.settingsService.allSemesters().find(s => s.id === semesterId);
+    return sem?.academicYearName || '';
+  }
+
   onAddInventoryBook() {
     this.addInventoryBook.emit();
   }
@@ -65,6 +103,17 @@ export class InvoicesComponent {
     return { 
       name: lib?.responsibleName || lib?.ownerName || '', 
       phone: lib?.responsiblePhone || lib?.ownerPhone || '' 
+    };
+  }
+
+  getLibraryFullDetails(libraryId: number): { ownerName: string; ownerPhone: string; responsibleName: string; responsiblePhone: string; landlinePhone: string } {
+    const lib = this.librariesData().find(l => l.id === libraryId);
+    return {
+      ownerName: lib?.ownerName || '',
+      ownerPhone: lib?.ownerPhone || '',
+      responsibleName: lib?.responsibleName || '',
+      responsiblePhone: lib?.responsiblePhone || '',
+      landlinePhone: lib?.landlinePhone || ''
     };
   }
 
@@ -82,7 +131,154 @@ export class InvoicesComponent {
       if (!groupsMap.has(grade)) groupsMap.set(grade, []);
       groupsMap.get(grade)!.push({ ...item, globalIndex: index + 1 });
     });
-    return Array.from(groupsMap.entries()).map(([grade, items]) => ({ grade, items }));
+    return Array.from(groupsMap.entries())
+      .sort((a, b) => {
+        const idxA = GRADE_ORDER.indexOf(a[0]);
+        const idxB = GRADE_ORDER.indexOf(b[0]);
+        return (idxA === -1 ? 999 : idxA) - (idxB === -1 ? 999 : idxB);
+      })
+      .map(([grade, items]) => ({ grade, items }));
+  }
+
+  /** Returns print groups with ALL books in the semester, not just ordered ones */
+  getOrderPrintGroupsWithAllBooks(invoice: any | null): { grade: string, items: AllBooksPrintItem[] }[] {
+    if (!invoice) return [];
+    const semId = invoice.semesterId;
+    const allBooks = this.draftItems().filter(i => i.semesterId === semId);
+    const invoiceItemMap = new Map<number, any>();
+    (invoice.items || []).forEach((item: any) => invoiceItemMap.set(item.bookId, item));
+
+    const gradeMap = new Map<string, AllBooksPrintItem[]>();
+    let index = 1;
+
+    // First add all books from inventory
+    for (const book of allBooks) {
+      const grade = book.grade || 'أخرى';
+      if (!gradeMap.has(grade)) gradeMap.set(grade, []);
+      const invoiceItem = invoiceItemMap.get(book.bookId);
+      gradeMap.get(grade)!.push({
+        globalIndex: index++,
+        bookId: book.bookId,
+        bookName: book.name,
+        bookGrade: book.grade,
+        quantity: invoiceItem ? invoiceItem.quantity : 0,
+        unitPrice: invoiceItem ? invoiceItem.unitPrice : book.price,
+        total: invoiceItem ? invoiceItem.total : 0,
+        isOrdered: !!invoiceItem
+      });
+      invoiceItemMap.delete(book.bookId);
+    }
+
+    // Add any invoice items not in inventory (edge case)
+    for (const [bookId, item] of invoiceItemMap) {
+      const grade = item.bookGrade || 'أخرى';
+      if (!gradeMap.has(grade)) gradeMap.set(grade, []);
+      gradeMap.get(grade)!.push({
+        globalIndex: index++,
+        bookId: item.bookId,
+        bookName: item.bookName,
+        bookGrade: item.bookGrade,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        total: item.total,
+        isOrdered: true
+      });
+    }
+
+    return Array.from(gradeMap.entries())
+      .sort((a, b) => {
+        const idxA = GRADE_ORDER.indexOf(a[0]);
+        const idxB = GRADE_ORDER.indexOf(b[0]);
+        return (idxA === -1 ? 999 : idxA) - (idxB === -1 ? 999 : idxB);
+      })
+      .map(([grade, items]) => ({ grade, items }));
+  }
+
+  /** Compute refund settlement: total sent, returned, sold, amount due per book */
+  computeRefundSettlement(refundInvoice: any | null): RefundSettlementGroup[] {
+    if (!refundInvoice) return [];
+    const libraryId = refundInvoice.libraryId;
+    const semId = refundInvoice.semesterId;
+
+    // Get all orders for this library+semester
+    const orders = this.invoicesList().filter((i: any) =>
+      i.libraryId === libraryId && i.semesterId === semId && i.type === 'order'
+    );
+
+    // Get all refunds for this library+semester
+    const refunds = this.invoicesList().filter((i: any) =>
+      i.libraryId === libraryId && i.semesterId === semId && i.type === 'refund'
+    );
+
+    // Build per-book totals
+    const bookMap = new Map<number, { name: string; grade: string; totalSent: number; totalReturned: number; unitPrice: number }>();
+
+    for (const order of orders) {
+      for (const item of (order as any).items || []) {
+        const existing = bookMap.get(item.bookId) || { name: item.bookName, grade: item.bookGrade, totalSent: 0, totalReturned: 0, unitPrice: item.unitPrice };
+        existing.totalSent += item.quantity;
+        if (item.unitPrice > 0) existing.unitPrice = item.unitPrice;
+        bookMap.set(item.bookId, existing);
+      }
+    }
+
+    for (const refund of refunds) {
+      for (const item of (refund as any).items || []) {
+        const existing = bookMap.get(item.bookId);
+        if (existing) {
+          existing.totalReturned += item.quantity;
+        }
+      }
+    }
+
+    // Also add all books from inventory for completeness
+    const allBooks = this.draftItems().filter(i => i.semesterId === semId);
+    for (const book of allBooks) {
+      if (!bookMap.has(book.bookId)) {
+        bookMap.set(book.bookId, { name: book.name, grade: book.grade, totalSent: 0, totalReturned: 0, unitPrice: book.price });
+      }
+    }
+
+    // Build settlement items grouped by grade
+    const gradeMap = new Map<string, RefundSettlementItem[]>();
+    for (const [, data] of bookMap) {
+      const grade = data.grade || 'أخرى';
+      if (!gradeMap.has(grade)) gradeMap.set(grade, []);
+      const sold = Math.max(data.totalSent - data.totalReturned, 0);
+      gradeMap.get(grade)!.push({
+        bookName: data.name,
+        bookGrade: data.grade,
+        totalSent: data.totalSent,
+        totalReturned: data.totalReturned,
+        totalSold: sold,
+        unitPrice: data.unitPrice,
+        amountDue: sold * data.unitPrice
+      });
+    }
+
+    return Array.from(gradeMap.entries())
+      .sort((a, b) => {
+        const idxA = GRADE_ORDER.indexOf(a[0]);
+        const idxB = GRADE_ORDER.indexOf(b[0]);
+        return (idxA === -1 ? 999 : idxA) - (idxB === -1 ? 999 : idxB);
+      })
+      .map(([grade, items]) => ({ grade, items }));
+  }
+
+  /** Get total settlement amount */
+  getSettlementTotal(groups: RefundSettlementGroup[]): number {
+    return groups.reduce((sum, g) => sum + g.items.reduce((s, i) => s + i.amountDue, 0), 0);
+  }
+
+  /** Get total returned books */
+  getSettlementTotalReturned(groups: RefundSettlementGroup[]): number {
+    return groups.reduce((sum, g) => sum + g.items.reduce((s, i) => s + i.totalReturned, 0), 0);
+  }
+
+  /** Get total sent books for an order invoice */
+  getTotalBooksCount(invoice: any | null): number {
+    if (!invoice?.items) return 0;
+    return invoice.items.reduce((sum: number, item: any) => sum + (item.quantity || 0), 0);
   }
 
   getTypeColor(type: string): string {
@@ -366,6 +562,10 @@ export class InvoicesComponent {
     return item.bookId;
   }
 
+  trackByGrade(index: number, item: any): string {
+    return item.grade;
+  }
+
   draftItemsGrouped = computed(() => {
     let items = this.draftItems();
     
@@ -589,7 +789,7 @@ export class InvoicesComponent {
       takeUntilDestroyed(this.destroyRef)
     ).subscribe({
       next: () => {
-        this.activityService.logActivity('حذف فاتورة', `تم حذف ${invoice.type === 'order' ? 'فاتورة بيع' : invoice.type === 'refund' ? 'مرتجع' : 'سند قبض'} رقم ${invoice.displayNumber}`, 'DELETE', { entity: 'invoice', id: invoice.id, previous: invoice, current: invoice as any });
+        this.activityService.logActivity('حذف فاتورة', `تم حذف ${invoice.type === 'order' ? 'فاتورة بيع' : invoice.type === 'refund' ? 'مرتجع' : 'سند قبض'} رقم ${invoice.displayNumber}`, 'DELETE', { entity: invoice.type === 'receipt_voucher' ? 'receipt_voucher' : 'invoice', id: invoice.id, previous: invoice, current: invoice as any });
         this.toast.show('تم الحذف بنجاح', 'success');
         if (invoice.type !== 'receipt_voucher') {
           this.inventoryService.fetchBooks();

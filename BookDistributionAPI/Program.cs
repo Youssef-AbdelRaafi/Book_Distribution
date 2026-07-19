@@ -144,6 +144,7 @@ var uploadsRoot = builder.Configuration["App:UploadsPath"]
     ?? Environment.GetEnvironmentVariable("APP_UPLOADS_DIR")
     ?? Path.Combine(dataRoot, "uploads");
 Directory.CreateDirectory(uploadsRoot);
+app.UseStaticFiles();
 app.UseStaticFiles(new StaticFileOptions
 {
     FileProvider = new PhysicalFileProvider(uploadsRoot),
@@ -155,8 +156,7 @@ app.UseStaticFiles(new StaticFileOptions
     }
 });
 
-if (app.Environment.IsDevelopment())
-    app.UseCors("AllowAngularDev");
+app.UseCors("AllowAngularDev");
 
 app.UseAuthentication();
 app.UseAuthorization();

@@ -76,28 +76,6 @@ export class SinglePageComponent {
     this.activityService.redoActivity(id);
   }
 
-  canUndoLatest = computed(() => {
-    return !!this.activities().find(a => a.status !== 'undone' && a.type && a.payload?.entity !== 'invoice' && a.payload?.entity !== 'receipt_voucher');
-  });
-
-  canRedoLatest = computed(() => {
-    return !!this.activities().find(a => a.status === 'undone' && a.type && a.payload?.entity !== 'invoice' && a.payload?.entity !== 'receipt_voucher');
-  });
-
-  undoLatest() {
-    const act = this.activities().find(a => a.status !== 'undone' && a.type && a.payload?.entity !== 'invoice' && a.payload?.entity !== 'receipt_voucher');
-    if (act) {
-      this.undoActivity(act.id);
-    }
-  }
-
-  redoLatest() {
-    const act = this.activities().find(a => a.status === 'undone' && a.type && a.payload?.entity !== 'invoice' && a.payload?.entity !== 'receipt_voucher');
-    if (act) {
-      this.redoActivity(act.id);
-    }
-  }
-
   getActivityDetails(act: any): string {
     const payload = act?.payload;
     if (!payload || !payload.current) return act.details || '';

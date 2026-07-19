@@ -35,11 +35,23 @@ public class BooksController : ControllerBase
             query = query.Where(b => activeSemesterIds.Contains(b.SemesterId));
 
         var totalCount = await query.CountAsync(cancellationToken);
+
+        var gradeOrder = new Dictionary<string, int>
+        {
+            ["إصدارات الصف التاسع"] = 1,
+            ["إصدارات الصف العاشر"] = 2,
+            ["إصدارات الصف الحادي عشر"] = 3,
+            ["إصدارات الصف الثاني عشر"] = 4,
+        };
+
+        var subjectOrder = new Dictionary<string, int>
+        {
+            ["فيزياء"] = 1,
+            ["كيمياء"] = 2,
+            ["علوم بيئية"] = 3,
+        };
+
         var books = await query
-            .OrderBy(b => b.Grade)
-            .ThenBy(b => b.Name)
-            .Skip(skip)
-            .Take(take)
             .Select(b => new BookDto
             {
                 Id = b.Id,
@@ -51,6 +63,13 @@ public class BooksController : ControllerBase
                 StockQuantity = b.StockQuantity
             })
             .ToListAsync(cancellationToken);
+
+        books = books
+            .OrderBy(b => gradeOrder.GetValueOrDefault(b.Grade, 99))
+            .ThenBy(b => subjectOrder.GetValueOrDefault(b.Subject, 99))
+            .Skip(skip)
+            .Take(take)
+            .ToList();
 
         Response.Headers["X-Total-Count"] = totalCount.ToString();
         return Ok(ApiResponse<object>.Ok(books));
@@ -250,6 +269,27 @@ public class BooksController : ControllerBase
         book.IsActive = false;
         await _db.SaveChangesAsync(cancellationToken);
         return Ok(ApiResponse<object>.Ok(true, "تم حذف الكتاب"));
+    }
+
+    [HttpPost("{id}/restore")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> Restore(int id, CancellationToken cancellationToken)
+    {
+        var book = await _db.Books.IgnoreQueryFilters().FirstOrDefaultAsync(b => b.Id == id, cancellationToken);
+        if (book == null)
+            return NotFound(ApiResponse<object>.Fail("الكتاب غير موجود"));
+
+        if (book.IsActive)
+            return Conflict(ApiResponse<object>.Fail("الكتاب نشط بالفعل"));
+
+        book.IsActive = true;
+        await _db.SaveChangesAsync(cancellationToken);
+        return Ok(ApiResponse<object>.Ok(new BookDto
+        {
+            Id = book.Id, Name = book.Name, Grade = book.Grade,
+            Subject = book.Subject, SemesterId = book.SemesterId,
+            Price = book.Price, StockQuantity = book.StockQuantity
+        }, "تم استعادة الكتاب بنجاح"));
     }
 
     [HttpPost("reset-stock")]

@@ -170,56 +170,7 @@ public class InvoicesController : ControllerBase
         }
     }
 
-    [HttpPost("clearance")]
-    [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> CreateClearance([FromBody] CreateClearanceDto dto, CancellationToken cancellationToken)
-    {
-        try
-        {
-            var invoice = await _invoiceService.CreateClearanceAsync(dto, cancellationToken);
 
-            var loaded = await InvoiceQuery()
-                .FirstOrDefaultAsync(i => i.Id == invoice.Id, cancellationToken);
-
-            if (loaded == null)
-                return NotFound(ApiResponse<object>.Fail("الفاتورة غير موجودة"));
-
-            return Ok(ApiResponse<object>.Ok(InvoiceBusinessService.ToDto(loaded), "تم إنشاء فاتورة المخالصة بنجاح"));
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(ApiResponse<object>.Fail(ex.Message));
-        }
-    }
-
-    [HttpPost("clearance/batch")]
-    [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> CreateBatchClearances([FromBody] CreateBatchClearanceDto dto, CancellationToken cancellationToken)
-    {
-        try
-        {
-            var result = await _invoiceService.CreateBatchClearancesAsync(dto.SemesterId, cancellationToken);
-            return Ok(ApiResponse<object>.Ok(result, $"تم إنشاء {result.Count} مخالصة بنجاح"));
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(ApiResponse<object>.Fail(ex.Message));
-        }
-    }
-
-    [HttpGet("clearance/preview-all")]
-    public async Task<IActionResult> GetClearancePreviewAll([FromQuery] int semesterId, CancellationToken cancellationToken)
-    {
-        try
-        {
-            var previews = await _invoiceService.GetClearancePreviewAllAsync(semesterId, cancellationToken);
-            return Ok(ApiResponse<object>.Ok(previews));
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(ApiResponse<object>.Fail(ex.Message));
-        }
-    }
 
     [HttpGet("clearance/preview")]
     public async Task<IActionResult> GetClearancePreview(

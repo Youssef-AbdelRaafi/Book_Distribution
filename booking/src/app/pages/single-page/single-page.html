@@ -6,14 +6,8 @@
       <p class="text-sm text-on-surface-variant mt-1">النظام المتكامل لإدارة الكتب، الطلبيات، وبيانات المكتبات والمناطق الجغرافية في مكان واحد.</p>
     </div>
     <div class="flex flex-wrap gap-space-sm w-full md:w-auto">
-      <button type="button" (click)="undoLatest()" [disabled]="!canUndoLatest()" [ngClass]="{'opacity-50 cursor-not-allowed': !canUndoLatest()}" class="flex-1 md:flex-none flex items-center justify-center gap-2 bg-surface-primary border border-outline-variant text-on-surface px-4 py-2 rounded-lg text-sm font-medium hover:bg-surface-container transition-colors shadow-sm disabled:hover:bg-surface-primary" title="تراجع عن آخر إجراء">
-        <span class="material-symbols-outlined text-[20px]">undo</span> تراجع
-      </button>
       <button type="button" (click)="openHistory()" class="flex-1 md:flex-none flex items-center justify-center gap-2 bg-surface-primary border border-outline-variant text-on-surface px-4 py-2 rounded-lg text-sm font-medium hover:bg-surface-container transition-colors shadow-sm">
         <span class="material-symbols-outlined text-[20px]">history</span> سجل الأحداث
-      </button>
-      <button type="button" (click)="redoLatest()" [disabled]="!canRedoLatest()" [ngClass]="{'opacity-50 cursor-not-allowed': !canRedoLatest()}" class="flex-1 md:flex-none flex items-center justify-center gap-2 bg-surface-primary border border-outline-variant text-on-surface px-4 py-2 rounded-lg text-sm font-medium hover:bg-surface-container transition-colors shadow-sm disabled:hover:bg-surface-primary" title="إعادة آخر إجراء تم التراجع عنه">
-        <span class="material-symbols-outlined text-[20px]">redo</span> إعادة
       </button>
     </div>
   </div>

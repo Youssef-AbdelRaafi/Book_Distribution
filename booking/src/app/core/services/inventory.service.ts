@@ -84,6 +84,10 @@ export class InventoryService {
     );
   }
 
+  restoreBook(id: number): Observable<ApiResponse<Book>> {
+    return this.http.post<ApiResponse<Book>>(`${this.apiUrl}/${id}/restore`, {});
+  }
+
   // Backward compat methods
   addInventoryItem(item: Partial<Book>) {
     this.addBook(item).subscribe({ error: () => this.toast.show('تعذر إضافة العنصر', 'error') });
@@ -100,7 +104,24 @@ export class InventoryService {
     if (activity.type === 'ADD' && payload.id) {
       return this.deleteBook(payload.id).pipe(map(() => undefined));
     } else if (activity.type === 'DELETE' && payload) {
-      return this.addBook(payload as unknown as Book).pipe(map(() => undefined));
+      if (payload.id) {
+        return this.restoreBook(payload.id).pipe(
+          tap(() => this.fetchBooks()),
+          map(() => undefined)
+        );
+      }
+      if (payload['name']) {
+        const book: Partial<Book> = {
+          name: payload['name'] as string,
+          grade: payload['grade'] as string,
+          subject: payload['subject'] as string,
+          semesterId: payload['semesterId'] as number,
+          price: payload['price'] as number,
+          stockQuantity: payload['stockQuantity'] as number
+        };
+        return this.addBook(book).pipe(map(() => undefined));
+      }
+      return throwError(() => new Error('لا يمكن التراجع عن هذا النشاط'));
     } else if (activity.type === 'UPDATE' && payload?.id && payload?.previous) {
       return this.updateBook(payload.id, payload.previous as unknown as Partial<Book>).pipe(map(() => undefined));
     }
@@ -110,7 +131,16 @@ export class InventoryService {
     const payload = activity?.payload;
     if (!payload) return throwError(() => new Error('لا يمكن إعادة هذا النشاط'));
     if (activity.type === 'ADD' && payload) {
-      return this.addBook(payload as unknown as Book).pipe(map(() => undefined));
+      const data = (payload['data'] as any) || payload;
+      const book: Partial<Book> = {
+        name: data['name'] as string,
+        grade: data['grade'] as string,
+        subject: data['subject'] as string,
+        semesterId: data['semesterId'] as number,
+        price: data['price'] as number,
+        stockQuantity: data['stockQuantity'] as number
+      };
+      return this.addBook(book).pipe(map(() => undefined));
     } else if (activity.type === 'DELETE' && payload?.id) {
       return this.deleteBook(payload.id).pipe(map(() => undefined));
     } else if (activity.type === 'UPDATE' && payload?.id && payload?.current) {

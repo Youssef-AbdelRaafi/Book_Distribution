@@ -98,17 +98,6 @@ export class InvoiceService {
     );
   }
 
-  createClearance(clearance: CreateClearanceRequest): Observable<ApiResponse<Invoice>> {
-    return this.http.post<ApiResponse<Invoice>>(`${this.apiUrl}/clearance`, clearance).pipe(
-      tap(() => this.fetchInvoices())
-    );
-  }
-
-  createBatchClearance(semesterId: number): Observable<ApiResponse<{ count: number; totalAmount: number; invoices: Invoice[] }>> {
-    return this.http.post<ApiResponse<{ count: number; totalAmount: number; invoices: Invoice[] }>>(`${this.apiUrl}/clearance/batch`, { semesterId } as CreateBatchClearanceRequest).pipe(
-      tap(() => this.fetchInvoices())
-    );
-  }
 
   getClearancePreview(semesterId: number, libraryId?: number): Observable<ApiResponse<ClearancePreview>> {
     let params = new HttpParams().set('semesterId', semesterId.toString());
@@ -116,11 +105,6 @@ export class InvoiceService {
     return this.http.get<ApiResponse<ClearancePreview>>(`${this.apiUrl}/clearance/preview`, { params });
   }
 
-  getClearancePreviewAll(semesterId: number): Observable<ApiResponse<ClearanceLibraryPreview[]>> {
-    return this.http.get<ApiResponse<ClearanceLibraryPreview[]>>(`${this.apiUrl}/clearance/preview-all`, {
-      params: new HttpParams().set('semesterId', semesterId.toString())
-    });
-  }
 
   getInvoicesByLibrary(libraryName: string): Invoice[] {
     return this.invoicesSignal().filter(inv => inv.libraryName === libraryName);
@@ -167,6 +151,7 @@ export class InvoiceService {
 
   restoreInvoice(id: number): Observable<ApiResponse<unknown>> {
     return this.http.post<ApiResponse<unknown>>(`${this.apiUrl}/${id}/restore`, {}).pipe(
+      tap(() => this.fetchInvoices()),
       catchError(err => {
         const msg = err.error?.message || 'تعذر استعادة الفاتورة';
         return throwError(() => new Error(msg));
@@ -183,7 +168,7 @@ export class InvoiceService {
     for (let i = 1; i < requests.length; i++) {
       result = result.pipe(switchMap(() => requests[i]));
     }
-    return result.pipe(tap(() => this.inventoryService.fetchBooks()));
+    return result.pipe(tap(() => { this.fetchInvoices(); this.inventoryService.fetchBooks(); }));
   }
 
   executeCompensation(activity: { type?: string; payload?: ActivityPayload }): Observable<void> {

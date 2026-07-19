@@ -62,40 +62,7 @@ public class CreateRefundDto
     public List<CreateInvoiceItemDto> Items { get; set; } = new();
 }
 
-public class CreateClearanceDto
-{
-    [Range(1, int.MaxValue)]
-    public int LibraryId { get; set; }
 
-    [Range(1, int.MaxValue)]
-    public int SemesterId { get; set; }
-}
-
-public class CreateBatchClearanceDto
-{
-    [Range(1, int.MaxValue)]
-    public int SemesterId { get; set; }
-}
-
-public class ClearanceBatchResultDto
-{
-    public int Count { get; set; }
-    public decimal TotalAmount { get; set; }
-    public List<InvoiceDto> Invoices { get; set; } = new();
-}
-
-public class ClearanceLibraryPreviewDto
-{
-    public int LibraryId { get; set; }
-    public string LibraryName { get; set; } = string.Empty;
-    public string GovernorateName { get; set; } = string.Empty;
-    public string CityName { get; set; } = string.Empty;
-    public decimal TotalAmount { get; set; }
-    public decimal PaidAmount { get; set; }
-    public decimal NetAmount { get; set; }
-    public string? ResponsibleName { get; set; }
-    public string? ResponsiblePhone { get; set; }
-}
 
 public class ClearancePreviewDto
 {
