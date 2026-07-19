@@ -9,18 +9,18 @@
     </div>
     
     <div class="flex items-center gap-3 bg-surface-container-low p-1.5 rounded-lg border border-outline-variant">
-      <span class="text-sm font-medium text-on-surface-variant px-2">الترم النشط:</span>
+      <span class="text-sm font-medium text-on-surface-variant px-2">الفصل النشط:</span>
       <select [ngModel]="settingsService.getActiveTermCode()" (ngModelChange)="onTermCodeChange($event)" class="bg-surface-primary border-none rounded py-1 px-3 text-sm font-bold text-primary focus:outline-none cursor-pointer">
-        <option value="A">الترم الأول</option>
-        <option value="B">الترم الثاني</option>
+        <option value="A">الفصل الأول</option>
+        <option value="B">الفصل الثاني</option>
       </select>
     </div>
     <div class="flex items-center gap-3 bg-surface-container-low p-1.5 rounded-lg border border-outline-variant">
       <span class="text-sm font-medium text-on-surface-variant px-2">فلتر التحليل:</span>
       <select [(ngModel)]="filterTermCode" name="filter-term" class="bg-surface-primary border-none rounded py-1 px-3 text-sm font-bold text-primary focus:outline-none cursor-pointer">
-        <option value="">كل الترمين</option>
-        <option value="A">الترم الأول</option>
-        <option value="B">الترم الثاني</option>
+        <option value="">كل الفصلين</option>
+        <option value="A">الفصل الأول</option>
+        <option value="B">الفصل الثاني</option>
       </select>
     </div>
   </div>
@@ -102,7 +102,7 @@
           <div class="bg-surface-container-lowest rounded-xl p-space-md border border-outline-variant/30">
             <h4 class="text-sm font-semibold text-on-surface-variant mb-4 flex items-center gap-2">
               <span class="material-symbols-outlined text-primary text-[18px]">trending_up</span>
-              متى نبيع أكثر؟ (المبيعات النقدية حسب الترم)
+              متى نبيع أكثر؟ (المبيعات النقدية حسب الفصل)
             </h4>
             
             <div *ngIf="!chartData().hasData" class="text-center py-8 text-on-surface-variant text-sm border-2 border-dashed border-surface-container-high rounded-lg">
@@ -161,12 +161,12 @@
                 </div>
                 
                 <div *ngFor="let lib of pendingBalances(); trackBy: trackById; let i = index" class="flex items-center justify-between group">
-                  <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs bg-error/10 text-error">
+                  <div class="flex items-center gap-3 min-w-0">
+                    <div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs bg-error/10 text-error shrink-0">
                       #{{ i + 1 }}
                     </div>
-                    <div>
-                      <p class="text-sm font-medium text-text-heading group-hover:text-error transition-colors truncate max-w-[100px]">{{ lib.name }}</p>
+                    <div class="min-w-0">
+                      <p class="text-sm font-medium text-text-heading group-hover:text-error transition-colors truncate">{{ lib.name }}</p>
                     </div>
                   </div>
                   <div class="text-left">
@@ -190,12 +190,12 @@
                 </div>
 
                 <div *ngFor="let stock of criticalStock(); trackBy: trackById" class="flex items-center justify-between group">
-                  <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-warning/10 text-warning">
+                  <div class="flex items-center gap-3 min-w-0">
+                    <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-warning/10 text-warning shrink-0">
                       <span class="material-symbols-outlined text-[16px]">print</span>
                     </div>
-                    <div>
-                      <p class="text-sm font-medium text-text-heading group-hover:text-warning transition-colors truncate max-w-[100px]">{{ stock.name }}</p>
+                    <div class="min-w-0">
+                      <p class="text-sm font-medium text-text-heading group-hover:text-warning transition-colors truncate">{{ stock.name }}</p>
                       <p class="text-[10px] text-warning font-medium">متبقي: {{ stock.remaining }} فقط</p>
                     </div>
                   </div>
@@ -220,12 +220,12 @@
                 </div>
 
                 <div *ngFor="let book of mostRefunded(); trackBy: trackById" class="flex items-center justify-between group">
-                  <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-info/10 text-info">
+                  <div class="flex items-center gap-3 min-w-0">
+                    <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-info/10 text-info shrink-0">
                       <span class="material-symbols-outlined text-[16px]">remove_shopping_cart</span>
                     </div>
-                    <div>
-                      <p class="text-sm font-medium text-text-heading group-hover:text-info transition-colors truncate max-w-[120px]">{{ book.name }}</p>
+                    <div class="min-w-0">
+                      <p class="text-sm font-medium text-text-heading group-hover:text-info transition-colors truncate">{{ book.name }}</p>
                     </div>
                   </div>
                   <div class="text-left">
@@ -286,7 +286,7 @@
                   <thead class="bg-surface-container-low text-on-surface-variant text-xs">
                     <tr>
                       <th class="px-4 py-3 font-medium">السنة</th>
-                      <th class="px-4 py-3 font-medium">الترم</th>
+                      <th class="px-4 py-3 font-medium">الفصل</th>
                       <th class="px-4 py-3 font-medium">المكتبة الأكثر مبيعا</th>
                       <th class="px-4 py-3 font-medium text-center">عدد المكتبات</th>
                       <th class="px-4 py-3 font-medium text-center">الكتب المطلوبة</th>

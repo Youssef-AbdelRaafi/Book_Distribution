@@ -166,7 +166,7 @@
             
             <div class="grid grid-cols-3 gap-2">
               <select [(ngModel)]="filterSemesterId" name="filter-semester" class="bg-surface-primary border border-outline-variant rounded-md px-2 py-1.5 text-xs focus:border-primary outline-none">
-                <option [ngValue]="0">كل الترم</option>
+                <option [ngValue]="0">كل الفصل</option>
                 <option *ngFor="let sem of activeYearSemesters(); trackBy: trackById" [ngValue]="sem.id">{{ sem.name }}</option>
               </select>
               <select [ngModel]="filterGovernorateId()" (ngModelChange)="onFilterGovChange($event)" class="bg-surface-primary border border-outline-variant rounded-md px-2 py-1.5 text-xs focus:border-primary outline-none cursor-pointer">

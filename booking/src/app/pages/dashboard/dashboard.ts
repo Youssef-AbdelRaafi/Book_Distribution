@@ -169,6 +169,14 @@ export class DashboardComponent {
   criticalStock = computed(() => {
     const invt: Book[] = this.inventory();
     const invs: Invoice[] = this.filteredInvoices();
+    const termCode = this.filterTermCode();
+    const activeYear = this.settingsService.activeSemester()?.academicYearName;
+    const allSemesters = this.settingsService.allSemesters();
+
+    // Find the IDs of the semesters matching active year and selected term
+    const targetSemIds = allSemesters
+      .filter(s => (!activeYear || s.academicYearName === activeYear) && (!termCode || s.code === termCode))
+      .map(s => s.id);
     
     // Calculate total sold for each item to know its demand
     const demandMap = new Map<number, number>();
@@ -181,7 +189,7 @@ export class DashboardComponent {
     });
 
     return invt
-      .filter(item => (item.stockQuantity || 0) < this.CRITICAL_STOCK_THRESHOLD)
+      .filter(item => targetSemIds.includes(item.semesterId) && (item.stockQuantity || 0) < this.CRITICAL_STOCK_THRESHOLD)
       .map(item => ({
         name: item.name,
         remaining: item.stockQuantity || 0,
@@ -225,7 +233,7 @@ export class DashboardComponent {
     });
 
     const data = Array.from(termMap.entries())
-      .map(([term, revenue]) => ({ term: term === 'A' ? 'الترم الأول' : 'الترم الثاني', revenue: Math.max(revenue, 0) }))
+      .map(([term, revenue]) => ({ term: term === 'A' ? 'الفصل الأول' : 'الفصل الثاني', revenue: Math.max(revenue, 0) }))
       .sort((a, b) => b.revenue - a.revenue);
 
     const maxRevenue = data.length > 0 ? Math.max(...data.map(d => d.revenue), 1) : 1;
@@ -310,9 +318,9 @@ export class DashboardComponent {
       const yearStr = sem?.academicYearName ? sem.academicYearName.split('-')[0] : '';
       const year = yearStr ? parseInt(yearStr, 10) : new Date(inv.date || new Date()).getFullYear();
       const term = inv.termCode === 'B' || inv.semesterName === 'الفصل الثاني'
-        ? 'الترم الثاني'
+        ? 'الفصل الثاني'
         : inv.termCode === 'A' || inv.semesterName === 'الفصل الأول'
-          ? 'الترم الأول'
+          ? 'الفصل الأول'
           : (inv.semesterName || 'غير محدد');
       const key = `${year}-${term}`;
         

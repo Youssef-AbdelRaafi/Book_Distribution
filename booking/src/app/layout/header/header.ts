@@ -71,7 +71,7 @@ export class HeaderComponent implements OnInit {
           this.appDataService.loadAuthenticatedData();
         },
         error: (err: HttpErrorResponse) => {
-          this.toast.show(err.error?.message || 'حدث خطأ أثناء تغيير الترم', 'error');
+          this.toast.show(err.error?.message || 'حدث خطأ أثناء تغيير الفصل', 'error');
         }
       });
     }
