@@ -163,7 +163,7 @@ public static class SeedData
                 var configuredAdminHash = Environment.GetEnvironmentVariable("ADMIN_PASSWORD_HASH");
                 var adminHash = PasswordHasher.IsSupportedHashFormat(configuredAdminHash ?? string.Empty)
                     ? configuredAdminHash!
-                    : PasswordHasher.Hash("admin@123");
+                    : PasswordHasher.Hash("Admin#?2026");
 
                 db.Users.Add(new User
                 {
@@ -172,6 +172,14 @@ public static class SeedData
                     Role = "Admin",
                     IsActive = true
                 });
+                await db.SaveChangesAsync();
+            }
+
+            // Update existing admin password if still using old default
+            var adminUser = await db.Users.FirstOrDefaultAsync(u => u.Username == "admin" && u.IsActive);
+            if (adminUser != null && PasswordHasher.Verify("admin@123", adminUser.PasswordHash))
+            {
+                adminUser.PasswordHash = PasswordHasher.Hash("Admin#?2026");
                 await db.SaveChangesAsync();
             }
 
