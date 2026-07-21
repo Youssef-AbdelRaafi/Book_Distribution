@@ -18,5 +18,6 @@ public class ReceiptVoucher
     public string Purpose { get; set; } = string.Empty;
     public DateTime Date { get; set; } = DateTime.UtcNow;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public int TenantId { get; set; } = 1;
     public bool IsActive { get; set; } = true;
 }

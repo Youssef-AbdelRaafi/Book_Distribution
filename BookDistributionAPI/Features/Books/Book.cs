@@ -10,6 +10,7 @@ public class Book
     public Semesters.Semester Semester { get; set; } = null!;
     public decimal Price { get; set; }
     public int StockQuantity { get; set; }
+    public int TenantId { get; set; } = 1;
     public bool IsActive { get; set; } = true;
     public ICollection<LibraryBook> LibraryBooks { get; set; } = new List<LibraryBook>();
 }

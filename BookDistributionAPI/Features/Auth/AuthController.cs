@@ -46,11 +46,14 @@ public class AuthController : ControllerBase
         {
             _rateLimiter.Reset(rateKey);
             var expiresAt = DateTime.UtcNow.AddMinutes(_authOptions.TokenMinutes);
+            var isGuest = user.TenantId == 2 || user.Role == "Guest";
             var response = new LoginResponse
             {
                 Success = true,
-                Token = CreateToken(user.Username, user.Role, expiresAt),
+                Token = CreateToken(user.Username, user.Role, user.TenantId, expiresAt),
                 ExpiresAt = expiresAt,
+                TenantId = user.TenantId,
+                IsGuest = isGuest,
                 Message = "تم تسجيل الدخول بنجاح"
             };
             return Ok(ApiResponse<LoginResponse>.Ok(response, "تم تسجيل الدخول بنجاح"));
@@ -97,20 +100,57 @@ public class AuthController : ControllerBase
         return Ok(ApiResponse<object>.Ok(new { }, "تم تغيير كلمة المرور بنجاح"));
     }
 
+    [HttpPost("reset-guest")]
+    [Authorize]
+    public async Task<IActionResult> ResetGuestData(CancellationToken cancellationToken)
+    {
+        var tenantClaim = User.FindFirst("TenantId")?.Value;
+        var roleClaim = User.FindFirst(ClaimTypes.Role)?.Value;
+        if (tenantClaim != "2" && roleClaim != "Guest" && roleClaim != "Admin")
+        {
+            return BadRequest(ApiResponse<object>.Fail("عملية إعادة الضبط مخصصة لحساب الزوار فقط"));
+        }
+
+        const int guestTenantId = 2;
+
+        var invoices = await _db.Invoices.IgnoreQueryFilters().Where(i => i.TenantId == guestTenantId).ToListAsync(cancellationToken);
+        _db.Invoices.RemoveRange(invoices);
+
+        var vouchers = await _db.ReceiptVouchers.IgnoreQueryFilters().Where(rv => rv.TenantId == guestTenantId).ToListAsync(cancellationToken);
+        _db.ReceiptVouchers.RemoveRange(vouchers);
+
+        var libraries = await _db.Libraries.IgnoreQueryFilters().Where(l => l.TenantId == guestTenantId).ToListAsync(cancellationToken);
+        _db.Libraries.RemoveRange(libraries);
+
+        var books = await _db.Books.IgnoreQueryFilters().Where(b => b.TenantId == guestTenantId).ToListAsync(cancellationToken);
+        _db.Books.RemoveRange(books);
+
+        var settings = await _db.AppSettings.IgnoreQueryFilters().Where(s => s.TenantId == guestTenantId).ToListAsync(cancellationToken);
+        _db.AppSettings.RemoveRange(settings);
+
+        await _db.SaveChangesAsync(cancellationToken);
+
+        await SeedData.SeedGuestDemoDataAsync(_db, cancellationToken);
+
+        return Ok(ApiResponse<object>.Ok(new { }, "تمت إعادة ضبط البيانات التجريبية لحساب الزوار بنجاح"));
+    }
+
     private async Task<User?> IsValidUser(LoginRequest request, CancellationToken cancellationToken)
     {
-        var user = await _db.Users.FirstOrDefaultAsync(u => u.Username == request.Username && u.IsActive, cancellationToken);
+        var user = await _db.Users.IgnoreQueryFilters().FirstOrDefaultAsync(u => u.Username == request.Username && u.IsActive, cancellationToken);
         if (user == null) return null;
         return PasswordHasher.Verify(request.Password, user.PasswordHash) ? user : null;
     }
 
-    private string CreateToken(string username, string role, DateTime expiresAt)
+    private string CreateToken(string username, string role, int tenantId, DateTime expiresAt)
     {
         var claims = new[]
         {
             new Claim(JwtRegisteredClaimNames.Sub, username),
             new Claim(ClaimTypes.Name, username),
-            new Claim(ClaimTypes.Role, role)
+            new Claim(ClaimTypes.Role, role),
+            new Claim("TenantId", tenantId.ToString()),
+            new Claim("IsGuest", (tenantId == 2 || role == "Guest").ToString().ToLower())
         };
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_authOptions.JwtSigningKey));

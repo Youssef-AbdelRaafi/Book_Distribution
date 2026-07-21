@@ -21,6 +21,7 @@ public class Library
     public string? ResponseRating { get; set; }
     public string? PaymentRating { get; set; } 
     public string? Notes { get; set; }
+    public int TenantId { get; set; } = 1;
     public bool IsActive { get; set; } = true;
 
     public ICollection<Books.LibraryBook> LibraryBooks { get; set; } = new List<Books.LibraryBook>();

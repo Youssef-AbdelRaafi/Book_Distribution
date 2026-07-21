@@ -18,6 +18,19 @@
         <option value="B">الفصل الثاني</option>
       </select>
     </div>
+
+    <!-- Account Type Badge -->
+    <div *ngIf="authService.isGuestAccount()" class="flex items-center gap-2 bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 px-3 py-1 rounded-lg text-xs font-bold">
+      <span class="material-symbols-outlined text-[16px]">person_outline</span>
+      <span>حساب الزوار (بيئة تجريبية)</span>
+      <button type="button" (click)="onResetGuestData()" class="mr-2 text-[11px] bg-amber-600 text-white px-2 py-0.5 rounded hover:bg-amber-700 transition-colors shadow-sm" title="إعادة ضبط بيانات الزائر التجريبية">
+        إعادة ضبط البيانات
+      </button>
+    </div>
+    <div *ngIf="!authService.isGuestAccount()" class="hidden lg:flex items-center gap-1.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 px-2.5 py-1 rounded-lg text-xs font-bold">
+      <span class="material-symbols-outlined text-[16px]">verified_user</span>
+      <span>الحساب الأساسي</span>
+    </div>
   </div>
   <div class="flex items-center gap-space-md text-on-surface-variant">
     <button type="button" (click)="openActivityLog()" class="p-2 rounded-full hover:bg-surface-container transition-colors active:scale-95 duration-150 relative" title="سجل الأحداث">

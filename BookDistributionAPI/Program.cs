@@ -4,6 +4,7 @@ using BookDistributionAPI.Common;
 using BookDistributionAPI.Features.Auth;
 using BookDistributionAPI.Features.Invoices;
 using BookDistributionAPI.Features.ReceiptVouchers;
+using BookDistributionAPI.Common.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Authorization;
@@ -67,6 +68,9 @@ builder.Services.AddCors(options =>
 });
 
 builder.Services.AddAuthorization();
+
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ICurrentTenantService, CurrentTenantService>();
 builder.Services.AddScoped<InvoiceBusinessService>();
 builder.Services.AddScoped<ReceiptVoucherBusinessService>();
 builder.Services.AddScoped<IAcademicYearHelper, AcademicYearHelper>();
@@ -107,6 +111,8 @@ using (var scope = app.Services.CreateScope())
 
     if (!await db.AcademicYears.AnyAsync())
         await SeedData.InitializeAsync(db, scope.ServiceProvider.GetRequiredService<ILogger<Program>>());
+
+    await SeedData.SeedGuestDemoDataAsync(db);
 }
 
 app.UseMiddleware<ApiExceptionMiddleware>();

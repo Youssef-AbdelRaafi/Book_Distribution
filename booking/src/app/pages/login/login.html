@@ -45,6 +45,19 @@
         <span [class.hidden]="loading()">تسجيل الدخول</span>
         <span class="material-symbols-outlined text-[20px] group-hover:-translate-x-1 transition-transform" [class.hidden]="loading()">arrow_left_alt</span>
       </button>
+
+      <div class="relative flex py-2 items-center">
+        <div class="flex-grow border-t border-surface-container-high"></div>
+        <span class="flex-shrink mx-4 text-xs text-on-surface-variant">أو</span>
+        <div class="flex-grow border-t border-surface-container-high"></div>
+      </div>
+
+      <!-- Guest Login Button -->
+      <button type="button" (click)="loginAsGuest()" [disabled]="loading()"
+              class="w-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 font-bold py-3 px-4 rounded-xl hover:bg-amber-500/20 transition-all flex items-center justify-center gap-2">
+        <span class="material-symbols-outlined text-[20px]">person_outline</span>
+        <span>الدخول بحساب الزوار (بيئة تجريبية)</span>
+      </button>
     </form>
     
   </div>

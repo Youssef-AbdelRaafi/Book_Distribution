@@ -40,4 +40,10 @@ export class LoginComponent {
       }
     });
   }
+
+  loginAsGuest() {
+    this.username = 'guest';
+    this.password = 'guest99999';
+    this.onSubmit();
+  }
 }

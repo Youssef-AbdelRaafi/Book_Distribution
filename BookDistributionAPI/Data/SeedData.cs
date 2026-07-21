@@ -158,7 +158,8 @@ public static class SeedData
                 await db.SaveChangesAsync();
             }
 
-            if (!await db.Users.AnyAsync())
+            var existingUsers = await db.Users.IgnoreQueryFilters().ToListAsync(cancellationToken);
+            if (!existingUsers.Any(u => u.Username == "admin"))
             {
                 var configuredAdminHash = Environment.GetEnvironmentVariable("ADMIN_PASSWORD_HASH");
                 var adminHash = PasswordHasher.IsSupportedHashFormat(configuredAdminHash ?? string.Empty)
@@ -170,10 +171,24 @@ public static class SeedData
                     Username = "admin",
                     PasswordHash = adminHash,
                     Role = "Admin",
+                    TenantId = 1,
                     IsActive = true
                 });
-                await db.SaveChangesAsync();
             }
+
+            if (!existingUsers.Any(u => u.Username == "guest"))
+            {
+                db.Users.Add(new User
+                {
+                    Username = "guest",
+                    PasswordHash = PasswordHasher.Hash("guest99999"),
+                    Role = "Guest",
+                    TenantId = 2,
+                    IsActive = true
+                });
+            }
+
+            await db.SaveChangesAsync(cancellationToken);
 
             if (!await db.Libraries.AnyAsync())
             {
@@ -266,5 +281,58 @@ public static class SeedData
             logger.LogError(ex, "Seed failed: {Message}", ex.Message);
             throw;
         }
+    }
+
+    public static async Task SeedGuestDemoDataAsync(AppDbContext db, CancellationToken cancellationToken = default)
+    {
+        var activeYear = await db.AcademicYears.FirstOrDefaultAsync(y => y.IsActive, cancellationToken);
+        if (activeYear == null) return;
+
+        var activeSem1 = await db.Semesters.FirstOrDefaultAsync(s => s.Name == "الفصل الأول" && s.AcademicYearId == activeYear.Id, cancellationToken);
+        if (activeSem1 == null) return;
+
+        const int guestTenantId = 2;
+
+        if (!await db.AppSettings.IgnoreQueryFilters().AnyAsync(s => s.TenantId == guestTenantId, cancellationToken))
+        {
+            db.AppSettings.AddRange(new[]
+            {
+                new AppSetting { Key = "brandName", Value = "سلسلة تدريبات كامبريدج - حساب الزوار (تجريبي)", TenantId = guestTenantId },
+                new AppSetting { Key = "phones", Value = "هاتف الزوار التجريبي: 90000000", TenantId = guestTenantId },
+                new AppSetting { Key = "mainCurrency", Value = "R.O.", TenantId = guestTenantId },
+                new AppSetting { Key = "subCurrency", Value = "Bz", TenantId = guestTenantId },
+                new AppSetting { Key = "ownerSignatureName", Value = "مستخدم زائر (تجريبي)", TenantId = guestTenantId },
+                new AppSetting { Key = "whatsappNumber", Value = "90000000", TenantId = guestTenantId }
+            });
+        }
+
+        if (!await db.Books.IgnoreQueryFilters().AnyAsync(b => b.TenantId == guestTenantId, cancellationToken))
+        {
+            db.Books.AddRange(
+                new Book { Name = "فيزياء الصف التاسع (تجريبي)", Grade = "إصدارات الصف التاسع", Subject = "فيزياء", SemesterId = activeSem1.Id, Price = 3.000m, StockQuantity = 100, TenantId = guestTenantId },
+                new Book { Name = "كيمياء الصف العاشر (تجريبي)", Grade = "إصدارات الصف العاشر", Subject = "كيمياء", SemesterId = activeSem1.Id, Price = 3.500m, StockQuantity = 100, TenantId = guestTenantId }
+            );
+        }
+
+        if (!await db.Libraries.IgnoreQueryFilters().AnyAsync(l => l.TenantId == guestTenantId, cancellationToken))
+        {
+            var gov = await db.Governorates.FirstOrDefaultAsync(cancellationToken);
+            var city = await db.Cities.FirstOrDefaultAsync(cancellationToken);
+            if (gov != null && city != null)
+            {
+                db.Libraries.Add(new Library
+                {
+                    Name = "مكتبة الأمل التجريبية (زائر)",
+                    GovernorateId = gov.Id,
+                    CityId = city.Id,
+                    IsActive = true,
+                    OwnerName = "أحمد التجريبي",
+                    OwnerPhone = "98765432",
+                    TenantId = guestTenantId
+                });
+            }
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
     }
 }

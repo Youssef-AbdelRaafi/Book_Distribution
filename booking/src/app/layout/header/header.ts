@@ -282,4 +282,20 @@ export class HeaderComponent implements OnInit {
   closeSettings() {
     this.isSettingsOpen = false;
   }
+
+  onResetGuestData() {
+    this.confirmService.confirm('هل أنت متأكد من إعادة ضبط البيانات التجريبية لحساب الزوار؟\nسيتم مسح البيانات المدخلة وإعادة البيانات التوضيحية الأولوية.').pipe(
+      filter(result => !!result),
+      switchMap(() => this.authService.resetGuestData()),
+      takeUntilDestroyed(this.destroyRef)
+    ).subscribe({
+      next: (res: any) => {
+        this.toast.show(res.message || 'تمت إعادة الضبط بنجاح', 'success');
+        this.appDataService.loadAuthenticatedData();
+      },
+      error: (err: HttpErrorResponse) => {
+        this.toast.show(err.error?.message || 'تعذر إعادة الضبط', 'error');
+      }
+    });
+  }
 }

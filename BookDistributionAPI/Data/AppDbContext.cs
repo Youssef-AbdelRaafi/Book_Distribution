@@ -9,11 +9,19 @@ using BookDistributionAPI.Features.Settings;
 using BookDistributionAPI.Features.ReceiptVouchers;
 using BookDistributionAPI.Features.Users;
 
+using BookDistributionAPI.Common.Services;
+
 namespace BookDistributionAPI.Data;
 
 public class AppDbContext : DbContext
 {
-    public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
+    private readonly ICurrentTenantService? _tenantService;
+    public int CurrentTenantId => _tenantService?.TenantId ?? 1;
+
+    public AppDbContext(DbContextOptions<AppDbContext> options, ICurrentTenantService? tenantService = null) : base(options)
+    {
+        _tenantService = tenantService;
+    }
 
     public DbSet<AcademicYear> AcademicYears => Set<AcademicYear>();
     public DbSet<Semester> Semesters => Set<Semester>();
@@ -164,7 +172,7 @@ public class AppDbContext : DbContext
             .HasIndex(l => new { l.GovernorateId, l.CityId, l.Name });
 
         modelBuilder.Entity<Library>()
-            .HasQueryFilter(l => l.IsActive);
+            .HasQueryFilter(l => l.IsActive && l.TenantId == CurrentTenantId);
 
         modelBuilder.Entity<LibraryBook>()
             .ToTable(t => t.HasCheckConstraint("CK_LibraryBooks_Quantity_NonNegative", "[Quantity] >= 0"));
@@ -237,14 +245,17 @@ public class AppDbContext : DbContext
             .HasMaxLength(4000);
 
         modelBuilder.Entity<AppSetting>()
-            .HasIndex(s => s.Key)
+            .HasIndex(s => new { s.TenantId, s.Key })
             .IsUnique();
+
+        modelBuilder.Entity<AppSetting>()
+            .HasQueryFilter(s => s.TenantId == CurrentTenantId);
 
         modelBuilder.Entity<Invoice>()
             .Ignore(i => i.DisplayNumber);
 
         modelBuilder.Entity<Invoice>()
-            .HasQueryFilter(i => i.IsActive);
+            .HasQueryFilter(i => i.IsActive && i.TenantId == CurrentTenantId);
 
         modelBuilder.Entity<Semester>()
             .HasOne(s => s.AcademicYear)
@@ -270,7 +281,7 @@ public class AppDbContext : DbContext
             .OnDelete(DeleteBehavior.Restrict);
 
         modelBuilder.Entity<Book>()
-            .HasQueryFilter(b => b.IsActive);
+            .HasQueryFilter(b => b.IsActive && b.TenantId == CurrentTenantId);
 
         modelBuilder.Entity<LibraryBook>()
             .HasQueryFilter(lb => lb.Book!.IsActive);
@@ -352,7 +363,7 @@ public class AppDbContext : DbContext
             .Ignore(rv => rv.DisplayNumber);
 
         modelBuilder.Entity<ReceiptVoucher>()
-            .HasQueryFilter(rv => rv.IsActive);
+            .HasQueryFilter(rv => rv.IsActive && rv.TenantId == CurrentTenantId);
 
         modelBuilder.Entity<ReceiptVoucher>()
             .Property(rv => rv.Amount)
@@ -419,5 +430,26 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<User>()
             .Property(u => u.PasswordHash)
             .HasMaxLength(500);
+    }
+
+    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        var currentTenant = CurrentTenantId;
+        foreach (var entry in ChangeTracker.Entries())
+        {
+            if (entry.State == EntityState.Added)
+            {
+                var tenantProp = entry.Entity.GetType().GetProperty("TenantId");
+                if (tenantProp != null && tenantProp.CanWrite)
+                {
+                    var val = (int)tenantProp.GetValue(entry.Entity)!;
+                    if (val == 0)
+                    {
+                        tenantProp.SetValue(entry.Entity, currentTenant);
+                    }
+                }
+            }
+        }
+        return base.SaveChangesAsync(cancellationToken);
     }
 }
