@@ -19,20 +19,23 @@ export class InventoryService {
   fetchBooks(semesterId?: number): void {
     let params = new HttpParams();
     if (semesterId) params = params.set('semesterId', semesterId.toString());
-    this.http.get<ApiResponse<Book[]>>(this.apiUrl, { params }).pipe(
-      tap(res => {
-        const data = res.data;
-        this.inventorySubject.next(Array.isArray(data) ? data : []);
-      }),
-      catchError(error => {
-        this.toast.show('تعذر تحميل المخزون', 'error');
-        return of([]);
-      })
-    ).subscribe();
+    this.http
+      .get<ApiResponse<Book[]>>(this.apiUrl, { params })
+      .pipe(
+        tap((res) => {
+          const data = res.data;
+          this.inventorySubject.next(Array.isArray(data) ? data : []);
+        }),
+        catchError((error) => {
+          this.toast.show('تعذر تحميل المخزون', 'error');
+          return of([]);
+        }),
+      )
+      .subscribe();
   }
 
   getItemById(id: number): Book | undefined {
-    return this.inventorySubject.value.find(item => item.id === id);
+    return this.inventorySubject.value.find((item) => item.id === id);
   }
 
   private sortBooks(books: Book[]): Book[] {
@@ -40,13 +43,13 @@ export class InventoryService {
       'إصدارات الصف التاسع': 1,
       'إصدارات الصف العاشر': 2,
       'إصدارات الصف الحادي عشر': 3,
-      'إصدارات الصف الثاني عشر': 4
+      'إصدارات الصف الثاني عشر': 4,
     };
 
     const subjectOrder: Record<string, number> = {
-      'فيزياء': 1,
-      'كيمياء': 2,
-      'علوم بيئية': 3
+      فيزياء: 1,
+      كيمياء: 2,
+      'علوم بيئية': 3,
     };
 
     return [...books].sort((a, b) => {
@@ -67,49 +70,45 @@ export class InventoryService {
   }
 
   private replaceBook(id: number, book: Book): void {
-    this.inventorySubject.next(
-      this.inventorySubject.value.map(b => b.id === id ? book : b)
-    );
+    this.inventorySubject.next(this.inventorySubject.value.map((b) => (b.id === id ? book : b)));
   }
 
   private removeBook(id: number): void {
-    this.inventorySubject.next(
-      this.inventorySubject.value.filter(b => b.id !== id)
-    );
+    this.inventorySubject.next(this.inventorySubject.value.filter((b) => b.id !== id));
   }
 
   addBook(book: Partial<Book>): Observable<ApiResponse<Book>> {
     return this.http.post<ApiResponse<Book>>(this.apiUrl, book).pipe(
-      tap(res => {
+      tap((res) => {
         const created = res.data;
         if (created?.id) this.prependBook(created);
-      })
+      }),
     );
   }
 
   addBooksBulk(books: Partial<Book>[]): Observable<ApiResponse<Book[]>> {
     return this.http.post<ApiResponse<Book[]>>(`${this.apiUrl}/bulk`, { books }).pipe(
-      tap(res => {
+      tap((res) => {
         const created = res.data;
-        if (Array.isArray(created)) this.inventorySubject.next(this.sortBooks([...created, ...this.inventorySubject.value]));
-      })
+        if (Array.isArray(created))
+          this.inventorySubject.next(this.sortBooks([...created, ...this.inventorySubject.value]));
+      }),
     );
   }
 
-  updateBook(id: number, book: Partial<Book>, isCompensation = false): Observable<ApiResponse<Book>> {
-    const url = isCompensation ? `${this.apiUrl}/${id}?isCompensation=true` : `${this.apiUrl}/${id}`;
-    return this.http.put<ApiResponse<Book>>(url, book).pipe(
-      tap(res => {
+  updateBook(id: number, book: Partial<Book>): Observable<ApiResponse<Book>> {
+    return this.http.put<ApiResponse<Book>>(`${this.apiUrl}/${id}`, book).pipe(
+      tap((res) => {
         const updated = res.data;
         if (updated?.id) this.replaceBook(id, updated);
-      })
+      }),
     );
   }
 
   deleteBook(id: number): Observable<ApiResponse<unknown>> {
-    return this.http.delete<ApiResponse<unknown>>(`${this.apiUrl}/${id}`).pipe(
-      tap(() => this.removeBook(id))
-    );
+    return this.http
+      .delete<ApiResponse<unknown>>(`${this.apiUrl}/${id}`)
+      .pipe(tap(() => this.removeBook(id)));
   }
 
   restoreBook(id: number): Observable<ApiResponse<Book>> {
@@ -121,7 +120,9 @@ export class InventoryService {
     this.addBook(item).subscribe({ error: () => this.toast.show('تعذر إضافة العنصر', 'error') });
   }
   updateInventoryItem(item: Book) {
-    this.updateBook(item.id, item).subscribe({ error: () => this.toast.show('تعذر تحديث العنصر', 'error') });
+    this.updateBook(item.id, item).subscribe({
+      error: () => this.toast.show('تعذر تحديث العنصر', 'error'),
+    });
   }
   deleteInventoryItem(id: number) {
     this.deleteBook(id).subscribe({ error: () => this.toast.show('تعذر حذف العنصر', 'error') });
@@ -135,7 +136,7 @@ export class InventoryService {
       if (payload.id) {
         return this.restoreBook(payload.id).pipe(
           tap(() => this.fetchBooks()),
-          map(() => undefined)
+          map(() => undefined),
         );
       }
       if (payload['name']) {
@@ -145,13 +146,15 @@ export class InventoryService {
           subject: payload['subject'] as string,
           semesterId: payload['semesterId'] as number,
           price: payload['price'] as number,
-          stockQuantity: payload['stockQuantity'] as number
+          stockQuantity: payload['stockQuantity'] as number,
         };
         return this.addBook(book).pipe(map(() => undefined));
       }
       return throwError(() => new Error('لا يمكن التراجع عن هذا النشاط'));
     } else if (activity.type === 'UPDATE' && payload?.id && payload?.previous) {
-      return this.updateBook(payload.id, payload.previous as unknown as Partial<Book>, true).pipe(map(() => undefined));
+      return this.updateBook(payload.id, payload.previous as unknown as Partial<Book>).pipe(
+        map(() => undefined),
+      );
     }
     return throwError(() => new Error('لا يمكن التراجع عن هذا النشاط'));
   }
@@ -166,13 +169,15 @@ export class InventoryService {
         subject: data['subject'] as string,
         semesterId: data['semesterId'] as number,
         price: data['price'] as number,
-        stockQuantity: data['stockQuantity'] as number
+        stockQuantity: data['stockQuantity'] as number,
       };
       return this.addBook(book).pipe(map(() => undefined));
     } else if (activity.type === 'DELETE' && payload?.id) {
       return this.deleteBook(payload.id).pipe(map(() => undefined));
     } else if (activity.type === 'UPDATE' && payload?.id && payload?.current) {
-      return this.updateBook(payload.id, payload.current as unknown as Partial<Book>, true).pipe(map(() => undefined));
+      return this.updateBook(payload.id, payload.current as unknown as Partial<Book>).pipe(
+        map(() => undefined),
+      );
     }
     return throwError(() => new Error('لا يمكن إعادة هذا النشاط'));
   }

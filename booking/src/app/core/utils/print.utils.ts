@@ -1,7 +1,7 @@
 export function printWhenImagesReady(
   containerSelector: string,
   onAfterPrint?: () => void,
-  fallbackMs = 2000
+  fallbackMs = 2000,
 ): void {
   requestAnimationFrame(() => {
     const container = document.querySelector(containerSelector);
@@ -15,7 +15,7 @@ export function printWhenImagesReady(
     }
 
     const images = Array.from(container.querySelectorAll('img'));
-    const pending = images.filter(img => !img.complete);
+    const pending = images.filter((img) => !img.complete);
 
     let printed = false;
     const runPrint = () => {
@@ -43,7 +43,9 @@ export function printWhenImagesReady(
             } else {
               originalParent.appendChild(container);
             }
-          } catch { /* container may have been removed */ }
+          } catch {
+            /* container may have been removed */
+          }
           appRoot.style.display = '';
         }
 
@@ -65,7 +67,7 @@ export function printWhenImagesReady(
       }
     };
 
-    pending.forEach(img => {
+    pending.forEach((img) => {
       img.addEventListener('load', onDone, { once: true });
       img.addEventListener('error', onDone, { once: true });
     });

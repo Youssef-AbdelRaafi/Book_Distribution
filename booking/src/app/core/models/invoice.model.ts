@@ -9,6 +9,8 @@ export interface InvoiceItem {
   // تفصيل الجرد — يُستخدم في المخالصة
   orderedQty?: number;
   refundedQty?: number;
+  soldQuantity?: number;
+  amountDue?: number;
   // backward compat
   name?: string;
   grade?: string;
@@ -49,6 +51,8 @@ export interface ClearancePreviewItem {
   total: number;
   orderedQty?: number;
   refundedQty?: number;
+  soldQuantity?: number;
+  amountDue?: number;
 }
 
 export interface ClearancePreview {
@@ -81,4 +85,45 @@ export interface ClearanceLibraryPreview {
   netAmount: number;
   responsibleName?: string;
   responsiblePhone?: string;
+}
+
+export interface DashboardData {
+  totalLibraries: number;
+  totalItems: number;
+  lowStockCount: number;
+  totalRevenue: number;
+  totalCollected: number;
+  totalOutstanding: number;
+  totalItemsSold: number;
+  orderCount: number;
+  refundCount: number;
+  criticalStock: {
+    id: number;
+    name: string;
+    grade: string;
+    stockQuantity: number;
+    demand: number;
+  }[];
+  libraryBalances: {
+    libraryId: number;
+    libraryName: string;
+    totalAmount: number;
+    paidAmount: number;
+    balance: number;
+  }[];
+  mostRefunded: { name: string; count: number }[];
+  salesByTerm: { termCode: string; termName: string; revenue: number }[];
+  classicSalesByYear: { academicYear: string; revenue: number; quantity: number }[];
+  classicRows: {
+    academicYear: string;
+    termCode: string;
+    termName: string;
+    bestLibraryByRevenue: string;
+    bestLibraryByQuantity: string;
+    libraryCount: number;
+    ordered: number;
+    refunded: number;
+    netRevenue: number;
+    netQuantity: number;
+  }[];
 }

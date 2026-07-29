@@ -17,15 +17,25 @@ import { ApiResponse } from '../../core/models/api-response.model';
 import { environment } from '../../../environments/environment';
 import { LS_INV_IS_MERGED } from '../../core/constants/local-storage-keys';
 
-interface SemesterDto { id: number; name: string; code: string; isActive: boolean; }
-interface AcademicYearDto { id: number; name: string; isActive: boolean; semesters: SemesterDto[]; }
+interface SemesterDto {
+  id: number;
+  name: string;
+  code: string;
+  isActive: boolean;
+}
+interface AcademicYearDto {
+  id: number;
+  name: string;
+  isActive: boolean;
+  semesters: SemesterDto[];
+}
 
 @Component({
   selector: 'app-header',
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
   imports: [CommonModule, RouterModule, FormsModule],
-  templateUrl: './header.html'
+  templateUrl: './header.html',
 })
 export class HeaderComponent implements OnInit {
   isSettingsOpen = false;
@@ -47,9 +57,9 @@ export class HeaderComponent implements OnInit {
   allYears: AcademicYearDto[] = [];
 
   ngOnInit() {
-          this.fetchAcademicYears().pipe(
-            takeUntilDestroyed(this.destroyRef)
-          )          .subscribe({ error: () => this.toast?.show?.('تعذر تحميل السنوات الدراسية', 'error') });
+    this.fetchAcademicYears()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({ error: () => this.toast?.show?.('تعذر تحميل السنوات الدراسية', 'error') });
   }
 
   get currentYearName(): string {
@@ -64,16 +74,17 @@ export class HeaderComponent implements OnInit {
     const target = event.target as HTMLSelectElement | null;
     const code = target?.value;
     if (code) {
-      this.settingsService.activateSemesterByCode(code).pipe(
-        takeUntilDestroyed(this.destroyRef)
-      ).subscribe({
-        next: () => {
-          this.appDataService.loadAuthenticatedData();
-        },
-        error: (err: HttpErrorResponse) => {
-          this.toast.show(err.error?.message || 'حدث خطأ أثناء تغيير الفصل', 'error');
-        }
-      });
+      this.settingsService
+        .activateSemesterByCode(code)
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe({
+          next: () => {
+            this.appDataService.loadAuthenticatedData();
+          },
+          error: (err: HttpErrorResponse) => {
+            this.toast.show(err.error?.message || 'حدث خطأ أثناء تغيير الفصل', 'error');
+          },
+        });
     }
   }
 
@@ -83,7 +94,7 @@ export class HeaderComponent implements OnInit {
   changePasswordData = {
     currentPassword: '',
     newPassword: '',
-    confirmPassword: ''
+    confirmPassword: '',
   };
 
   changePassword() {
@@ -104,20 +115,19 @@ export class HeaderComponent implements OnInit {
       return;
     }
 
-    this.authService.changePassword(currentPassword, newPassword).pipe(
-      takeUntilDestroyed(this.destroyRef)
-    ).subscribe({
-      next: () => {
-        this.toast.show('تم تغيير كلمة المرور بنجاح', 'success');
-        this.changePasswordData = { currentPassword: '', newPassword: '', confirmPassword: '' };
-      },
-      error: (err: HttpErrorResponse) => {
-        this.toast.show(err.error?.message || 'حدث خطأ أثناء تغيير كلمة المرور', 'error');
-      }
-    });
+    this.authService
+      .changePassword(currentPassword, newPassword)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.toast.show('تم تغيير كلمة المرور بنجاح', 'success');
+          this.changePasswordData = { currentPassword: '', newPassword: '', confirmPassword: '' };
+        },
+        error: (err: HttpErrorResponse) => {
+          this.toast.show(err.error?.message || 'حدث خطأ أثناء تغيير كلمة المرور', 'error');
+        },
+      });
   }
-
-
 
   openActivityLog() {
     this.isActivityLogOpen = true;
@@ -150,16 +160,17 @@ export class HeaderComponent implements OnInit {
   }
 
   savePrintSettings() {
-    this.settingsService.updatePrintSettings(this.editPrintSettings).pipe(
-      takeUntilDestroyed(this.destroyRef)
-    ).subscribe({
-      next: () => {
-        this.toast?.show?.('تم حفظ الإعدادات', 'success');
-        this.settingsService.updateSectionOrder(this.editSectionOrder);
-        this.closeSettings();
-      },
-      error: () => this.toast?.show?.('حدث خطأ في حفظ الإعدادات', 'error')
-    });
+    this.settingsService
+      .updatePrintSettings(this.editPrintSettings)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.toast?.show?.('تم حفظ الإعدادات', 'success');
+          this.settingsService.updateSectionOrder(this.editSectionOrder);
+          this.closeSettings();
+        },
+        error: () => this.toast?.show?.('حدث خطأ في حفظ الإعدادات', 'error'),
+      });
   }
 
   getSectionName(id: string): string {
@@ -169,15 +180,15 @@ export class HeaderComponent implements OnInit {
       'lib-list': 'قائمة المكتبات',
       'inv-form': isMerged ? 'الفواتير والطلبات' : 'العمليات',
       'inv-list': 'الفواتير المسجلة',
-      'inventory': 'المخزون',
-      'dashboard': 'تحليل التقدم'
+      inventory: 'المخزون',
+      dashboard: 'تحليل التقدم',
     };
     return names[id] || id;
   }
 
   get filteredEditSectionOrder(): string[] {
     const isMerged = localStorage.getItem(LS_INV_IS_MERGED) === 'true';
-    return this.editSectionOrder.filter(id => {
+    return this.editSectionOrder.filter((id) => {
       if (isMerged && id === 'inv-list') return false;
       return true;
     });
@@ -217,36 +228,42 @@ export class HeaderComponent implements OnInit {
 
   startNewYear() {
     const nextYear = this.getNextYearStart();
-    const message = `⚠️ تحذير هام ⚠️\n\n` +
-      `هل أنت متأكد من بدء عام دراسي جديد (${nextYear}-${nextYear+1})؟\n\n` +
+    const message =
+      `⚠️ تحذير هام ⚠️\n\n` +
+      `هل أنت متأكد من بدء عام دراسي جديد (${nextYear}-${nextYear + 1})؟\n\n` +
       `سيتم:\n` +
       `• إنشاء عام دراسي جديد وتنشيطه\n` +
       `• إيقاف العام الحالي والسنوات السابقة\n` +
       `• نسخ الكتالوج من العام السابق برصيد صفر\n\n` +
       `ملاحظة: يمكنك الرجوع لأي سنة سابقة من الإعدادات (أيقونة الترس) ← "تغيير السنة الدراسية" لعرض وطباعة فواتيرها.\n\n` +
       `هل تريد المتابعة؟`;
-    
-    this.confirmService.confirm(message).pipe(
-      filter(result => !!result),
-      switchMap(() => this.settingsService.startNewYear(nextYear)),
-      takeUntilDestroyed(this.destroyRef)
-    ).subscribe({
-      next: () => {
-        this.toast.show('تم بدء العام الدراسي الجديد بنجاح', 'success');
-        window.location.reload();
-      },
-      error: (err: HttpErrorResponse) => {
-        this.toast.show(err.error?.message || 'حدث خطأ أثناء بدء العام الدراسي الجديد', 'error');
-      }
-    });
+
+    this.confirmService
+      .confirm(message)
+      .pipe(
+        filter((result) => !!result),
+        switchMap(() => this.settingsService.startNewYear(nextYear)),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe({
+        next: () => {
+          this.toast.show('تم بدء العام الدراسي الجديد بنجاح', 'success');
+          window.location.reload();
+        },
+        error: (err: HttpErrorResponse) => {
+          this.toast.show(err.error?.message || 'حدث خطأ أثناء بدء العام الدراسي الجديد', 'error');
+        },
+      });
   }
 
   fetchAcademicYears() {
-    return this.http.get<ApiResponse<AcademicYearDto[]>>(`${environment.apiUrl}/academic-years`).pipe(
-      tap((res) => {
-        this.allYears = res.data ?? [];
-      })
-    );
+    return this.http
+      .get<ApiResponse<AcademicYearDto[]>>(`${environment.apiUrl}/academic-years`)
+      .pipe(
+        tap((res) => {
+          this.allYears = res.data ?? [];
+        }),
+      );
   }
 
   activateYear(event: Event) {
@@ -254,25 +271,35 @@ export class HeaderComponent implements OnInit {
     const yearId = target?.value;
     if (!yearId) return;
 
-    const selectedYear = this.allYears.find(y => y.id == Number(yearId));
+    const selectedYear = this.allYears.find((y) => y.id == Number(yearId));
     if (!selectedYear) return;
 
-    this.confirmService.confirm(`هل أنت متأكد من تفعيل السنة الدراسية "${selectedYear.name}"؟\n\nسيتم:\n• تفعيل السنة المختارة\n• تفعيل الفصل الأول منها\n• إيقاف السنة الحالية`).pipe(
-      filter(result => !!result),
-      switchMap(() => this.http.put<ApiResponse<unknown>>(`${environment.apiUrl}/academic-years/${yearId}/activate`, {})),
-      tap(() => {
-        this.toast.show(`تم تفعيل السنة الدراسية ${selectedYear.name} بنجاح`, 'success');
-        this.settingsService.reloadAfterAuth();
-        this.appDataService.loadAuthenticatedData();
-        this.closeSettings();
-      }),
-      switchMap(() => this.fetchAcademicYears()),
-      takeUntilDestroyed(this.destroyRef)
-    ).subscribe({
-      error: (err: HttpErrorResponse) => {
-        this.toast.show(err.error?.message || 'حدث خطأ أثناء تفعيل السنة الدراسية', 'error');
-      }
-    });
+    this.confirmService
+      .confirm(
+        `هل أنت متأكد من تفعيل السنة الدراسية "${selectedYear.name}"؟\n\nسيتم:\n• تفعيل السنة المختارة\n• تفعيل الفصل الأول منها\n• إيقاف السنة الحالية`,
+      )
+      .pipe(
+        filter((result) => !!result),
+        switchMap(() =>
+          this.http.put<ApiResponse<unknown>>(
+            `${environment.apiUrl}/academic-years/${yearId}/activate`,
+            {},
+          ),
+        ),
+        tap(() => {
+          this.toast.show(`تم تفعيل السنة الدراسية ${selectedYear.name} بنجاح`, 'success');
+          this.settingsService.reloadAfterAuth();
+          this.appDataService.loadAuthenticatedData();
+          this.closeSettings();
+        }),
+        switchMap(() => this.fetchAcademicYears()),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe({
+        error: (err: HttpErrorResponse) => {
+          this.toast.show(err.error?.message || 'حدث خطأ أثناء تفعيل السنة الدراسية', 'error');
+        },
+      });
 
     // Reset select
     const resetTarget = event.target as HTMLSelectElement | null;

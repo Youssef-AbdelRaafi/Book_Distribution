@@ -17,6 +17,24 @@ cleanup() {
 }
 trap cleanup SIGTERM SIGINT
 
+data_dir="${APP_DATA_DIR:-/app/data}"
+database_file_name="${DATABASE_FILE_NAME:-new_database.db}"
+database_path="$data_dir/$database_file_name"
+
+# A named Docker volume is empty on its first run. Seed it once from the
+# packaged client data without ever overwriting an existing client database.
+if [ ! -f "$database_path" ] && [ -f "/app/seed/$database_file_name" ]; then
+    echo "Initializing persistent data volume from the packaged client data..."
+    mkdir -p "$data_dir"
+    cp "/app/seed/$database_file_name" "$database_path"
+    export DATABASE_INITIALIZED_FROM_PACKAGE=true
+
+    if [ -d "/app/seed/uploads" ]; then
+        mkdir -p "$data_dir/uploads"
+        cp -a /app/seed/uploads/. "$data_dir/uploads/"
+    fi
+fi
+
 run_backup_loop() {
     while true; do
         now=$(date +%s)
@@ -26,7 +44,9 @@ run_backup_loop() {
         fi
         sleep_seconds=$((next - now))
         sleep "$sleep_seconds" || true
-        /app/backup-db.sh >> /app/backups/backup.log 2>&1 || true
+        if ! /app/backup-db.sh >> /app/backups/backup.log 2>&1; then
+            echo "Database backup failed; see /app/backups/backup.log" >&2
+        fi
     done
 }
 

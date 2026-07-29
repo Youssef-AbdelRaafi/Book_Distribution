@@ -3,5 +3,7 @@ export function formatAmountRials(amount: number): string {
 }
 
 export function formatAmountBaisa(amount: number): string {
-  return (Math.abs(Math.round(((amount || 0) * 1000) % 1000))).toString().padStart(3, '0');
+  return Math.abs(Math.round(((amount || 0) * 1000) % 1000))
+    .toString()
+    .padStart(3, '0');
 }

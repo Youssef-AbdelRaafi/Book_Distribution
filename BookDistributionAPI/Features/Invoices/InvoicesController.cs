@@ -111,6 +111,21 @@ public class InvoicesController : ControllerBase
         }
     }
 
+    [HttpPost("restore-batch")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> RestoreBatch([FromBody] DeleteBatchDto dto, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _invoiceService.RestoreInvoicesAsync(dto.Ids, cancellationToken);
+            return Ok(ApiResponse<bool>.Ok(true, "تم استعادة الفواتير بنجاح"));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ApiResponse<object>.Fail(ex.Message));
+        }
+    }
+
     [HttpPost("delete-batch")]
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> DeleteBatch([FromBody] DeleteBatchDto dto, CancellationToken cancellationToken)
@@ -170,7 +185,37 @@ public class InvoicesController : ControllerBase
         }
     }
 
+    [HttpGet("refunds/exists")]
+    public async Task<IActionResult> HasRefund(
+        [FromQuery] int libraryId,
+        [FromQuery] int semesterId,
+        CancellationToken cancellationToken)
+    {
+        if (libraryId <= 0 || semesterId <= 0)
+            return BadRequest(ApiResponse<object>.Fail("بيانات المكتبة أو الفصل الدراسي غير صالحة"));
 
+        var exists = await _invoiceService.HasRefundAsync(libraryId, semesterId, cancellationToken);
+        return Ok(ApiResponse<object>.Ok(new { Exists = exists }));
+    }
+
+    [HttpPost("clearance")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> CreateClearance([FromBody] CreateClearanceDto dto, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var invoice = await _invoiceService.CreateClearanceAsync(dto.LibraryId, dto.SemesterId, cancellationToken);
+            var loaded = await InvoiceQuery()
+                .FirstOrDefaultAsync(i => i.Id == invoice.Id, cancellationToken);
+            if (loaded == null)
+                return NotFound(ApiResponse<object>.Fail("الفاتورة غير موجودة"));
+            return Ok(ApiResponse<object>.Ok(InvoiceBusinessService.ToDto(loaded), "تم إنشاء المخالصة بنجاح"));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ApiResponse<object>.Fail(ex.Message));
+        }
+    }
 
     [HttpGet("clearance/preview")]
     public async Task<IActionResult> GetClearancePreview(

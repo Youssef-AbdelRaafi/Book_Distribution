@@ -12,6 +12,7 @@ public class ReceiptVoucherDto
     public string LibraryName { get; set; } = string.Empty;
     public string GovernorateName { get; set; } = string.Empty;
     public string CityName { get; set; } = string.Empty;
+    [Required, Range(1, int.MaxValue)]
     public int? SemesterId { get; set; }
     public string? SemesterName { get; set; }
     public decimal Amount { get; set; }
@@ -28,6 +29,7 @@ public class CreateReceiptVoucherDto
     [Required, Range(1, int.MaxValue)]
     public int LibraryId { get; set; }
 
+    [Required, Range(1, int.MaxValue)]
     public int? SemesterId { get; set; }
 
     [Required, Range(0.001, double.MaxValue, ErrorMessage = "المبلغ يجب أن يكون أكبر من صفر")]

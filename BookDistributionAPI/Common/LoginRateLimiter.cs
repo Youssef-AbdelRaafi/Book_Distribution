@@ -17,10 +17,7 @@ public sealed class LoginRateLimiter
     public bool IsBlocked(string key)
     {
         if (_attempts.TryGetValue(key, out var window))
-        {
-            window.Cleanup();
-            return window.Count >= _maxAttempts;
-        }
+            return window.GetCount() >= _maxAttempts;
         return false;
     }
 
@@ -39,25 +36,29 @@ public sealed class LoginRateLimiter
     {
         private readonly TimeSpan _window;
         private readonly ConcurrentQueue<DateTime> _timestamps = new();
+        private readonly object _sync = new();
 
         public SlidingWindow(TimeSpan window) => _window = window;
 
-        public int Count
+        public int GetCount()
         {
-            get
+            lock (_sync)
             {
-                Cleanup();
+                CleanupExpiredAttempts();
                 return _timestamps.Count;
             }
         }
 
         public void Increment()
         {
-            Cleanup();
-            _timestamps.Enqueue(DateTime.UtcNow);
+            lock (_sync)
+            {
+                CleanupExpiredAttempts();
+                _timestamps.Enqueue(DateTime.UtcNow);
+            }
         }
 
-        public void Cleanup()
+        private void CleanupExpiredAttempts()
         {
             var cutoff = DateTime.UtcNow.Subtract(_window);
             while (_timestamps.TryPeek(out var ts) && ts < cutoff)

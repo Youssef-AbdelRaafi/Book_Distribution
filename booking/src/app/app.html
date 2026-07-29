@@ -1,14 +1,28 @@
 <!-- Root layout flex container -->
-<div class="flex h-screen print:h-auto print:block bg-background overflow-hidden print:overflow-visible relative" [ngClass]="{'dark': isDarkMode()}">
-  
+<div
+  class="flex h-screen print:h-auto print:block bg-background overflow-hidden print:overflow-visible relative"
+  [ngClass]="{ dark: isDarkMode() }"
+>
   <!-- Main Content Area -->
-  <div class="flex-1 flex flex-col h-screen print:h-auto relative pb-16 md:pb-0 w-full overflow-hidden print:overflow-visible" [ngClass]="{'pb-0': isLoginPage()}">
+  <div
+    class="flex-1 flex flex-col h-screen print:h-auto relative pb-16 md:pb-0 w-full overflow-hidden print:overflow-visible"
+    [ngClass]="{ 'pb-0': isLoginPage() }"
+  >
     <!-- Header -->
     <app-header class="print:hidden" *ngIf="!isLoginPage()"></app-header>
 
     <!-- Routed Canvas Content -->
-    <main class="flex-1 overflow-y-auto print:overflow-visible" [ngClass]="isLoginPage() ? 'p-0' : 'p-container-margin'">
-      <div [ngClass]="isLoginPage() ? 'w-full h-full print:h-auto' : 'max-w-7xl mx-auto print:max-w-none print:m-0'">
+    <main
+      class="flex-1 overflow-y-auto print:overflow-visible"
+      [ngClass]="isLoginPage() ? 'p-0' : 'p-container-margin'"
+    >
+      <div
+        [ngClass]="
+          isLoginPage()
+            ? 'w-full h-full print:h-auto'
+            : 'max-w-7xl mx-auto print:max-w-none print:m-0'
+        "
+      >
         <router-outlet></router-outlet>
       </div>
     </main>
@@ -16,33 +30,60 @@
 </div>
 
 <!-- Global Confirm Dialog -->
-<div *ngIf="confirmService.state() as confirm" class="fixed inset-0 z-[10000] flex items-center justify-center bg-black/40 print:hidden"
-     (click.self)="confirm.resolve(false)">
-  <div class="bg-surface-primary rounded-2xl shadow-2xl border border-surface-container-high p-6 w-full max-w-md mx-4 animate-in fade-in zoom-in-95 duration-200">
-    <p class="text-text-heading text-base leading-relaxed whitespace-pre-line">{{ confirm.message }}</p>
+<div
+  *ngIf="confirmService.state() as confirm"
+  class="fixed inset-0 z-[10000] flex items-center justify-center bg-black/40 print:hidden"
+  (click.self)="confirm.resolve(false)"
+>
+  <div
+    class="bg-surface-primary rounded-2xl shadow-2xl border border-surface-container-high p-6 w-full max-w-md mx-4 animate-in fade-in zoom-in-95 duration-200"
+  >
+    <p class="text-text-heading text-base leading-relaxed whitespace-pre-line">
+      {{ confirm.message }}
+    </p>
     <div class="flex justify-end gap-3 mt-6">
-      <button type="button" (click)="confirm.resolve(false)" class="px-5 py-2.5 border border-outline-variant rounded-lg text-sm font-medium text-on-surface-variant hover:bg-surface-container transition-colors">إلغاء</button>
-      <button type="button" (click)="confirm.resolve(true)" class="px-5 py-2.5 bg-primary text-on-primary rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors">تأكيد</button>
+      <button
+        type="button"
+        (click)="confirm.resolve(false)"
+        class="px-5 py-2.5 border border-outline-variant rounded-lg text-sm font-medium text-on-surface-variant hover:bg-surface-container transition-colors"
+      >
+        إلغاء
+      </button>
+      <button
+        type="button"
+        (click)="confirm.resolve(true)"
+        class="px-5 py-2.5 bg-primary text-on-primary rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
+      >
+        تأكيد
+      </button>
     </div>
   </div>
 </div>
 
 <!-- Global Toasts Container -->
-<div class="fixed top-4 left-1/2 -translate-x-1/2 z-[9999] flex flex-col gap-2 pointer-events-none w-full max-w-sm px-4 print:hidden">
-  <div *ngFor="let toast of toastService.toasts(); trackBy: trackById" 
-       class="pointer-events-auto flex items-center justify-between p-4 rounded-lg shadow-lg border animate-in fade-in slide-in-from-top-4"
-       [ngClass]="{
-         'bg-surface-container-lowest border-success text-success': toast.type === 'success',
-         'bg-surface-container-lowest border-error text-error': toast.type === 'error',
-         'bg-surface-container-lowest border-primary text-primary': toast.type === 'info'
-       }">
+<div
+  class="fixed top-4 left-1/2 -translate-x-1/2 z-[9999] flex flex-col gap-2 pointer-events-none w-full max-w-sm px-4 print:hidden"
+>
+  <div
+    *ngFor="let toast of toastService.toasts(); trackBy: trackById"
+    class="pointer-events-auto flex items-center justify-between p-4 rounded-lg shadow-lg border animate-in fade-in slide-in-from-top-4"
+    [ngClass]="{
+      'bg-surface-container-lowest border-success text-success': toast.type === 'success',
+      'bg-surface-container-lowest border-error text-error': toast.type === 'error',
+      'bg-surface-container-lowest border-primary text-primary': toast.type === 'info',
+    }"
+  >
     <div class="flex items-center gap-3">
       <span class="material-symbols-outlined">
-        {{ toast.type === 'success' ? 'check_circle' : (toast.type === 'error' ? 'error' : 'info') }}
+        {{ toast.type === 'success' ? 'check_circle' : toast.type === 'error' ? 'error' : 'info' }}
       </span>
       <span class="text-sm font-medium">{{ toast.message }}</span>
     </div>
-    <button type="button" (click)="toastService.remove(toast.id)" class="text-on-surface-variant hover:text-on-surface transition-colors">
+    <button
+      type="button"
+      (click)="toastService.remove(toast.id)"
+      class="text-on-surface-variant hover:text-on-surface transition-colors"
+    >
       <span class="material-symbols-outlined text-[18px]">close</span>
     </button>
   </div>

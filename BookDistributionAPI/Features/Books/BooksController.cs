@@ -75,6 +75,19 @@ public class BooksController : ControllerBase
         return Ok(ApiResponse<object>.Ok(books));
     }
 
+    [HttpGet("grades")]
+    public async Task<IActionResult> GetGrades(CancellationToken cancellationToken)
+    {
+        var grades = await _db.Books
+            .GroupBy(book => book.Grade)
+            .Select(group => new { Grade = group.Key, FirstBookId = group.Min(book => book.Id) })
+            .OrderBy(item => item.FirstBookId)
+            .Select(item => item.Grade)
+            .ToListAsync(cancellationToken);
+
+        return Ok(ApiResponse<object>.Ok(grades));
+    }
+
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(int id, CancellationToken cancellationToken)
     {
@@ -205,7 +218,7 @@ public class BooksController : ControllerBase
 
     [HttpPut("{id}")]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> Update(int id, [FromBody] UpdateBookDto dto, [FromQuery] bool isCompensation = false, CancellationToken cancellationToken = default)
+    public async Task<IActionResult> Update(int id, [FromBody] UpdateBookDto dto, CancellationToken cancellationToken = default)
     {
         var book = await _db.Books.FirstOrDefaultAsync(b => b.Id == id, cancellationToken);
         if (book == null) return NotFound(ApiResponse<object>.Fail("الكتاب غير موجود"));
@@ -223,7 +236,7 @@ public class BooksController : ControllerBase
         }
         if (dto.StockQuantity.HasValue && dto.StockQuantity.Value != book.StockQuantity)
         {
-            if (!isCompensation && dto.StockQuantity.Value < book.StockQuantity)
+            if (dto.StockQuantity.Value < book.StockQuantity)
                 return BadRequest(ApiResponse<object>.Fail("لا يمكن تقليل المخزون يدوياً لكتاب له فواتير. استخدم فواتير البيع والمرتجعات"));
 
             if (dto.StockQuantity.Value < 0)

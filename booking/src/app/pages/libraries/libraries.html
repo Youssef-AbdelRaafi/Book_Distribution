@@ -1,29 +1,68 @@
 <div [ngClass]="isCompact ? 'contents' : 'space-y-space-xl'">
   <!-- Page Header -->
-  <div *ngIf="!isCompact" class="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+  <div
+    *ngIf="!isCompact"
+    class="flex flex-col md:flex-row justify-between items-start md:items-end gap-4"
+  >
     <div>
       <h2 class="text-2xl md:text-3xl font-semibold text-text-heading">إدارة المكتبات والمناطق</h2>
-      <p class="text-sm text-on-surface-variant mt-1">تسجيل وتعديل بيانات ومواقع المكتبات التابعة للنظام.</p>
+      <p class="text-sm text-on-surface-variant mt-1">
+        تسجيل وتعديل بيانات ومواقع المكتبات التابعة للنظام.
+      </p>
     </div>
   </div>
 
   <div [ngClass]="isCompact ? 'contents' : 'grid grid-cols-1 lg:grid-cols-12 gap-gutter'">
     <!-- Left Column : Add Library Form -->
-    <div [ngClass]="isCompact ? 'w-full' : 'lg:col-span-4'" [style.order]="settingsService.sectionOrder().indexOf('lib-form')">
-      <div class="bg-surface-primary rounded-lg shadow-sm border border-surface-container-high p-space-md">
-        <div class="mb-space-md border-b border-surface-container-high pb-4 flex justify-between items-center cursor-pointer select-none" (click)="toggleAddForm()">
+    <div
+      [ngClass]="isCompact ? 'w-full' : 'lg:col-span-4'"
+      [style.order]="settingsService.sectionOrder().indexOf('lib-form')"
+    >
+      <div
+        class="bg-surface-primary rounded-lg shadow-sm border border-surface-container-high p-space-md"
+      >
+        <div
+          class="mb-space-md border-b border-surface-container-high pb-4 flex justify-between items-center cursor-pointer select-none"
+          (click)="toggleAddForm()"
+        >
           <h3 class="text-xl font-semibold text-text-heading flex items-center gap-2">
             <span class="material-symbols-outlined text-primary">storefront</span> إضافة مكتبة
           </h3>
-          <span class="material-symbols-outlined text-on-surface-variant transition-transform duration-300" [ngClass]="{'rotate-180': isAddFormCollapsed()}">expand_more</span>
+          <span
+            class="material-symbols-outlined text-on-surface-variant transition-transform duration-300"
+            [ngClass]="{ 'rotate-180': isAddFormCollapsed() }"
+            >expand_more</span
+          >
         </div>
-        <form *ngIf="!isAddFormCollapsed()" class="space-y-4" (submit)="saveLibrary(); $event.preventDefault();">
+        <form
+          *ngIf="!isAddFormCollapsed()"
+          class="space-y-4"
+          (submit)="saveLibrary(); $event.preventDefault()"
+        >
           <div>
-            <label class="block text-xs font-medium text-on-surface-variant mb-1.5">شعار المكتبة</label>
-            <input type="file" #fileInput class="hidden" accept="image/*" (change)="onLogoSelected($event)">
-            <div (click)="triggerLogoUpload(fileInput)" class="flex items-center justify-center w-full h-24 bg-surface-alt border-2 border-dashed border-outline-variant rounded-lg hover:border-primary hover:bg-surface-container-low cursor-pointer transition-all group overflow-hidden relative">
-              <img *ngIf="selectedLogoData" [src]="selectedLogoData" class="w-full h-full object-contain p-2">
-              <div *ngIf="!selectedLogoData" class="flex flex-col items-center gap-1 text-on-surface-variant group-hover:text-primary">
+            <label class="block text-xs font-medium text-on-surface-variant mb-1.5"
+              >شعار المكتبة</label
+            >
+            <input
+              type="file"
+              #fileInput
+              class="hidden"
+              accept="image/*"
+              (change)="onLogoSelected($event)"
+            />
+            <div
+              (click)="triggerLogoUpload(fileInput)"
+              class="flex items-center justify-center w-full h-24 bg-surface-alt border-2 border-dashed border-outline-variant rounded-lg hover:border-primary hover:bg-surface-container-low cursor-pointer transition-all group overflow-hidden relative"
+            >
+              <img
+                *ngIf="selectedLogoData"
+                [src]="selectedLogoData"
+                class="w-full h-full object-contain p-2"
+              />
+              <div
+                *ngIf="!selectedLogoData"
+                class="flex flex-col items-center gap-1 text-on-surface-variant group-hover:text-primary"
+              >
                 <span class="material-symbols-outlined text-[28px]">add_photo_alternate</span>
                 <span class="text-xs font-medium">رفع الشعار</span>
               </div>
@@ -32,85 +71,195 @@
           <!-- المحافظة والولاية -->
           <div class="grid grid-cols-2 gap-space-sm">
             <div>
-              <label class="block text-xs font-medium text-on-surface-variant mb-1.5">المحافظة <span class="text-error">*</span></label>
-              <select [(ngModel)]="selectedGovernorateId" (ngModelChange)="onGovChange($event)" name="governorate" class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2.5 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all cursor-pointer">
+              <label class="block text-xs font-medium text-on-surface-variant mb-1.5"
+                >المحافظة <span class="text-error">*</span></label
+              >
+              <select
+                [(ngModel)]="selectedGovernorateId"
+                (ngModelChange)="onGovChange($event)"
+                name="governorate"
+                class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2.5 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all cursor-pointer"
+              >
                 <option [ngValue]="0">اختر المحافظة</option>
-                <option *ngFor="let gov of libraryService.governorates(); trackBy: trackById" [ngValue]="gov.id">{{ gov.name }}</option>
+                <option
+                  *ngFor="let gov of libraryService.governorates(); trackBy: trackById"
+                  [ngValue]="gov.id"
+                >
+                  {{ gov.name }}
+                </option>
               </select>
             </div>
             <div>
-              <label class="block text-xs font-medium text-on-surface-variant mb-1.5">الولاية <span class="text-error">*</span></label>
-              <select [(ngModel)]="selectedCityId" (ngModelChange)="onCityChange($event)" name="city" class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2.5 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all cursor-pointer">
+              <label class="block text-xs font-medium text-on-surface-variant mb-1.5"
+                >الولاية <span class="text-error">*</span></label
+              >
+              <select
+                [(ngModel)]="selectedCityId"
+                (ngModelChange)="onCityChange($event)"
+                name="city"
+                class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2.5 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all cursor-pointer"
+              >
                 <option [ngValue]="0">اختر الولاية</option>
-                <option *ngFor="let city of filteredCities(); trackBy: trackById" [ngValue]="city.id">{{ city.name }}</option>
+                <option
+                  *ngFor="let city of filteredCities(); trackBy: trackById"
+                  [ngValue]="city.id"
+                >
+                  {{ city.name }}
+                </option>
               </select>
             </div>
           </div>
           <div>
-            <label class="block text-xs font-medium text-on-surface-variant mb-1.5">اسم المكتبة <span class="text-error">*</span></label>
-            <input [(ngModel)]="libraryName" name="name" class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2.5 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all" type="text" placeholder="أدخل اسم المكتبة">
+            <label class="block text-xs font-medium text-on-surface-variant mb-1.5"
+              >اسم المكتبة <span class="text-error">*</span></label
+            >
+            <input
+              [(ngModel)]="libraryName"
+              name="name"
+              class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2.5 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+              type="text"
+              placeholder="أدخل اسم المكتبة"
+            />
           </div>
           <!-- بيانات صاحب المكتبة -->
           <div class="border-t border-surface-container-high pt-3">
-            <p class="text-xs font-bold text-secondary mb-2 flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">person</span> بيانات صاحب المكتبة</p>
+            <p class="text-xs font-bold text-secondary mb-2 flex items-center gap-1">
+              <span class="material-symbols-outlined text-[14px]">person</span> بيانات صاحب المكتبة
+            </p>
             <div class="grid grid-cols-2 gap-space-sm">
               <div>
-                <label class="block text-xs font-medium text-on-surface-variant mb-1.5">اسم صاحب المكتبة</label>
-                <input [(ngModel)]="ownerName" name="owner" class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2.5 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all" type="text" placeholder="الفاضل / ...">
+                <label class="block text-xs font-medium text-on-surface-variant mb-1.5"
+                  >اسم صاحب المكتبة</label
+                >
+                <input
+                  [(ngModel)]="ownerName"
+                  name="owner"
+                  class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2.5 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                  type="text"
+                  placeholder="الفاضل / ..."
+                />
               </div>
               <div>
-                <label class="block text-xs font-medium text-on-surface-variant mb-1.5">رقم تليفون صاحب المكتبة</label>
-                <input [(ngModel)]="ownerPhone" name="ownerPhone" class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2.5 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all" type="tel" placeholder="9XXXXXXX" dir="ltr">
+                <label class="block text-xs font-medium text-on-surface-variant mb-1.5"
+                  >رقم تليفون صاحب المكتبة</label
+                >
+                <input
+                  [(ngModel)]="ownerPhone"
+                  name="ownerPhone"
+                  class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2.5 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                  type="tel"
+                  placeholder="9XXXXXXX"
+                  dir="ltr"
+                />
               </div>
             </div>
           </div>
           <!-- بيانات المسؤول -->
           <div class="border-t border-surface-container-high pt-3">
-            <p class="text-xs font-bold text-secondary mb-2 flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">badge</span> بيانات المسؤول داخل المكتبة</p>
+            <p class="text-xs font-bold text-secondary mb-2 flex items-center gap-1">
+              <span class="material-symbols-outlined text-[14px]">badge</span> بيانات المسؤول داخل
+              المكتبة
+            </p>
             <div class="grid grid-cols-2 gap-space-sm">
               <div>
-                <label class="block text-xs font-medium text-on-surface-variant mb-1.5">اسم المسؤول</label>
-                <input [(ngModel)]="responsibleName" name="responsibleName" class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2.5 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all" type="text" placeholder="اسم المسؤول داخل المكتبة">
+                <label class="block text-xs font-medium text-on-surface-variant mb-1.5"
+                  >اسم المسؤول</label
+                >
+                <input
+                  [(ngModel)]="responsibleName"
+                  name="responsibleName"
+                  class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2.5 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                  type="text"
+                  placeholder="اسم المسؤول داخل المكتبة"
+                />
               </div>
               <div>
-                <label class="block text-xs font-medium text-on-surface-variant mb-1.5">رقم تليفون المسؤول</label>
-                <input [(ngModel)]="responsiblePhone" name="responsiblePhone" class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2.5 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all" type="tel" placeholder="9XXXXXXX" dir="ltr">
+                <label class="block text-xs font-medium text-on-surface-variant mb-1.5"
+                  >رقم تليفون المسؤول</label
+                >
+                <input
+                  [(ngModel)]="responsiblePhone"
+                  name="responsiblePhone"
+                  class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2.5 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                  type="tel"
+                  placeholder="9XXXXXXX"
+                  dir="ltr"
+                />
               </div>
             </div>
           </div>
           <!-- تليفون ثابت -->
           <div>
-            <label class="block text-xs font-medium text-on-surface-variant mb-1.5">رقم التليفون الثابت للمكتبة</label>
-            <input [(ngModel)]="landlinePhone" name="landline" class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2.5 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all" type="tel" placeholder="2XXXXXXX" dir="ltr">
+            <label class="block text-xs font-medium text-on-surface-variant mb-1.5"
+              >رقم التليفون الثابت للمكتبة</label
+            >
+            <input
+              [(ngModel)]="landlinePhone"
+              name="landline"
+              class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2.5 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+              type="tel"
+              placeholder="2XXXXXXX"
+              dir="ltr"
+            />
           </div>
           <!-- أوقات العمل - فترتين -->
           <div class="border-t border-surface-container-high pt-3">
-            <p class="text-xs font-bold text-secondary mb-2 flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">schedule</span> أوقات العمل (فترتين)</p>
+            <p class="text-xs font-bold text-secondary mb-2 flex items-center gap-1">
+              <span class="material-symbols-outlined text-[14px]">schedule</span> أوقات العمل
+              (فترتين)
+            </p>
             <div class="space-y-2">
               <div class="grid grid-cols-2 gap-space-sm">
                 <div>
-                  <label class="block text-xs font-medium text-on-surface-variant mb-1">الفترة الأولى - من</label>
-                  <input [(ngModel)]="shift1Start" name="shift1Start" class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2 text-sm focus:border-primary outline-none transition-all" type="time">
+                  <label class="block text-xs font-medium text-on-surface-variant mb-1"
+                    >الفترة الأولى - من</label
+                  >
+                  <input
+                    [(ngModel)]="shift1Start"
+                    name="shift1Start"
+                    class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2 text-sm focus:border-primary outline-none transition-all"
+                    type="time"
+                  />
                 </div>
                 <div>
                   <label class="block text-xs font-medium text-on-surface-variant mb-1">إلى</label>
-                  <input [(ngModel)]="shift1End" name="shift1End" class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2 text-sm focus:border-primary outline-none transition-all" type="time">
+                  <input
+                    [(ngModel)]="shift1End"
+                    name="shift1End"
+                    class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2 text-sm focus:border-primary outline-none transition-all"
+                    type="time"
+                  />
                 </div>
               </div>
               <div class="grid grid-cols-2 gap-space-sm">
                 <div>
-                  <label class="block text-xs font-medium text-on-surface-variant mb-1">الفترة الثانية - من</label>
-                  <input [(ngModel)]="shift2Start" name="shift2Start" class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2 text-sm focus:border-primary outline-none transition-all" type="time">
+                  <label class="block text-xs font-medium text-on-surface-variant mb-1"
+                    >الفترة الثانية - من</label
+                  >
+                  <input
+                    [(ngModel)]="shift2Start"
+                    name="shift2Start"
+                    class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2 text-sm focus:border-primary outline-none transition-all"
+                    type="time"
+                  />
                 </div>
                 <div>
                   <label class="block text-xs font-medium text-on-surface-variant mb-1">إلى</label>
-                  <input [(ngModel)]="shift2End" name="shift2End" class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2 text-sm focus:border-primary outline-none transition-all" type="time">
+                  <input
+                    [(ngModel)]="shift2End"
+                    name="shift2End"
+                    class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2 text-sm focus:border-primary outline-none transition-all"
+                    type="time"
+                  />
                 </div>
               </div>
             </div>
           </div>
 
-          <button type="submit" class="w-full mt-2 bg-primary text-on-primary text-sm font-medium py-2.5 rounded-lg hover:bg-primary-container shadow-sm transition-colors flex items-center justify-center gap-2">
+          <button
+            type="submit"
+            class="w-full mt-2 bg-primary text-on-primary text-sm font-medium py-2.5 rounded-lg hover:bg-primary-container shadow-sm transition-colors flex items-center justify-center gap-2"
+          >
             <span class="material-symbols-outlined text-[20px]">add_circle</span> حفظ المكتبة
           </button>
         </form>
@@ -118,117 +267,250 @@
     </div>
 
     <!-- Right Column : Library List -->
-    <div [ngClass]="isCompact ? 'w-full' : 'lg:col-span-8'" class="bg-surface-primary rounded-lg shadow-sm border border-surface-container-high p-space-md" [style.order]="settingsService.sectionOrder().indexOf('lib-list')">
-      <div class="flex justify-between items-center mb-space-md border-b border-surface-container-high pb-4 select-none">
-        <h3 class="text-xl font-semibold text-text-heading flex items-center gap-2 cursor-pointer" (click)="toggleList()">
+    <div
+      [ngClass]="isCompact ? 'w-full' : 'lg:col-span-8'"
+      class="bg-surface-primary rounded-lg shadow-sm border border-surface-container-high p-space-md"
+      [style.order]="settingsService.sectionOrder().indexOf('lib-list')"
+    >
+      <div
+        class="flex justify-between items-center mb-space-md border-b border-surface-container-high pb-4 select-none"
+      >
+        <h3
+          class="text-xl font-semibold text-text-heading flex items-center gap-2 cursor-pointer"
+          (click)="toggleList()"
+        >
           <span class="material-symbols-outlined text-primary">store</span> قائمة المكتبات
         </h3>
         <div class="flex items-center gap-2">
-          <button type="button" *ngIf="!showDeletedLibraries()" (click)="toggleListEditMode()" class="w-8 h-8 rounded-full flex items-center justify-center transition-colors" [ngClass]="isListEditMode() ? 'bg-primary text-on-primary' : 'bg-surface-container-high text-on-surface hover:bg-surface-container-highest'">
+          <button
+            type="button"
+            *ngIf="!showDeletedLibraries()"
+            (click)="toggleListEditMode()"
+            class="w-8 h-8 rounded-full flex items-center justify-center transition-colors"
+            [ngClass]="
+              isListEditMode()
+                ? 'bg-primary text-on-primary'
+                : 'bg-surface-container-high text-on-surface hover:bg-surface-container-highest'
+            "
+          >
             <span class="material-symbols-outlined text-[16px]">edit</span>
           </button>
-          <button type="button" *ngIf="hasDeletedLibraries() || showDeletedLibraries()" (click)="toggleShowDeleted()" class="w-8 h-8 rounded-full flex items-center justify-center transition-colors" [ngClass]="showDeletedLibraries() ? 'bg-error/10 text-error border border-error/30' : 'bg-surface-container-high text-error hover:bg-surface-container-highest'" title="عرض سلة المحذوفات">
+          <button
+            type="button"
+            *ngIf="hasDeletedLibraries() || showDeletedLibraries()"
+            (click)="toggleShowDeleted()"
+            class="w-8 h-8 rounded-full flex items-center justify-center transition-colors"
+            [ngClass]="
+              showDeletedLibraries()
+                ? 'bg-error/10 text-error border border-error/30'
+                : 'bg-surface-container-high text-error hover:bg-surface-container-highest'
+            "
+            title="عرض سلة المحذوفات"
+          >
             <span class="material-symbols-outlined text-[16px]">delete</span>
           </button>
           <div class="flex items-center gap-2 cursor-pointer" (click)="toggleList()">
-            <span class="bg-surface-container text-on-surface text-xs font-medium px-2 py-1 rounded-full">{{ librariesList().length }} مكتبة</span>
-            <span class="material-symbols-outlined text-on-surface-variant transition-transform duration-300" [ngClass]="{'rotate-180': isListCollapsed()}">expand_more</span>
+            <span
+              class="bg-surface-container text-on-surface text-xs font-medium px-2 py-1 rounded-full"
+              >{{ librariesList().length }} مكتبة</span
+            >
+            <span
+              class="material-symbols-outlined text-on-surface-variant transition-transform duration-300"
+              [ngClass]="{ 'rotate-180': isListCollapsed() }"
+              >expand_more</span
+            >
           </div>
         </div>
       </div>
-      
+
       <div *ngIf="!isListCollapsed()">
         <!-- Search -->
         <div class="mb-3">
           <div class="relative">
-            <span class="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant material-symbols-outlined text-[18px]">search</span>
-            <input type="text" [(ngModel)]="searchTerm" (ngModelChange)="onSearchTermChange($event)" placeholder="ابحث عن مكتبة..." class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg pr-9 pl-3 py-2 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all">
+            <span
+              class="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant material-symbols-outlined text-[18px]"
+              >search</span
+            >
+            <input
+              type="text"
+              [(ngModel)]="searchTerm"
+              (ngModelChange)="onSearchTermChange($event)"
+              placeholder="ابحث عن مكتبة..."
+              class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg pr-9 pl-3 py-2 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+            />
           </div>
         </div>
-        <div class="grid gap-4 max-h-[460px] overflow-y-auto pr-1 custom-scrollbar" [ngClass]="isCompact ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'">
+        <div
+          class="grid gap-4 max-h-[460px] overflow-y-auto pr-1 custom-scrollbar"
+          [ngClass]="isCompact ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'"
+        >
           <!-- Library Item -->
-           <div *ngFor="let lib of filteredLibraries(); trackBy: trackById" 
-               class="p-3.5 rounded-lg border hover:shadow-sm transition-all flex flex-col gap-2 cursor-pointer group"
-               [ngClass]="lib.isActive === false ? 'bg-error/5 border-error/20 hover:border-error opacity-75' : 'bg-surface-container-lowest border-outline-variant hover:border-primary'">
+          <div
+            *ngFor="let lib of filteredLibraries(); trackBy: trackById"
+            class="p-3.5 rounded-lg border hover:shadow-sm transition-all flex flex-col gap-2 cursor-pointer group"
+            [ngClass]="
+              lib.isActive === false
+                ? 'bg-error/5 border-error/20 hover:border-error opacity-75'
+                : 'bg-surface-container-lowest border-outline-variant hover:border-primary'
+            "
+          >
             <div class="flex items-start gap-3">
-              <div class="w-10 h-10 rounded-md bg-surface-container-high flex items-center justify-center shrink-0 text-primary group-hover:bg-primary group-hover:text-on-primary transition-colors overflow-hidden">
-                <img *ngIf="lib.logo" [src]="getLogoUrl(lib.logo)" class="w-full h-full object-cover">
+              <div
+                class="w-10 h-10 rounded-md bg-surface-container-high flex items-center justify-center shrink-0 text-primary group-hover:bg-primary group-hover:text-on-primary transition-colors overflow-hidden"
+              >
+                <img
+                  *ngIf="lib.logo"
+                  [src]="getLogoUrl(lib.logo)"
+                  class="w-full h-full object-cover"
+                />
                 <span *ngIf="!lib.logo" class="material-symbols-outlined">menu_book</span>
               </div>
               <div class="flex-1">
-                <div class="text-sm font-semibold text-text-heading flex justify-between items-start gap-2">
+                <div
+                  class="text-sm font-semibold text-text-heading flex justify-between items-start gap-2"
+                >
                   <span>{{ lib.name }}</span>
-                  <button type="button" *ngIf="isListEditMode() && lib.isActive !== false" (click)="deleteLibraryQuick(lib, $event)" class="text-error hover:bg-error/10 w-6 h-6 rounded flex items-center justify-center transition-colors shrink-0" title="حذف">
+                  <button
+                    type="button"
+                    *ngIf="isListEditMode() && lib.isActive !== false"
+                    (click)="deleteLibraryQuick(lib, $event)"
+                    class="text-error hover:bg-error/10 w-6 h-6 rounded flex items-center justify-center transition-colors shrink-0"
+                    title="حذف"
+                  >
                     <span class="material-symbols-outlined text-[16px]">delete</span>
                   </button>
-
                 </div>
                 <div class="flex flex-wrap gap-2 mt-0.5">
                   <div class="text-xs text-on-surface-variant flex items-center gap-1">
-                    <span class="material-symbols-outlined text-[14px]">map</span> {{ lib.governorateName || lib.region }}
+                    <span class="material-symbols-outlined text-[14px]">map</span>
+                    {{ lib.governorateName || lib.region }}
                   </div>
                   <div class="text-xs text-on-surface-variant flex items-center gap-1">
-                    <span class="material-symbols-outlined text-[14px]">location_on</span> {{ lib.cityName || lib.city }}
+                    <span class="material-symbols-outlined text-[14px]">location_on</span>
+                    {{ lib.cityName || lib.city }}
                   </div>
-                  <div class="text-xs text-on-surface-variant flex items-center gap-1" *ngIf="lib.landlinePhone">
-                    <span class="material-symbols-outlined text-[14px]">call</span> {{ lib.landlinePhone }}
+                  <div
+                    class="text-xs text-on-surface-variant flex items-center gap-1"
+                    *ngIf="lib.landlinePhone"
+                  >
+                    <span class="material-symbols-outlined text-[14px]">call</span>
+                    {{ lib.landlinePhone }}
                   </div>
                 </div>
                 <!-- Rating badges -->
-                <div class="flex flex-wrap gap-1 mt-1" *ngIf="lib.responseRating || lib.paymentRating">
-                  <span class="text-[10px] px-1.5 py-0.5 rounded-full font-medium" *ngIf="lib.responseRating"
-                    [ngClass]="lib.responseRating === 'ممتاز' ? 'bg-success/15 text-success' : lib.responseRating === 'جيد' ? 'bg-warning/15 text-warning' : 'bg-error/15 text-error'">
+                <div
+                  class="flex flex-wrap gap-1 mt-1"
+                  *ngIf="lib.responseRating || lib.paymentRating"
+                >
+                  <span
+                    class="text-[10px] px-1.5 py-0.5 rounded-full font-medium"
+                    *ngIf="lib.responseRating"
+                    [ngClass]="
+                      lib.responseRating === 'ممتاز'
+                        ? 'bg-success/15 text-success'
+                        : lib.responseRating === 'جيد'
+                          ? 'bg-warning/15 text-warning'
+                          : 'bg-error/15 text-error'
+                    "
+                  >
                     استجابة: {{ lib.responseRating }}
                   </span>
-                  <span class="text-[10px] px-1.5 py-0.5 rounded-full font-medium" *ngIf="lib.paymentRating"
-                    [ngClass]="lib.paymentRating === 'ممتاز' ? 'bg-success/15 text-success' : lib.paymentRating === 'جيد' ? 'bg-warning/15 text-warning' : 'bg-error/15 text-error'">
+                  <span
+                    class="text-[10px] px-1.5 py-0.5 rounded-full font-medium"
+                    *ngIf="lib.paymentRating"
+                    [ngClass]="
+                      lib.paymentRating === 'ممتاز'
+                        ? 'bg-success/15 text-success'
+                        : lib.paymentRating === 'جيد'
+                          ? 'bg-warning/15 text-warning'
+                          : 'bg-error/15 text-error'
+                    "
+                  >
                     سداد: {{ lib.paymentRating }}
                   </span>
                 </div>
               </div>
             </div>
-            <div class="flex justify-between items-center mt-2 pt-2 border-t border-surface-container-high">
-              <div class="text-[12px] font-medium flex items-center gap-1" [ngClass]="lib.isActive === false ? 'text-error' : getLibraryStatus(lib).colorClass">
-                <span class="w-2 h-2 rounded-full" [ngClass]="lib.isActive === false ? 'bg-error' : getLibraryStatus(lib).bgClass"></span> 
+            <div
+              class="flex justify-between items-center mt-2 pt-2 border-t border-surface-container-high"
+            >
+              <div
+                class="text-[12px] font-medium flex items-center gap-1"
+                [ngClass]="lib.isActive === false ? 'text-error' : getLibraryStatus(lib).colorClass"
+              >
+                <span
+                  class="w-2 h-2 rounded-full"
+                  [ngClass]="lib.isActive === false ? 'bg-error' : getLibraryStatus(lib).bgClass"
+                ></span>
                 {{ lib.isActive === false ? 'مكتبة محذوفة' : getLibraryStatus(lib).text }}
               </div>
               <div class="flex gap-3" *ngIf="lib.isActive !== false">
-                <button type="button" (click)="showDetails(lib)" class="text-secondary text-xs hover:underline">التفاصيل</button>
-                <button type="button" (click)="clearance(lib)" class="text-primary text-xs font-bold hover:underline">سند قبض (تسوية)</button>
+                <button
+                  type="button"
+                  (click)="showDetails(lib)"
+                  class="text-secondary text-xs hover:underline"
+                >
+                  التفاصيل
+                </button>
+                <button
+                  type="button"
+                  (click)="clearance(lib)"
+                  class="text-primary text-xs font-bold hover:underline"
+                >
+                  سند قبض (تسوية)
+                </button>
               </div>
               <div class="flex gap-3" *ngIf="lib.isActive === false">
-                <button type="button" (click)="restoreLibraryQuick(lib, $event)" class="text-success font-medium text-xs hover:underline flex items-center gap-1">
+                <button
+                  type="button"
+                  (click)="restoreLibraryQuick(lib, $event)"
+                  class="text-success font-medium text-xs hover:underline flex items-center gap-1"
+                >
                   <span class="material-symbols-outlined text-[14px]">restore</span> استعادة
                 </button>
               </div>
             </div>
           </div>
         </div>
-        
       </div>
     </div>
   </div>
 </div>
 
 <!-- Clearance Modal (Screen Only) -->
-<div *ngIf="isClearanceModalOpen" class="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 print:hidden p-4">
-  <div class="bg-surface-container-lowest rounded-xl shadow-lg w-full max-w-4xl max-h-[90vh] flex flex-col">
+<div
+  *ngIf="isClearanceModalOpen"
+  class="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 print:hidden p-4"
+>
+  <div
+    class="bg-surface-container-lowest rounded-xl shadow-lg w-full max-w-4xl max-h-[90vh] flex flex-col"
+  >
     <div class="flex justify-between items-center p-5 border-b border-surface-container-high">
       <div class="flex items-center gap-4">
         <h2 class="text-lg font-bold text-primary">مخالصة: {{ clearanceLibrary()?.name }}</h2>
       </div>
-      <button type="button" (click)="closeClearance()" class="text-on-surface-variant hover:text-error transition-colors">
+      <button
+        type="button"
+        (click)="closeClearance()"
+        class="text-on-surface-variant hover:text-error transition-colors"
+      >
         <span class="material-symbols-outlined">close</span>
       </button>
     </div>
-    
+
     <div class="flex-1 overflow-y-auto p-5 custom-scrollbar">
-      <div *ngIf="clearanceLoading()" class="flex flex-col items-center justify-center py-12 text-on-surface-variant">
+      <div
+        *ngIf="clearanceLoading()"
+        class="flex flex-col items-center justify-center py-12 text-on-surface-variant"
+      >
         <span class="material-symbols-outlined text-4xl animate-spin mb-3">progress_activity</span>
         <span class="text-sm">جاري تحميل بيانات المخالصة...</span>
       </div>
       <ng-container *ngIf="!clearanceLoading()">
-        <div *ngIf="clearanceError()" class="text-center text-error py-8 flex flex-col items-center gap-3">
+        <div
+          *ngIf="clearanceError()"
+          class="text-center text-error py-8 flex flex-col items-center gap-3"
+        >
           <span class="material-symbols-outlined text-4xl">error</span>
           <span class="text-sm font-medium">{{ clearanceError() }}</span>
         </div>
@@ -236,17 +518,48 @@
           <!-- Search & Filter -->
           <div class="flex gap-2 mb-4" *ngIf="clearanceItems().length > 0">
             <div class="flex-1 relative">
-              <span class="material-symbols-outlined absolute right-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant text-[16px]">search</span>
-              <input type="text" [ngModel]="clearanceSearchTerm()" (ngModelChange)="clearanceSearchTerm.set($event)" placeholder="ابحث عن صنف..." class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg pr-8 pl-3 py-1.5 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all">
+              <span
+                class="material-symbols-outlined absolute right-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant text-[16px]"
+                >search</span
+              >
+              <input
+                type="text"
+                [ngModel]="clearanceSearchTerm()"
+                (ngModelChange)="clearanceSearchTerm.set($event)"
+                placeholder="ابحث عن صنف..."
+                class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg pr-8 pl-3 py-1.5 text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+              />
             </div>
-            <select [ngModel]="clearanceGradeFilter()" (ngModelChange)="clearanceGradeFilter.set($event)" class="bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-1.5 text-sm focus:border-primary outline-none appearance-none cursor-pointer">
+            <select
+              [ngModel]="clearanceGradeFilter()"
+              (ngModelChange)="clearanceGradeFilter.set($event)"
+              class="bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-1.5 text-sm focus:border-primary outline-none appearance-none cursor-pointer"
+            >
               <option value="">كل الصفوف</option>
-              <option *ngFor="let g of clearanceGradeList()" [value]="g" [hidden]="g === 'كل الصفوف'">{{ g }}</option>
+              <option
+                *ngFor="let g of clearanceGradeList()"
+                [value]="g"
+                [hidden]="g === 'كل الصفوف'"
+              >
+                {{ g }}
+              </option>
             </select>
           </div>
 
-          <div *ngFor="let group of clearanceSearchTerm() || clearanceGradeFilter() ? filteredClearanceItems() : clearanceItems(); trackBy: trackByIndex" class="mb-6">
-            <h3 class="text-md font-bold text-secondary mb-3 pb-2 border-b border-surface-container-high">{{ group.grade }}</h3>
+          <div
+            *ngFor="
+              let group of clearanceSearchTerm() || clearanceGradeFilter()
+                ? filteredClearanceItems()
+                : clearanceItems();
+              trackBy: trackByIndex
+            "
+            class="mb-6"
+          >
+            <h3
+              class="text-md font-bold text-secondary mb-3 pb-2 border-b border-surface-container-high"
+            >
+              {{ group.grade }}
+            </h3>
             <table class="w-full text-sm text-right">
               <thead class="text-xs text-on-surface-variant bg-surface-container-low">
                 <tr>
@@ -259,45 +572,95 @@
                 </tr>
               </thead>
               <tbody>
-                <tr *ngFor="let item of group.items; trackBy: trackById" class="border-b border-surface-container last:border-0 hover:bg-surface-container-lowest transition-colors">
+                <tr
+                  *ngFor="let item of group.items; trackBy: trackById"
+                  class="border-b border-surface-container last:border-0 hover:bg-surface-container-lowest transition-colors"
+                >
                   <td class="px-3 py-2 text-on-surface font-medium">{{ item.name }}</td>
                   <td class="px-3 py-2 text-on-surface">{{ item.orderedQty }}</td>
                   <td class="px-3 py-2 text-error">{{ item.refundedQty || 0 }}</td>
                   <td class="px-3 py-2 text-on-surface font-bold">{{ item.netQty }}</td>
-                  <td class="px-3 py-2 text-on-surface-variant">{{ item.price | number:'1.3-3' }}</td>
-                  <td class="px-3 py-2 text-primary font-bold">{{ item.total | number:'1.3-3' }}</td>
+                  <td class="px-3 py-2 text-on-surface-variant">
+                    {{ item.price | number: '1.3-3' }}
+                  </td>
+                  <td class="px-3 py-2 text-primary font-bold">
+                    {{ item.total | number: '1.3-3' }}
+                  </td>
                 </tr>
               </tbody>
             </table>
           </div>
 
-          <div *ngIf="clearanceItems().length === 0" class="text-center text-on-surface-variant py-8">
+          <div
+            *ngIf="clearanceItems().length === 0"
+            class="text-center text-on-surface-variant py-8"
+          >
             لا توجد فواتير أو حركات لهذه المكتبة
           </div>
-          <div *ngIf="clearanceItems().length > 0 && (clearanceSearchTerm() || clearanceGradeFilter()) && filteredClearanceItems().length === 0" class="text-center text-on-surface-variant py-6 text-sm bg-surface-container-lowest rounded-lg border border-dashed border-outline-variant">
+          <div
+            *ngIf="
+              clearanceItems().length > 0 &&
+              (clearanceSearchTerm() || clearanceGradeFilter()) &&
+              filteredClearanceItems().length === 0
+            "
+            class="text-center text-on-surface-variant py-6 text-sm bg-surface-container-lowest rounded-lg border border-dashed border-outline-variant"
+          >
             لا تنتج نتائج للبحث المحدد
           </div>
         </ng-container>
       </ng-container>
     </div>
-    
+
     <div class="p-5 border-t border-surface-container-high bg-surface-container-low rounded-b-xl">
       <div class="flex justify-between items-center">
         <div class="text-lg font-bold text-on-surface space-y-1">
-          <div *ngIf="clearancePaidAmount() > 0" class="text-sm font-medium text-on-surface-variant">
-            المبلغ الأصلي: {{ clearanceOriginalTotal() | number:'1.3-3' }} {{ settingsService.printSettings().mainCurrency }}
-            <span class="mx-2 text-tertiary">{{ '−' }} {{ clearancePaidAmount() | number:'1.3-3' }} {{ settingsService.printSettings().mainCurrency }} مدفوع</span>
+          <div
+            *ngIf="clearancePaidAmount() > 0"
+            class="text-sm font-medium text-on-surface-variant"
+          >
+            المبلغ الأصلي: {{ clearanceOriginalTotal() | number: '1.3-3' }}
+            {{ settingsService.printSettings().mainCurrency }}
+            <span class="mx-2 text-tertiary"
+              >{{ '−' }} {{ clearancePaidAmount() | number: '1.3-3' }}
+              {{ settingsService.printSettings().mainCurrency }} مدفوع</span
+            >
           </div>
           <div>
-            المبلغ المستحق: <span class="text-primary text-xl">{{ clearanceTotal() | number:'1.3-3' }} {{ settingsService.printSettings().mainCurrency }}</span>
+            المبلغ المستحق:
+            <span class="text-primary text-xl"
+              >{{ clearanceTotal() | number: '1.3-3' }}
+              {{ settingsService.printSettings().mainCurrency }}</span
+            >
           </div>
         </div>
         <div class="flex gap-3">
-          <button type="button" (click)="closeClearance()" class="px-5 py-2.5 border border-outline-variant rounded-lg text-sm font-medium text-on-surface-variant hover:bg-surface-container transition-colors">
+          <button
+            type="button"
+            (click)="closeClearance()"
+            class="px-5 py-2.5 border border-outline-variant rounded-lg text-sm font-medium text-on-surface-variant hover:bg-surface-container transition-colors"
+          >
             إغلاق
           </button>
-          <button type="button" (click)="openReceiptVoucherFromClearance()" [disabled]="clearanceItems().length === 0 || clearanceLoading() || clearanceTotal() <= 0" class="px-5 py-2.5 bg-primary text-on-primary rounded-lg text-sm font-medium hover:bg-primary-container transition-colors flex items-center gap-2 disabled:opacity-50">
-            <span class="material-symbols-outlined text-[20px]">receipt_long</span> إصدار سند قبض بالمبلغ
+          <button
+            type="button"
+            *ngIf="clearanceTotal() > 0"
+            (click)="openReceiptVoucherFromClearance()"
+            [disabled]="
+              clearanceItems().length === 0 || clearanceLoading() || clearanceTotal() <= 0
+            "
+            class="px-5 py-2.5 bg-primary text-on-primary rounded-lg text-sm font-medium hover:bg-primary-container transition-colors flex items-center gap-2 disabled:opacity-50"
+          >
+            <span class="material-symbols-outlined text-[20px]">receipt_long</span> إصدار سند قبض
+            بالمبلغ
+          </button>
+          <button
+            type="button"
+            *ngIf="clearanceTotal() <= 0"
+            (click)="createClearance()"
+            [disabled]="clearanceItems().length === 0 || clearanceLoading() || isCreatingClearance"
+            class="px-5 py-2.5 bg-success text-on-primary rounded-lg text-sm font-medium hover:opacity-90 transition-colors flex items-center gap-2 disabled:opacity-50"
+          >
+            <span class="material-symbols-outlined text-[20px]">verified</span> إصدار المخالصة النهائية
           </button>
         </div>
       </div>
@@ -307,7 +670,12 @@
 
 <!-- Print Only Layout -->
 <!-- Single Clearance Print (same format as invoice history) -->
-<div *ngIf="clearanceToPrint()" class="print-page invoice-print-page w-full bg-white text-black p-4" dir="rtl" style="font-family: 'Traditional Arabic', 'Amiri', 'Times New Roman', serif;">
+<div
+  *ngIf="clearanceToPrint()"
+  class="print-page invoice-print-page w-full bg-white text-black p-4"
+  dir="rtl"
+  style="font-family: 'Traditional Arabic', 'Amiri', 'Times New Roman', serif"
+>
   <div class="flex flex-col mb-2">
     <div class="text-center text-[22px] font-bold mb-3 mt-1">
       <span class="text-black">{{ getPrintTypeLabel(clearanceToPrint()?.type) }}</span>
@@ -315,7 +683,7 @@
     </div>
     <div class="flex justify-between items-end mb-2">
       <div>
-        <img [src]="assetUrls.logo" class="h-14 object-contain" alt="Logo">
+        <img [src]="assetUrls.logo" class="h-14 object-contain" alt="Logo" />
       </div>
       <div class="text-[14px] pb-1 font-bold text-black">
         <span>{{ settingsService.printSettings().phones }}</span>
@@ -323,10 +691,11 @@
     </div>
     <div class="border-2 border-black flex items-stretch font-bold text-[14px]">
       <div class="flex-grow py-1 px-3 text-right">
-        الفاضل/ <span class="text-[#d32f2f]">{{ clearanceToPrint()?.libraryName }}</span> - {{ clearanceToPrint()?.governorateName }}
+        الفاضل/ <span class="text-[#d32f2f]">{{ clearanceToPrint()?.libraryName }}</span> -
+        {{ clearanceToPrint()?.governorateName }}
       </div>
       <div class="py-1 px-4 whitespace-nowrap flex items-center justify-center">
-        التاريخ: {{ clearanceToPrint()?.date | date:'yyyy/M/d' }}
+        التاريخ: {{ clearanceToPrint()?.date | date: 'yyyy/M/d' }}
       </div>
     </div>
   </div>
@@ -346,14 +715,18 @@
         <th class="border border-black p-0 font-normal text-[12px]">
           <div class="border-b border-black p-1">السعر Rate</div>
           <div class="flex">
-            <div class="flex-1 p-1 border-l border-black">{{ settingsService.printSettings().subCurrency }}</div>
+            <div class="flex-1 p-1 border-l border-black">
+              {{ settingsService.printSettings().subCurrency }}
+            </div>
             <div class="flex-1 p-1">{{ settingsService.printSettings().mainCurrency }}</div>
           </div>
         </th>
         <th class="border border-black p-0 font-normal text-[12px]">
           <div class="border-b border-black p-1">المبلغ Amount</div>
           <div class="flex">
-            <div class="flex-1 p-1 border-l border-black">{{ settingsService.printSettings().subCurrency }}</div>
+            <div class="flex-1 p-1 border-l border-black">
+              {{ settingsService.printSettings().subCurrency }}
+            </div>
             <div class="flex-1 p-1">{{ settingsService.printSettings().mainCurrency }}</div>
           </div>
         </th>
@@ -370,26 +743,36 @@
           <td class="border border-black p-1">{{ item.globalIndex }}</td>
           <td class="border border-black p-1 text-right pr-2 font-bold">{{ item.bookName }}</td>
           <td class="border border-black p-1">{{ item.quantity }}</td>
-           <td class="border border-black p-0 font-bold">
+          <td class="border border-black p-0 font-bold">
             <div class="flex h-full min-h-[24px]">
-              <div class="flex-1 p-0.5 border-l border-black">{{ formatAmountBaisa(item.unitPrice) }}</div>
+              <div class="flex-1 p-0.5 border-l border-black">
+                {{ formatAmountBaisa(item.unitPrice) }}
+              </div>
               <div class="flex-1 p-0.5">{{ formatAmountRials(item.unitPrice) }}</div>
             </div>
           </td>
           <td class="border border-black p-0 font-bold">
             <div class="flex h-full min-h-[24px]">
-              <div class="flex-1 p-0.5 border-l border-black">{{ formatAmountBaisa(item.total) }}</div>
+              <div class="flex-1 p-0.5 border-l border-black">
+                {{ formatAmountBaisa(item.total) }}
+              </div>
               <div class="flex-1 p-0.5">{{ formatAmountRials(item.total) }}</div>
             </div>
           </td>
         </tr>
       </ng-container>
       <tr>
-        <td colspan="4" class="border border-black p-1 text-left font-bold text-[14px]">الإجمالي الكلي</td>
+        <td colspan="4" class="border border-black p-1 text-left font-bold text-[14px]">
+          الإجمالي الكلي
+        </td>
         <td class="border border-black p-0 font-bold text-[14px] text-[#d32f2f] bg-[#fff9c4]">
           <div class="flex h-full min-h-[28px]">
-            <div class="flex-1 p-0.5 border-l border-black">{{ formatAmountBaisa(clearanceToPrint()?.totalAmount ?? 0) }}</div>
-            <div class="flex-1 p-0.5">{{ formatAmountRials(clearanceToPrint()?.totalAmount ?? 0) }}</div>
+            <div class="flex-1 p-0.5 border-l border-black">
+              {{ formatAmountBaisa(clearanceToPrint()?.totalAmount ?? 0) }}
+            </div>
+            <div class="flex-1 p-0.5">
+              {{ formatAmountRials(clearanceToPrint()?.totalAmount ?? 0) }}
+            </div>
           </div>
         </td>
       </tr>
@@ -397,140 +780,356 @@
   </table>
 
   <app-invoice-print-footer
-    [responsibleName]="clearanceToPrint()?.responsibleName || clearanceLibrary()?.responsibleName || ''"
-    [responsiblePhone]="clearanceToPrint()?.responsiblePhone || clearanceLibrary()?.responsiblePhone || ''"
+    [responsibleName]="
+      clearanceToPrint()?.responsibleName || clearanceLibrary()?.responsibleName || ''
+    "
+    [responsiblePhone]="
+      clearanceToPrint()?.responsiblePhone || clearanceLibrary()?.responsiblePhone || ''
+    "
     [ownerName]="clearanceLibrary()?.ownerName || ''"
     [ownerPhone]="clearanceLibrary()?.ownerPhone || ''"
     [landlinePhone]="clearanceLibrary()?.landlinePhone || ''"
-    [showInstructions]="false">
+    [showInstructions]="false"
+  >
   </app-invoice-print-footer>
 </div>
 
-
-
 <!-- Details Modal -->
-<div *ngIf="isDetailsModalOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 print-only-hide p-4">
-  <div class="bg-surface-container-lowest rounded-xl shadow-lg w-full max-w-2xl max-h-[90vh] flex flex-col">
+<div
+  *ngIf="isDetailsModalOpen"
+  class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 print-only-hide p-4"
+>
+  <div
+    class="bg-surface-container-lowest rounded-xl shadow-lg w-full max-w-2xl max-h-[90vh] flex flex-col"
+  >
     <div class="flex justify-between items-center p-5 border-b border-surface-container-high">
       <h2 class="text-lg font-bold text-primary">تفاصيل المكتبة</h2>
       <div class="flex items-center gap-2">
-        <button type="button" *ngIf="!isEditingLibrary" (click)="isEditingLibrary = true" class="text-sm font-medium text-primary hover:bg-primary/10 px-3 py-1.5 rounded-lg transition-colors">تعديل البيانات</button>
-        <button type="button" *ngIf="isEditingLibrary" (click)="deleteLibrary()" class="text-sm font-medium text-error hover:bg-error/10 px-3 py-1.5 rounded-lg transition-colors ml-1">حذف المكتبة</button>
-        <button type="button" *ngIf="isEditingLibrary" (click)="isEditingLibrary = false" class="text-sm font-medium text-on-surface-variant hover:bg-surface-variant px-3 py-1.5 rounded-lg transition-colors">إلغاء</button>
-        <button type="button" *ngIf="isEditingLibrary" (click)="saveEditedLibrary()" class="text-sm font-medium text-on-primary bg-primary hover:bg-primary-container px-3 py-1.5 rounded-lg transition-colors shadow-sm">حفظ التعديلات</button>
-        <button type="button" (click)="closeDetails()" class="text-on-surface-variant hover:text-error transition-colors mr-2">
+        <button
+          type="button"
+          *ngIf="!isEditingLibrary"
+          (click)="isEditingLibrary = true"
+          class="text-sm font-medium text-primary hover:bg-primary/10 px-3 py-1.5 rounded-lg transition-colors"
+        >
+          تعديل البيانات
+        </button>
+        <button
+          type="button"
+          *ngIf="isEditingLibrary"
+          (click)="deleteLibrary()"
+          class="text-sm font-medium text-error hover:bg-error/10 px-3 py-1.5 rounded-lg transition-colors ml-1"
+        >
+          حذف المكتبة
+        </button>
+        <button
+          type="button"
+          *ngIf="isEditingLibrary"
+          (click)="isEditingLibrary = false"
+          class="text-sm font-medium text-on-surface-variant hover:bg-surface-variant px-3 py-1.5 rounded-lg transition-colors"
+        >
+          إلغاء
+        </button>
+        <button
+          type="button"
+          *ngIf="isEditingLibrary"
+          (click)="saveEditedLibrary()"
+          class="text-sm font-medium text-on-primary bg-primary hover:bg-primary-container px-3 py-1.5 rounded-lg transition-colors shadow-sm"
+        >
+          حفظ التعديلات
+        </button>
+        <button
+          type="button"
+          (click)="closeDetails()"
+          class="text-on-surface-variant hover:text-error transition-colors mr-2"
+        >
           <span class="material-symbols-outlined">close</span>
         </button>
       </div>
     </div>
     <div class="flex-1 overflow-y-auto p-5 custom-scrollbar space-y-6">
       <div class="flex items-center gap-4 border-b border-surface-container-high pb-4">
-        <div class="w-16 h-16 rounded-lg bg-surface-container-high flex items-center justify-center text-primary overflow-hidden shrink-0 relative group">
-           <img *ngIf="isEditingLibrary ? editLibLogo : selectedLibraryForDetails()?.logo" [src]="getLogoUrl(isEditingLibrary ? editLibLogo : selectedLibraryForDetails()?.logo)" class="w-full h-full object-cover">
-           <span *ngIf="isEditingLibrary ? !editLibLogo : !selectedLibraryForDetails()?.logo" class="material-symbols-outlined text-3xl">menu_book</span>
-           <div *ngIf="isEditingLibrary" (click)="triggerEditLogoUpload(editFileInput)" class="absolute inset-0 bg-black/50 hidden group-hover:flex items-center justify-center cursor-pointer transition-colors">
-             <span class="material-symbols-outlined text-white text-[20px]">edit</span>
-           </div>
-           <input type="file" #editFileInput class="hidden" accept="image/*" (change)="onEditLogoSelected($event)">
+        <div
+          class="w-16 h-16 rounded-lg bg-surface-container-high flex items-center justify-center text-primary overflow-hidden shrink-0 relative group"
+        >
+          <img
+            *ngIf="isEditingLibrary ? editLibLogo : selectedLibraryForDetails()?.logo"
+            [src]="getLogoUrl(isEditingLibrary ? editLibLogo : selectedLibraryForDetails()?.logo)"
+            class="w-full h-full object-cover"
+          />
+          <span
+            *ngIf="isEditingLibrary ? !editLibLogo : !selectedLibraryForDetails()?.logo"
+            class="material-symbols-outlined text-3xl"
+            >menu_book</span
+          >
+          <div
+            *ngIf="isEditingLibrary"
+            (click)="triggerEditLogoUpload(editFileInput)"
+            class="absolute inset-0 bg-black/50 hidden group-hover:flex items-center justify-center cursor-pointer transition-colors"
+          >
+            <span class="material-symbols-outlined text-white text-[20px]">edit</span>
+          </div>
+          <input
+            type="file"
+            #editFileInput
+            class="hidden"
+            accept="image/*"
+            (change)="onEditLogoSelected($event)"
+          />
         </div>
-        
+
         <div class="flex-1" *ngIf="!isEditingLibrary">
-          <h3 class="text-xl font-bold text-text-heading">{{ selectedLibraryForDetails()?.name }}</h3>
+          <h3 class="text-xl font-bold text-text-heading">
+            {{ selectedLibraryForDetails()?.name }}
+          </h3>
           <div class="text-sm text-on-surface-variant flex flex-col gap-1 mt-1">
-            <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[16px]">location_on</span> {{ selectedLibraryForDetails()?.governorateName }} - {{ selectedLibraryForDetails()?.cityName }}</span>
-            <span class="flex items-center gap-1" *ngIf="selectedLibraryForDetails()?.ownerName"><span class="material-symbols-outlined text-[16px]">person</span> {{ selectedLibraryForDetails()?.ownerName }} <span *ngIf="selectedLibraryForDetails()?.ownerPhone" class="text-xs text-primary" dir="ltr">({{ selectedLibraryForDetails()?.ownerPhone }})</span></span>
-            <span class="flex items-center gap-1" *ngIf="selectedLibraryForDetails()?.responsibleName"><span class="material-symbols-outlined text-[16px]">badge</span> المسؤول: {{ selectedLibraryForDetails()?.responsibleName }} <span *ngIf="selectedLibraryForDetails()?.responsiblePhone" class="text-xs text-primary" dir="ltr">({{ selectedLibraryForDetails()?.responsiblePhone }})</span></span>
-            <span class="flex items-center gap-1" *ngIf="selectedLibraryForDetails()?.landlinePhone"><span class="material-symbols-outlined text-[16px]">call</span> ثابت: <span dir="ltr">{{ selectedLibraryForDetails()?.landlinePhone }}</span></span>
+            <span class="flex items-center gap-1"
+              ><span class="material-symbols-outlined text-[16px]">location_on</span>
+              {{ selectedLibraryForDetails()?.governorateName }} -
+              {{ selectedLibraryForDetails()?.cityName }}</span
+            >
+            <span class="flex items-center gap-1" *ngIf="selectedLibraryForDetails()?.ownerName"
+              ><span class="material-symbols-outlined text-[16px]">person</span>
+              {{ selectedLibraryForDetails()?.ownerName }}
+              <span
+                *ngIf="selectedLibraryForDetails()?.ownerPhone"
+                class="text-xs text-primary"
+                dir="ltr"
+                >({{ selectedLibraryForDetails()?.ownerPhone }})</span
+              ></span
+            >
+            <span
+              class="flex items-center gap-1"
+              *ngIf="selectedLibraryForDetails()?.responsibleName"
+              ><span class="material-symbols-outlined text-[16px]">badge</span> المسؤول:
+              {{ selectedLibraryForDetails()?.responsibleName }}
+              <span
+                *ngIf="selectedLibraryForDetails()?.responsiblePhone"
+                class="text-xs text-primary"
+                dir="ltr"
+                >({{ selectedLibraryForDetails()?.responsiblePhone }})</span
+              ></span
+            >
+            <span class="flex items-center gap-1" *ngIf="selectedLibraryForDetails()?.landlinePhone"
+              ><span class="material-symbols-outlined text-[16px]">call</span> ثابت:
+              <span dir="ltr">{{ selectedLibraryForDetails()?.landlinePhone }}</span></span
+            >
           </div>
         </div>
 
         <div class="flex-1 space-y-3" *ngIf="isEditingLibrary">
           <div>
-            <label class="block text-xs font-medium text-on-surface-variant mb-1">اسم المكتبة</label>
-            <input [(ngModel)]="editLibName" class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2 text-sm font-bold focus:border-primary outline-none" placeholder="اسم المكتبة">
+            <label class="block text-xs font-medium text-on-surface-variant mb-1"
+              >اسم المكتبة</label
+            >
+            <input
+              [(ngModel)]="editLibName"
+              class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2 text-sm font-bold focus:border-primary outline-none"
+              placeholder="اسم المكتبة"
+            />
           </div>
           <div class="grid grid-cols-2 gap-2">
             <div>
-              <label class="block text-xs font-medium text-on-surface-variant mb-1">اسم المسؤول</label>
-              <input [(ngModel)]="editResponsibleName" class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2 text-sm focus:border-primary outline-none" placeholder="اسم المسؤول">
+              <label class="block text-xs font-medium text-on-surface-variant mb-1"
+                >اسم المسؤول</label
+              >
+              <input
+                [(ngModel)]="editResponsibleName"
+                class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2 text-sm focus:border-primary outline-none"
+                placeholder="اسم المسؤول"
+              />
             </div>
             <div>
-              <label class="block text-xs font-medium text-on-surface-variant mb-1">رقم هاتف المسؤول</label>
-              <input [(ngModel)]="editResponsiblePhone" class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2 text-sm focus:border-primary outline-none" placeholder="رقم المسؤول" dir="ltr">
+              <label class="block text-xs font-medium text-on-surface-variant mb-1"
+                >رقم هاتف المسؤول</label
+              >
+              <input
+                [(ngModel)]="editResponsiblePhone"
+                class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2 text-sm focus:border-primary outline-none"
+                placeholder="رقم المسؤول"
+                dir="ltr"
+              />
             </div>
           </div>
           <div class="grid grid-cols-2 gap-2">
             <div>
-              <label class="block text-xs font-medium text-on-surface-variant mb-1">اسم صاحب المكتبة</label>
-              <input [(ngModel)]="editOwnerName" class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2 text-sm focus:border-primary outline-none" placeholder="اسم المالك">
+              <label class="block text-xs font-medium text-on-surface-variant mb-1"
+                >اسم صاحب المكتبة</label
+              >
+              <input
+                [(ngModel)]="editOwnerName"
+                class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2 text-sm focus:border-primary outline-none"
+                placeholder="اسم المالك"
+              />
             </div>
             <div>
-              <label class="block text-xs font-medium text-on-surface-variant mb-1">رقم تليفون المالك</label>
-              <input [(ngModel)]="editOwnerPhone" class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2 text-sm focus:border-primary outline-none" placeholder="9XXXXXXX" dir="ltr">
+              <label class="block text-xs font-medium text-on-surface-variant mb-1"
+                >رقم تليفون المالك</label
+              >
+              <input
+                [(ngModel)]="editOwnerPhone"
+                class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2 text-sm focus:border-primary outline-none"
+                placeholder="9XXXXXXX"
+                dir="ltr"
+              />
             </div>
           </div>
           <div>
-            <label class="block text-xs font-medium text-on-surface-variant mb-1">رقم التليفون الثابت</label>
-            <input [(ngModel)]="editLandlinePhone" class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2 text-sm focus:border-primary outline-none" placeholder="2XXXXXXX" dir="ltr">
+            <label class="block text-xs font-medium text-on-surface-variant mb-1"
+              >رقم التليفون الثابت</label
+            >
+            <input
+              [(ngModel)]="editLandlinePhone"
+              class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2 text-sm focus:border-primary outline-none"
+              placeholder="2XXXXXXX"
+              dir="ltr"
+            />
           </div>
           <div>
-            <label class="block text-xs font-medium text-on-surface-variant mb-1.5">أوقات العمل</label>
+            <label class="block text-xs font-medium text-on-surface-variant mb-1.5"
+              >أوقات العمل</label
+            >
             <div class="grid grid-cols-4 gap-2">
               <div>
                 <label class="block text-[10px] text-on-surface-variant mb-0.5">الفترة ١ من</label>
-                <input [(ngModel)]="editShift1Start" type="time" class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1.5 text-sm focus:border-primary outline-none">
+                <input
+                  [(ngModel)]="editShift1Start"
+                  type="time"
+                  class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1.5 text-sm focus:border-primary outline-none"
+                />
               </div>
               <div>
                 <label class="block text-[10px] text-on-surface-variant mb-0.5">إلى</label>
-                <input [(ngModel)]="editShift1End" type="time" class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1.5 text-sm focus:border-primary outline-none">
+                <input
+                  [(ngModel)]="editShift1End"
+                  type="time"
+                  class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1.5 text-sm focus:border-primary outline-none"
+                />
               </div>
               <div>
                 <label class="block text-[10px] text-on-surface-variant mb-0.5">الفترة ٢ من</label>
-                <input [(ngModel)]="editShift2Start" type="time" class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1.5 text-sm focus:border-primary outline-none">
+                <input
+                  [(ngModel)]="editShift2Start"
+                  type="time"
+                  class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1.5 text-sm focus:border-primary outline-none"
+                />
               </div>
               <div>
                 <label class="block text-[10px] text-on-surface-variant mb-0.5">إلى</label>
-                <input [(ngModel)]="editShift2End" type="time" class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1.5 text-sm focus:border-primary outline-none">
+                <input
+                  [(ngModel)]="editShift2End"
+                  type="time"
+                  class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-2 py-1.5 text-sm focus:border-primary outline-none"
+                />
               </div>
             </div>
           </div>
           <div>
-            <label class="block text-xs font-medium text-on-surface-variant mb-1.5">سرعة الاستجابة</label>
+            <label class="block text-xs font-medium text-on-surface-variant mb-1.5"
+              >سرعة الاستجابة</label
+            >
             <div class="flex gap-2">
               <label class="flex-1 cursor-pointer">
-                <input type="radio" [(ngModel)]="editResponseRating" name="editResponseRating" value="سيئ" class="hidden peer">
-                <div class="text-center py-2 rounded-lg border text-sm font-medium transition-all peer-checked:bg-error peer-checked:text-white peer-checked:border-error border-outline-variant hover:border-error">🔴 سيئ</div>
+                <input
+                  type="radio"
+                  [(ngModel)]="editResponseRating"
+                  name="editResponseRating"
+                  value="سيئ"
+                  class="hidden peer"
+                />
+                <div
+                  class="text-center py-2 rounded-lg border text-sm font-medium transition-all peer-checked:bg-error peer-checked:text-white peer-checked:border-error border-outline-variant hover:border-error"
+                >
+                  🔴 سيئ
+                </div>
               </label>
               <label class="flex-1 cursor-pointer">
-                <input type="radio" [(ngModel)]="editResponseRating" name="editResponseRating" value="جيد" class="hidden peer">
-                <div class="text-center py-2 rounded-lg border text-sm font-medium transition-all peer-checked:bg-warning peer-checked:text-white peer-checked:border-warning border-outline-variant hover:border-warning">🟡 جيد</div>
+                <input
+                  type="radio"
+                  [(ngModel)]="editResponseRating"
+                  name="editResponseRating"
+                  value="جيد"
+                  class="hidden peer"
+                />
+                <div
+                  class="text-center py-2 rounded-lg border text-sm font-medium transition-all peer-checked:bg-warning peer-checked:text-white peer-checked:border-warning border-outline-variant hover:border-warning"
+                >
+                  🟡 جيد
+                </div>
               </label>
               <label class="flex-1 cursor-pointer">
-                <input type="radio" [(ngModel)]="editResponseRating" name="editResponseRating" value="ممتاز" class="hidden peer">
-                <div class="text-center py-2 rounded-lg border text-sm font-medium transition-all peer-checked:bg-success peer-checked:text-white peer-checked:border-success border-outline-variant hover:border-success">🟢 ممتاز</div>
+                <input
+                  type="radio"
+                  [(ngModel)]="editResponseRating"
+                  name="editResponseRating"
+                  value="ممتاز"
+                  class="hidden peer"
+                />
+                <div
+                  class="text-center py-2 rounded-lg border text-sm font-medium transition-all peer-checked:bg-success peer-checked:text-white peer-checked:border-success border-outline-variant hover:border-success"
+                >
+                  🟢 ممتاز
+                </div>
               </label>
             </div>
           </div>
           <div>
-            <label class="block text-xs font-medium text-on-surface-variant mb-1.5">سرعة سداد المستحقات</label>
+            <label class="block text-xs font-medium text-on-surface-variant mb-1.5"
+              >سرعة سداد المستحقات</label
+            >
             <div class="flex gap-2">
               <label class="flex-1 cursor-pointer">
-                <input type="radio" [(ngModel)]="editPaymentRating" name="editPaymentRating" value="سيئ" class="hidden peer">
-                <div class="text-center py-2 rounded-lg border text-sm font-medium transition-all peer-checked:bg-error peer-checked:text-white peer-checked:border-error border-outline-variant hover:border-error">🔴 سيئ</div>
+                <input
+                  type="radio"
+                  [(ngModel)]="editPaymentRating"
+                  name="editPaymentRating"
+                  value="سيئ"
+                  class="hidden peer"
+                />
+                <div
+                  class="text-center py-2 rounded-lg border text-sm font-medium transition-all peer-checked:bg-error peer-checked:text-white peer-checked:border-error border-outline-variant hover:border-error"
+                >
+                  🔴 سيئ
+                </div>
               </label>
               <label class="flex-1 cursor-pointer">
-                <input type="radio" [(ngModel)]="editPaymentRating" name="editPaymentRating" value="جيد" class="hidden peer">
-                <div class="text-center py-2 rounded-lg border text-sm font-medium transition-all peer-checked:bg-warning peer-checked:text-white peer-checked:border-warning border-outline-variant hover:border-warning">🟡 جيد</div>
+                <input
+                  type="radio"
+                  [(ngModel)]="editPaymentRating"
+                  name="editPaymentRating"
+                  value="جيد"
+                  class="hidden peer"
+                />
+                <div
+                  class="text-center py-2 rounded-lg border text-sm font-medium transition-all peer-checked:bg-warning peer-checked:text-white peer-checked:border-warning border-outline-variant hover:border-warning"
+                >
+                  🟡 جيد
+                </div>
               </label>
               <label class="flex-1 cursor-pointer">
-                <input type="radio" [(ngModel)]="editPaymentRating" name="editPaymentRating" value="ممتاز" class="hidden peer">
-                <div class="text-center py-2 rounded-lg border text-sm font-medium transition-all peer-checked:bg-success peer-checked:text-white peer-checked:border-success border-outline-variant hover:border-success">🟢 ممتاز</div>
+                <input
+                  type="radio"
+                  [(ngModel)]="editPaymentRating"
+                  name="editPaymentRating"
+                  value="ممتاز"
+                  class="hidden peer"
+                />
+                <div
+                  class="text-center py-2 rounded-lg border text-sm font-medium transition-all peer-checked:bg-success peer-checked:text-white peer-checked:border-success border-outline-variant hover:border-success"
+                >
+                  🟢 ممتاز
+                </div>
               </label>
             </div>
           </div>
           <div>
             <label class="block text-xs font-medium text-on-surface-variant mb-1.5">ملاحظات</label>
-            <textarea [(ngModel)]="editLibraryNotes" name="editNotes" rows="2" class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2 text-sm focus:border-primary outline-none transition-all resize-none" placeholder="ملاحظات إضافية عن المكتبة..."></textarea>
+            <textarea
+              [(ngModel)]="editLibraryNotes"
+              name="editNotes"
+              rows="2"
+              class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-3 py-2 text-sm focus:border-primary outline-none transition-all resize-none"
+              placeholder="ملاحظات إضافية عن المكتبة..."
+            ></textarea>
           </div>
         </div>
       </div>
@@ -540,74 +1139,188 @@
         <div class="bg-surface-container-low p-3 rounded-lg border border-surface-container-high">
           <div class="text-xs text-on-surface-variant mb-1">حالة المكتبة</div>
           <div class="font-bold flex items-center gap-2">
-            <span class="w-2.5 h-2.5 rounded-full" [ngClass]="getLibraryStatus(selectedLibraryForDetails()).bgClass"></span>
+            <span
+              class="w-2.5 h-2.5 rounded-full"
+              [ngClass]="getLibraryStatus(selectedLibraryForDetails()).bgClass"
+            ></span>
             {{ getLibraryStatus(selectedLibraryForDetails()).text }}
           </div>
         </div>
         <div class="bg-surface-container-low p-3 rounded-lg border border-surface-container-high">
           <div class="text-xs text-on-surface-variant mb-1">أوقات العمل</div>
           <div class="font-mono text-xs" *ngIf="!isEditingLibrary">
-            <div>الفترة ١: {{ selectedLibraryForDetails()?.shift1Start }} - {{ selectedLibraryForDetails()?.shift1End }}</div>
-            <div *ngIf="selectedLibraryForDetails()?.shift2Start">الفترة ٢: {{ selectedLibraryForDetails()?.shift2Start }} - {{ selectedLibraryForDetails()?.shift2End }}</div>
+            <div>
+              الفترة ١: {{ selectedLibraryForDetails()?.shift1Start }} -
+              {{ selectedLibraryForDetails()?.shift1End }}
+            </div>
+            <div *ngIf="selectedLibraryForDetails()?.shift2Start">
+              الفترة ٢: {{ selectedLibraryForDetails()?.shift2Start }} -
+              {{ selectedLibraryForDetails()?.shift2End }}
+            </div>
           </div>
         </div>
-        <div class="bg-surface-container-low p-3 rounded-lg border border-surface-container-high" *ngIf="selectedLibraryForDetails()?.responseRating">
+        <div
+          class="bg-surface-container-low p-3 rounded-lg border border-surface-container-high"
+          *ngIf="selectedLibraryForDetails()?.responseRating"
+        >
           <div class="text-xs text-on-surface-variant mb-1">سرعة الاستجابة</div>
-          <div class="font-bold" [ngClass]="selectedLibraryForDetails()?.responseRating === 'ممتاز' ? 'text-success' : selectedLibraryForDetails()?.responseRating === 'جيد' ? 'text-warning' : 'text-error'">
-            {{ selectedLibraryForDetails()?.responseRating === 'ممتاز' ? '🟢' : selectedLibraryForDetails()?.responseRating === 'جيد' ? '🟡' : '🔴' }} {{ selectedLibraryForDetails()?.responseRating }}
+          <div
+            class="font-bold"
+            [ngClass]="
+              selectedLibraryForDetails()?.responseRating === 'ممتاز'
+                ? 'text-success'
+                : selectedLibraryForDetails()?.responseRating === 'جيد'
+                  ? 'text-warning'
+                  : 'text-error'
+            "
+          >
+            {{
+              selectedLibraryForDetails()?.responseRating === 'ممتاز'
+                ? '🟢'
+                : selectedLibraryForDetails()?.responseRating === 'جيد'
+                  ? '🟡'
+                  : '🔴'
+            }}
+            {{ selectedLibraryForDetails()?.responseRating }}
           </div>
         </div>
-        <div class="bg-surface-container-low p-3 rounded-lg border border-surface-container-high" *ngIf="selectedLibraryForDetails()?.paymentRating">
+        <div
+          class="bg-surface-container-low p-3 rounded-lg border border-surface-container-high"
+          *ngIf="selectedLibraryForDetails()?.paymentRating"
+        >
           <div class="text-xs text-on-surface-variant mb-1">سرعة سداد المستحقات</div>
-          <div class="font-bold" [ngClass]="selectedLibraryForDetails()?.paymentRating === 'ممتاز' ? 'text-success' : selectedLibraryForDetails()?.paymentRating === 'جيد' ? 'text-warning' : 'text-error'">
-            {{ selectedLibraryForDetails()?.paymentRating === 'ممتاز' ? '🟢' : selectedLibraryForDetails()?.paymentRating === 'جيد' ? '🟡' : '🔴' }} {{ selectedLibraryForDetails()?.paymentRating }}
+          <div
+            class="font-bold"
+            [ngClass]="
+              selectedLibraryForDetails()?.paymentRating === 'ممتاز'
+                ? 'text-success'
+                : selectedLibraryForDetails()?.paymentRating === 'جيد'
+                  ? 'text-warning'
+                  : 'text-error'
+            "
+          >
+            {{
+              selectedLibraryForDetails()?.paymentRating === 'ممتاز'
+                ? '🟢'
+                : selectedLibraryForDetails()?.paymentRating === 'جيد'
+                  ? '🟡'
+                  : '🔴'
+            }}
+            {{ selectedLibraryForDetails()?.paymentRating }}
           </div>
         </div>
       </div>
 
       <!-- Notes -->
-      <div *ngIf="selectedLibraryForDetails()?.notes" class="bg-surface-container-low p-3 rounded-lg border border-surface-container-high">
+      <div
+        *ngIf="selectedLibraryForDetails()?.notes"
+        class="bg-surface-container-low p-3 rounded-lg border border-surface-container-high"
+      >
         <div class="text-xs text-on-surface-variant mb-1">ملاحظات</div>
         <div class="text-sm text-on-surface">{{ selectedLibraryForDetails()?.notes }}</div>
       </div>
 
       <!-- Invoices Section -->
       <div>
-        <h4 class="text-sm font-bold text-secondary mb-3 flex items-center gap-2 border-b border-surface-container-high pb-2">
-          <span class="material-symbols-outlined text-[18px]">receipt_long</span> سجل الفواتير 
-          <span class="text-xs font-normal text-on-surface-variant bg-surface-container px-2 py-0.5 rounded-full">{{ libraryInvoices().length }}</span>
+        <h4
+          class="text-sm font-bold text-secondary mb-3 flex items-center gap-2 border-b border-surface-container-high pb-2"
+        >
+          <span class="material-symbols-outlined text-[18px]">receipt_long</span> سجل الفواتير
+          <span
+            class="text-xs font-normal text-on-surface-variant bg-surface-container px-2 py-0.5 rounded-full"
+            >{{ libraryInvoices().length }}</span
+          >
         </h4>
-        
+
         <div class="space-y-2 max-h-[220px] overflow-y-auto custom-scrollbar pr-1">
-          <div *ngFor="let inv of libraryInvoices(); trackBy: trackById" class="bg-surface-container-lowest border border-surface-container-high rounded-lg p-3 hover:border-primary transition-all cursor-pointer group" (click)="toggleInvoiceDetails(inv)">
+          <div
+            *ngFor="let inv of libraryInvoices(); trackBy: trackById"
+            class="bg-surface-container-lowest border border-surface-container-high rounded-lg p-3 hover:border-primary transition-all cursor-pointer group"
+            (click)="toggleInvoiceDetails(inv)"
+          >
             <div class="flex justify-between items-center">
               <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-full flex items-center justify-center" [ngClass]="inv.type === 'order' ? 'bg-primary-fixed-dim text-primary group-hover:bg-primary group-hover:text-white' : inv.type === 'refund' ? 'bg-error-container text-error group-hover:bg-error group-hover:text-white' : inv.type === 'receipt_voucher' ? 'bg-[#1a237e]/10 text-[#1a237e] group-hover:bg-[#1a237e] group-hover:text-white' : 'bg-secondary-container text-secondary group-hover:bg-secondary group-hover:text-white'">
-                  <span class="material-symbols-outlined transition-colors">{{ inv.type === 'order' ? 'shopping_cart' : inv.type === 'refund' ? 'assignment_return' : inv.type === 'receipt_voucher' ? 'request_quote' : 'payments' }}</span>
+                <div
+                  class="w-10 h-10 rounded-full flex items-center justify-center"
+                  [ngClass]="
+                    inv.type === 'order'
+                      ? 'bg-primary-fixed-dim text-primary group-hover:bg-primary group-hover:text-white'
+                      : inv.type === 'refund'
+                        ? 'bg-error-container text-error group-hover:bg-error group-hover:text-white'
+                        : inv.type === 'receipt_voucher'
+                          ? 'bg-[#1a237e]/10 text-[#1a237e] group-hover:bg-[#1a237e] group-hover:text-white'
+                          : 'bg-secondary-container text-secondary group-hover:bg-secondary group-hover:text-white'
+                  "
+                >
+                  <span class="material-symbols-outlined transition-colors">{{
+                    inv.type === 'order'
+                      ? 'shopping_cart'
+                      : inv.type === 'refund'
+                        ? 'assignment_return'
+                        : inv.type === 'receipt_voucher'
+                          ? 'request_quote'
+                          : 'payments'
+                  }}</span>
                 </div>
                 <div>
                   <div class="font-bold text-sm text-text-heading">
-                    {{ inv.type === 'order' ? 'طلبية بيع' : inv.type === 'refund' ? 'استرجاع' : inv.type === 'receipt_voucher' ? 'سند قبض' : 'مخالصة' }}
-                    <span class="text-xs text-primary font-mono">#{{ inv.displayNumber || inv.invoiceNumber }}</span>
+                    {{
+                      inv.type === 'order'
+                        ? 'طلبية بيع'
+                        : inv.type === 'refund'
+                          ? 'استرجاع'
+                          : inv.type === 'receipt_voucher'
+                            ? 'سند قبض'
+                            : 'مخالصة'
+                    }}
+                    <span class="text-xs text-primary font-mono"
+                      >#{{
+                        $any(inv).displayNumber ||
+                          $any(inv).invoiceNumber ||
+                          $any(inv).voucherNumber
+                      }}</span
+                    >
                   </div>
                   <div class="text-xs text-on-surface-variant flex items-center gap-1 mt-0.5">
-                    <span class="material-symbols-outlined text-[14px]">calendar_today</span> {{ inv.date | date:'dd/MM/yyyy hh:mm a' }}
+                    <span class="material-symbols-outlined text-[14px]">calendar_today</span>
+                    {{ inv.date | date: 'dd/MM/yyyy hh:mm a' }}
                   </div>
                 </div>
               </div>
               <div class="flex items-center gap-2">
-                <div class="font-mono font-bold text-sm" [ngClass]="inv.type === 'order' ? 'text-primary' : inv.type === 'refund' ? 'text-error' : inv.type === 'receipt_voucher' ? 'text-[#1a237e]' : 'text-secondary'">
-                  {{ inv.totalAmount | number:'1.3-3' }} {{ settingsService.printSettings().mainCurrency }}
+                <div
+                  class="font-mono font-bold text-sm"
+                  [ngClass]="
+                    inv.type === 'order'
+                      ? 'text-primary'
+                      : inv.type === 'refund'
+                        ? 'text-error'
+                        : inv.type === 'receipt_voucher'
+                          ? 'text-[#1a237e]'
+                          : 'text-secondary'
+                  "
+                >
+                  {{ inv.totalAmount | number: '1.3-3' }}
+                  {{ settingsService.printSettings().mainCurrency }}
                 </div>
-                <span class="material-symbols-outlined text-on-surface-variant text-[18px] transition-transform" [ngClass]="expandedInvoiceId() === (inv.id ?? inv.voucherNumber) ? 'rotate-180' : ''">expand_more</span>
+                <span
+                  class="material-symbols-outlined text-on-surface-variant text-[18px] transition-transform"
+                  [ngClass]="
+                    expandedInvoiceId() === (inv.id ?? $any(inv).voucherNumber) ? 'rotate-180' : ''
+                  "
+                  >expand_more</span
+                >
               </div>
             </div>
 
             <!-- Expanded content -->
-            <div *ngIf="expandedInvoiceId() === (inv.id ?? inv.voucherNumber)" class="mt-3 pt-3 border-t border-surface-container-high overflow-x-auto custom-scrollbar">
+            <div
+              *ngIf="expandedInvoiceId() === (inv.id ?? $any(inv).voucherNumber)"
+              class="mt-3 pt-3 border-t border-surface-container-high overflow-x-auto custom-scrollbar"
+            >
               <!-- Regular invoices: show items table -->
               <ng-container *ngIf="inv.type !== 'receipt_voucher'">
-                <table class="w-full text-sm text-right" *ngIf="inv.items?.length">
+                <table class="w-full text-sm text-right" *ngIf="inv.items.length">
                   <thead class="text-xs text-on-surface-variant bg-surface-container-low">
                     <tr>
                       <th class="px-2 py-1.5 rounded-r-lg font-medium w-8">م</th>
@@ -618,40 +1331,70 @@
                     </tr>
                   </thead>
                   <tbody>
-                    <tr *ngFor="let item of inv.items; trackBy: trackById; let i = index" class="border-b border-surface-container last:border-0 hover:bg-surface-container-lowest transition-colors">
+                    <tr
+                      *ngFor="let item of inv.items; trackBy: trackById; let i = index"
+                      class="border-b border-surface-container last:border-0 hover:bg-surface-container-lowest transition-colors"
+                    >
                       <td class="px-2 py-1.5 text-center text-on-surface-variant">{{ i + 1 }}</td>
-                      <td class="px-2 py-1.5 font-medium text-on-surface">{{ item.bookName || item.name }}</td>
+                      <td class="px-2 py-1.5 font-medium text-on-surface">
+                        {{ item.bookName || item.name }}
+                      </td>
                       <td class="px-2 py-1.5 text-center font-bold">{{ item.quantity }}</td>
-                      <td class="px-2 py-1.5 text-left font-mono text-on-surface-variant">{{ (item.unitPrice || item.price) | number:'1.3-3' }}</td>
-                      <td class="px-2 py-1.5 text-left font-bold text-primary">{{ item.total | number:'1.3-3' }}</td>
+                      <td class="px-2 py-1.5 text-left font-mono text-on-surface-variant">
+                        {{ item.unitPrice || item.price | number: '1.3-3' }}
+                      </td>
+                      <td class="px-2 py-1.5 text-left font-bold text-primary">
+                        {{ item.total | number: '1.3-3' }}
+                      </td>
                     </tr>
                   </tbody>
                 </table>
-                <div class="flex justify-end mt-2" *ngIf="inv.items?.length">
+                <div class="flex justify-end mt-2" *ngIf="inv.items.length">
                   <div class="text-sm font-bold">
-                    الإجمالي: <span class="text-primary">{{ inv.totalAmount | number:'1.3-3' }} {{ settingsService.printSettings().mainCurrency }}</span>
+                    الإجمالي:
+                    <span class="text-primary"
+                      >{{ inv.totalAmount | number: '1.3-3' }}
+                      {{ settingsService.printSettings().mainCurrency }}</span
+                    >
                   </div>
                 </div>
-                <div *ngIf="!inv.items?.length" class="text-center text-on-surface-variant py-4 text-xs">
+                <div
+                  *ngIf="!inv.items.length"
+                  class="text-center text-on-surface-variant py-4 text-xs"
+                >
                   لا توجد أصناف مفصلة لهذه الفاتورة
                 </div>
               </ng-container>
 
               <!-- Receipt voucher: show voucher details -->
-              <div *ngIf="inv.type === 'receipt_voucher'" class="grid grid-cols-2 md:grid-cols-4 gap-2">
+              <div
+                *ngIf="inv.type === 'receipt_voucher'"
+                class="grid grid-cols-2 md:grid-cols-4 gap-2"
+              >
                 <div class="p-2 bg-surface-container-low rounded-lg">
                   <div class="text-[10px] text-on-surface-variant">المبلغ</div>
-                  <div class="font-bold text-sm text-[#1a237e]">{{ inv.amount | number:'1.3-3' }} {{ settingsService.printSettings().mainCurrency }}</div>
+                  <div class="font-bold text-sm text-[#1a237e]">
+                    {{ inv.amount | number: '1.3-3' }}
+                    {{ settingsService.printSettings().mainCurrency }}
+                  </div>
                 </div>
                 <div class="p-2 bg-surface-container-low rounded-lg">
                   <div class="text-[10px] text-on-surface-variant">طريقة الدفع</div>
-                  <div class="font-bold text-sm">{{ inv.paymentMethod === 'cheque' ? 'شيك' : 'نقداً' }}</div>
+                  <div class="font-bold text-sm">
+                    {{ inv.paymentMethod === 'cheque' ? 'شيك' : 'نقداً' }}
+                  </div>
                 </div>
-                <div class="p-2 bg-surface-container-low rounded-lg" *ngIf="inv.paymentMethod === 'cheque'">
+                <div
+                  class="p-2 bg-surface-container-low rounded-lg"
+                  *ngIf="inv.paymentMethod === 'cheque'"
+                >
                   <div class="text-[10px] text-on-surface-variant">رقم الشيك</div>
                   <div class="font-bold text-sm">{{ inv.chequeNumber }}</div>
                 </div>
-                <div class="p-2 bg-surface-container-low rounded-lg" *ngIf="inv.paymentMethod === 'cheque'">
+                <div
+                  class="p-2 bg-surface-container-low rounded-lg"
+                  *ngIf="inv.paymentMethod === 'cheque'"
+                >
                   <div class="text-[10px] text-on-surface-variant">البنك</div>
                   <div class="font-bold text-sm">{{ inv.bankName }}</div>
                 </div>
@@ -662,15 +1405,24 @@
               </div>
             </div>
           </div>
-          <div *ngIf="libraryInvoices().length === 0" class="text-center text-on-surface-variant py-6 text-sm bg-surface-container-lowest rounded-lg border border-dashed border-outline-variant">
+          <div
+            *ngIf="libraryInvoices().length === 0"
+            class="text-center text-on-surface-variant py-6 text-sm bg-surface-container-lowest rounded-lg border border-dashed border-outline-variant"
+          >
             لا توجد فواتير مسجلة لهذه المكتبة حتى الآن.
           </div>
         </div>
       </div>
-
     </div>
-    <div class="p-5 border-t border-surface-container-high bg-surface-container-low rounded-b-xl flex justify-end" *ngIf="!isEditingLibrary">
-      <button type="button" (click)="closeDetails()" class="px-5 py-2.5 border border-outline-variant rounded-lg text-sm font-medium text-on-surface-variant hover:bg-surface-container transition-colors">
+    <div
+      class="p-5 border-t border-surface-container-high bg-surface-container-low rounded-b-xl flex justify-end"
+      *ngIf="!isEditingLibrary"
+    >
+      <button
+        type="button"
+        (click)="closeDetails()"
+        class="px-5 py-2.5 border border-outline-variant rounded-lg text-sm font-medium text-on-surface-variant hover:bg-surface-container transition-colors"
+      >
         إغلاق
       </button>
     </div>
@@ -678,17 +1430,41 @@
 </div>
 
 <!-- ==================== Receipt Voucher Modal ==================== -->
-<div *ngIf="isReceiptVoucherModalOpen" class="modal-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 no-print">
-  <div class="bg-surface rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden" dir="rtl">
+<div
+  *ngIf="isReceiptVoucherModalOpen"
+  class="modal-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 no-print"
+>
+  <div
+    class="bg-surface rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden"
+    dir="rtl"
+  >
     <!-- Header -->
-    <div class="p-5 border-b border-surface-container-high bg-gradient-to-l from-primary/10 to-transparent">
+    <div
+      class="p-5 border-b border-surface-container-high bg-gradient-to-l from-primary/10 to-transparent"
+    >
       <div class="flex items-center justify-between">
         <div>
           <h3 class="text-lg font-bold text-on-surface">سند قبض</h3>
           <p class="text-xs text-on-surface-variant mt-0.5">{{ receiptVoucherLibrary()?.name }}</p>
         </div>
-        <button type="button" (click)="closeReceiptVoucher()" class="p-2 hover:bg-surface-container rounded-full transition-colors">
-          <svg class="w-5 h-5 text-on-surface-variant" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        <button
+          type="button"
+          (click)="closeReceiptVoucher()"
+          class="p-2 hover:bg-surface-container rounded-full transition-colors"
+        >
+          <svg
+            class="w-5 h-5 text-on-surface-variant"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M6 18L18 6M6 6l12 12"
+            />
+          </svg>
         </button>
       </div>
     </div>
@@ -697,62 +1473,135 @@
     <div class="p-5 space-y-4 overflow-y-auto flex-1">
       <!-- Amount -->
       <div>
-        <label class="block text-xs font-medium text-on-surface-variant mb-1.5">المبلغ (ريال عماني) <span class="text-error">*</span></label>
-        <input type="number" [(ngModel)]="rvAmount" name="rv-amount" step="0.001" min="0.001"
-               class="w-full px-3 py-2.5 bg-surface-container-lowest border border-outline-variant rounded-lg text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary">
+        <label class="block text-xs font-medium text-on-surface-variant mb-1.5"
+          >المبلغ (ريال عماني) <span class="text-error">*</span></label
+        >
+        <input
+          type="number"
+          [(ngModel)]="rvAmount"
+          name="rv-amount"
+          step="0.001"
+          min="0.001"
+          class="w-full px-3 py-2.5 bg-surface-container-lowest border border-outline-variant rounded-lg text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
+        />
       </div>
 
       <!-- Payment Method -->
       <div>
-        <label class="block text-xs font-medium text-on-surface-variant mb-1.5">طريقة الدفع <span class="text-error">*</span></label>
+        <label class="block text-xs font-medium text-on-surface-variant mb-1.5"
+          >طريقة الدفع <span class="text-error">*</span></label
+        >
         <div class="flex gap-3">
           <label class="flex-1 cursor-pointer">
-            <input type="radio" [(ngModel)]="rvPaymentMethod" name="rvPaymentMethod" value="cash" class="hidden peer">
-            <div class="text-center py-2.5 rounded-lg border text-sm font-medium transition-all peer-checked:bg-primary peer-checked:text-on-primary peer-checked:border-primary border-outline-variant hover:border-primary">💵 نقداً</div>
+            <input
+              type="radio"
+              [(ngModel)]="rvPaymentMethod"
+              name="rvPaymentMethod"
+              value="cash"
+              class="hidden peer"
+            />
+            <div
+              class="text-center py-2.5 rounded-lg border text-sm font-medium transition-all peer-checked:bg-primary peer-checked:text-on-primary peer-checked:border-primary border-outline-variant hover:border-primary"
+            >
+              💵 نقداً
+            </div>
           </label>
           <label class="flex-1 cursor-pointer">
-            <input type="radio" [(ngModel)]="rvPaymentMethod" name="rvPaymentMethod" value="cheque" class="hidden peer">
-            <div class="text-center py-2.5 rounded-lg border text-sm font-medium transition-all peer-checked:bg-primary peer-checked:text-on-primary peer-checked:border-primary border-outline-variant hover:border-primary">🏦 شيك</div>
+            <input
+              type="radio"
+              [(ngModel)]="rvPaymentMethod"
+              name="rvPaymentMethod"
+              value="cheque"
+              class="hidden peer"
+            />
+            <div
+              class="text-center py-2.5 rounded-lg border text-sm font-medium transition-all peer-checked:bg-primary peer-checked:text-on-primary peer-checked:border-primary border-outline-variant hover:border-primary"
+            >
+              🏦 شيك
+            </div>
           </label>
         </div>
       </div>
 
       <!-- Cheque Details (shown only when cheque) -->
-      <div *ngIf="rvPaymentMethod === 'cheque'" class="space-y-3 p-3 bg-surface-container-lowest rounded-lg border border-outline-variant">
+      <div
+        *ngIf="rvPaymentMethod === 'cheque'"
+        class="space-y-3 p-3 bg-surface-container-lowest rounded-lg border border-outline-variant"
+      >
         <div>
-          <label class="block text-xs font-medium text-on-surface-variant mb-1.5">رقم الشيك <span class="text-error">*</span></label>
-          <input type="text" [(ngModel)]="rvChequeNumber" name="rv-cheque"
-                 class="w-full px-3 py-2.5 bg-surface border border-outline-variant rounded-lg text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary">
+          <label class="block text-xs font-medium text-on-surface-variant mb-1.5"
+            >رقم الشيك <span class="text-error">*</span></label
+          >
+          <input
+            type="text"
+            [(ngModel)]="rvChequeNumber"
+            name="rv-cheque"
+            class="w-full px-3 py-2.5 bg-surface border border-outline-variant rounded-lg text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
+          />
         </div>
         <div>
           <label class="block text-xs font-medium text-on-surface-variant mb-1.5">اسم البنك</label>
-          <input type="text" [(ngModel)]="rvBankName" name="rv-bank"
-                 class="w-full px-3 py-2.5 bg-surface border border-outline-variant rounded-lg text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary">
+          <input
+            type="text"
+            [(ngModel)]="rvBankName"
+            name="rv-bank"
+            class="w-full px-3 py-2.5 bg-surface border border-outline-variant rounded-lg text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
+          />
         </div>
       </div>
 
       <!-- Date -->
       <div>
-        <label class="block text-xs font-medium text-on-surface-variant mb-1.5">التاريخ <span class="text-error">*</span></label>
-        <input type="date" [(ngModel)]="rvDate" name="rv-date"
-               class="w-full px-3 py-2.5 bg-surface-container-lowest border border-outline-variant rounded-lg text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary">
+        <label class="block text-xs font-medium text-on-surface-variant mb-1.5"
+          >التاريخ <span class="text-error">*</span></label
+        >
+        <input
+          type="date"
+          [(ngModel)]="rvDate"
+          name="rv-date"
+          class="w-full px-3 py-2.5 bg-surface-container-lowest border border-outline-variant rounded-lg text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
+        />
       </div>
 
       <!-- Purpose -->
       <div>
-        <label class="block text-xs font-medium text-on-surface-variant mb-1.5">وذلك عن <span class="text-error">*</span></label>
-        <textarea [(ngModel)]="rvPurpose" name="rv-purpose" rows="2"
-                  class="w-full px-3 py-2.5 bg-surface-container-lowest border border-outline-variant rounded-lg text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary resize-none"></textarea>
+        <label class="block text-xs font-medium text-on-surface-variant mb-1.5"
+          >وذلك عن <span class="text-error">*</span></label
+        >
+        <textarea
+          [(ngModel)]="rvPurpose"
+          name="rv-purpose"
+          rows="2"
+          class="w-full px-3 py-2.5 bg-surface-container-lowest border border-outline-variant rounded-lg text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary resize-none"
+        ></textarea>
       </div>
     </div>
 
     <!-- Footer -->
-    <div class="p-5 border-t border-surface-container-high bg-surface-container-low flex gap-3 justify-end">
-      <button type="button" (click)="closeReceiptVoucher()" class="px-5 py-2.5 border border-outline-variant rounded-lg text-sm font-medium text-on-surface-variant hover:bg-surface-container transition-colors">
+    <div
+      class="p-5 border-t border-surface-container-high bg-surface-container-low flex gap-3 justify-end"
+    >
+      <button
+        type="button"
+        (click)="closeReceiptVoucher()"
+        class="px-5 py-2.5 border border-outline-variant rounded-lg text-sm font-medium text-on-surface-variant hover:bg-surface-container transition-colors"
+      >
         إلغاء
       </button>
-      <button type="button" (click)="saveAndPrintReceiptVoucher()" class="px-6 py-2.5 bg-primary text-on-primary rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors flex items-center gap-2">
-        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+      <button
+        type="button"
+        (click)="saveAndPrintReceiptVoucher()"
+        [disabled]="isSavingReceiptVoucher"
+        class="px-6 py-2.5 bg-primary text-on-primary rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+      >
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
+          />
+        </svg>
         حفظ وطباعة
       </button>
     </div>
@@ -760,19 +1609,27 @@
 </div>
 
 <!-- ==================== Receipt Voucher Print Layout ==================== -->
-<div *ngIf="receiptVoucherToPrint()" class="print-page receipt-voucher-print-page w-full bg-white text-black p-6" dir="ltr" style="font-family: 'Traditional Arabic', 'Amiri', 'Times New Roman', serif;">
-
+<div
+  *ngIf="receiptVoucherToPrint()"
+  class="print-page receipt-voucher-print-page w-full bg-white text-black p-6"
+  dir="ltr"
+  style="font-family: 'Traditional Arabic', 'Amiri', 'Times New Roman', serif"
+>
   <!-- Logo & Brand Header -->
   <div class="flex justify-between items-start mb-4">
     <!-- Logo (Left) -->
     <div class="flex-shrink-0">
-      <img [src]="assetUrls.logo" class="h-24 object-contain" alt="Logo">
+      <img [src]="assetUrls.logo" class="h-24 object-contain" alt="Logo" />
     </div>
     <!-- Info (Right) -->
-    <div class="text-right text-[18px] font-bold text-black" dir="rtl" style="font-family: sans-serif;">
+    <div
+      class="text-right text-[18px] font-bold text-black"
+      dir="rtl"
+      style="font-family: sans-serif"
+    >
       <div>{{ settingsService.printSettings().phones }}</div>
       <div>سلطنة عمان</div>
-      <div>التاريخ: {{ receiptVoucherToPrint()?.date | date:'yyyy/MM/dd' }}</div>
+      <div>التاريخ: {{ receiptVoucherToPrint()?.date | date: 'yyyy/MM/dd' }}</div>
     </div>
   </div>
 
@@ -786,36 +1643,57 @@
 
   <!-- Voucher Body -->
   <div class="text-[15px] font-bold space-y-4 mt-4">
-
     <!-- Row 1: Received From -->
     <div class="flex items-baseline">
       <span class="text-[15px] font-normal" dir="ltr">Received with thanks from Mr./Ms./</span>
-      <span class="flex-grow border-b-[2px] border-dashed border-black mx-2 text-center text-[#d32f2f] text-[16px] pb-1 font-bold" dir="rtl">
+      <span
+        class="flex-grow border-b-[2px] border-dashed border-black mx-2 text-center text-[#d32f2f] text-[16px] pb-1 font-bold"
+        dir="rtl"
+      >
         {{ receiptVoucherToPrint()?.libraryName || receiptVoucherLibrary()?.name }}
       </span>
-      <span class="whitespace-nowrap text-[17px] font-bold text-[#1a237e]" dir="rtl">استلمنا من الفاضل/ة</span>
+      <span class="whitespace-nowrap text-[17px] font-bold text-[#1a237e]" dir="rtl"
+        >استلمنا من الفاضل/ة</span
+      >
     </div>
 
     <!-- Row 2: Amount -->
     <div class="flex items-baseline">
       <span class="text-[15px] font-normal" dir="ltr">The sum of Omani Rials.</span>
-      <span class="flex-grow border-b-[2px] border-dashed border-black mx-2 text-center text-[16px] pb-1 font-bold" dir="rtl">
-        <span class="text-black">{{ receiptVoucherToPrint()?.amount | number:'1.3-3' }}</span>
+      <span
+        class="flex-grow border-b-[2px] border-dashed border-black mx-2 text-center text-[16px] pb-1 font-bold"
+        dir="rtl"
+      >
+        <span class="text-black">{{ receiptVoucherToPrint()?.amount | number: '1.3-3' }}</span>
       </span>
-      <span class="whitespace-nowrap text-[17px] font-bold text-[#1a237e]" dir="rtl">مبلغاً وقدره</span>
+      <span class="whitespace-nowrap text-[17px] font-bold text-[#1a237e]" dir="rtl"
+        >مبلغاً وقدره</span
+      >
     </div>
 
     <!-- Row 3: Date & Payment Method -->
     <div class="flex items-baseline">
       <span class="text-[15px] font-normal" dir="ltr">By Cash/Cheque No.</span>
-      <span class="flex-grow border-b-[2px] border-dashed border-black mx-2 text-center text-[16px] pb-1 font-sans" dir="rtl">
-        {{ receiptVoucherToPrint()?.paymentMethod === 'cheque' ? receiptVoucherToPrint()?.chequeNumber : '✓' }}
+      <span
+        class="flex-grow border-b-[2px] border-dashed border-black mx-2 text-center text-[16px] pb-1 font-sans"
+        dir="rtl"
+      >
+        {{
+          receiptVoucherToPrint()?.paymentMethod === 'cheque'
+            ? receiptVoucherToPrint()?.chequeNumber
+            : '✓'
+        }}
       </span>
-      <span class="whitespace-nowrap text-[17px] font-bold text-[#1a237e]" dir="rtl">نقداً/شيك رقم</span>
-      
+      <span class="whitespace-nowrap text-[17px] font-bold text-[#1a237e]" dir="rtl"
+        >نقداً/شيك رقم</span
+      >
+
       <span class="text-[15px] font-normal ml-8" dir="ltr">Date</span>
-      <span class="flex-grow border-b-[2px] border-dashed border-black mx-2 text-center text-[16px] pb-1 font-sans" dir="ltr">
-        {{ receiptVoucherToPrint()?.date | date:'yyyy/MM/dd' }}
+      <span
+        class="flex-grow border-b-[2px] border-dashed border-black mx-2 text-center text-[16px] pb-1 font-sans"
+        dir="ltr"
+      >
+        {{ receiptVoucherToPrint()?.date | date: 'yyyy/MM/dd' }}
       </span>
       <span class="whitespace-nowrap text-[17px] font-bold text-[#1a237e]" dir="rtl">التاريخ:</span>
     </div>
@@ -823,7 +1701,10 @@
     <!-- Row 4: Bank -->
     <div class="flex items-baseline">
       <span class="text-[15px] font-normal" dir="ltr">Bank</span>
-      <span class="flex-grow border-b-[2px] border-dashed border-black mx-2 text-center text-[16px] pb-1 font-bold" dir="rtl">
+      <span
+        class="flex-grow border-b-[2px] border-dashed border-black mx-2 text-center text-[16px] pb-1 font-bold"
+        dir="rtl"
+      >
         {{ receiptVoucherToPrint()?.bankName || '—' }}
       </span>
       <span class="whitespace-nowrap text-[17px] font-bold text-[#1a237e]" dir="rtl">على بنك</span>
@@ -832,30 +1713,42 @@
     <!-- Row 5: Purpose -->
     <div class="flex items-baseline">
       <span class="text-[15px] font-normal" dir="ltr">Being the settlement of</span>
-      <span class="flex-grow border-b-[2px] border-dashed border-black mx-2 text-center text-[16px] pb-1 font-bold" dir="rtl">
+      <span
+        class="flex-grow border-b-[2px] border-dashed border-black mx-2 text-center text-[16px] pb-1 font-bold"
+        dir="rtl"
+      >
         {{ receiptVoucherToPrint()?.purpose }}
       </span>
       <span class="whitespace-nowrap text-[17px] font-bold text-[#1a237e]" dir="rtl">وذلك عن</span>
     </div>
-
   </div>
 
   <!-- Footer Section -->
-  <div class="flex justify-between items-end mt-8" style="padding-bottom: 60px;">
-    
+  <div class="flex justify-between items-end mt-8" style="padding-bottom: 60px">
     <!-- Amount Box -->
     <div class="w-[22%]">
-      <table class="w-full border-collapse border border-black text-center text-[13px] font-bold" dir="ltr">
+      <table
+        class="w-full border-collapse border border-black text-center text-[13px] font-bold"
+        dir="ltr"
+      >
         <thead>
           <tr>
-            <th class="border border-black py-1 font-bold text-[12px]">{{ settingsService.printSettings().mainCurrency }}</th>
-            <th class="border border-black py-1 font-bold text-[12px]">{{ settingsService.printSettings().subCurrency }}</th>
+            <th class="border border-black py-1 font-bold text-[12px]">
+              {{ settingsService.printSettings().mainCurrency }}
+            </th>
+            <th class="border border-black py-1 font-bold text-[12px]">
+              {{ settingsService.printSettings().subCurrency }}
+            </th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td class="border border-black py-1 text-[14px] font-sans">{{ formatAmountRials(receiptVoucherToPrint()?.amount || 0) }}</td>
-            <td class="border border-black py-1 text-[14px] font-sans">{{ formatAmountBaisa(receiptVoucherToPrint()?.amount || 0) }}</td>
+            <td class="border border-black py-1 text-[14px] font-sans">
+              {{ formatAmountRials(receiptVoucherToPrint()?.amount || 0) }}
+            </td>
+            <td class="border border-black py-1 text-[14px] font-sans">
+              {{ formatAmountBaisa(receiptVoucherToPrint()?.amount || 0) }}
+            </td>
           </tr>
         </tbody>
       </table>
@@ -877,14 +1770,21 @@
         <span class="font-bold">المدير</span>
       </div>
       <div class="border-b-[2px] border-dashed border-black mx-2 mb-3"></div>
-      
+
       <!-- Stamps below manager -->
       <div class="flex justify-end items-center" dir="ltr">
-        <img [src]="assetUrls.seriesStamp" class="h-[100px] w-[100px] object-contain opacity-90 mix-blend-multiply" alt="ختم">
-        <img [src]="assetUrls.signatureStamp" class="h-14 object-contain -ml-8 mb-3 opacity-90 mix-blend-multiply" alt="توقيع">
+        <img
+          [src]="assetUrls.seriesStamp"
+          class="h-[100px] w-[100px] object-contain opacity-90 mix-blend-multiply"
+          alt="ختم"
+        />
+        <img
+          [src]="assetUrls.signatureStamp"
+          class="h-14 object-contain -ml-8 mb-3 opacity-90 mix-blend-multiply"
+          alt="توقيع"
+        />
       </div>
     </div>
-
   </div>
 
   <!-- Voucher Number Footer -->
@@ -892,5 +1792,3 @@
     Voucher No: {{ receiptVoucherToPrint()?.displayNumber }}
   </div>
 </div>
-
-

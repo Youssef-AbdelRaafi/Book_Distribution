@@ -20,16 +20,19 @@ export class ReceiptVoucherService {
     let params = new HttpParams();
     if (libraryId) params = params.set('libraryId', libraryId.toString());
     if (semesterId) params = params.set('semesterId', semesterId.toString());
-    this.http.get<ApiResponse<ReceiptVoucher[]>>(this.apiUrl, { params }).pipe(
-      tap(res => {
-        const data = res.data;
-        this.vouchersSignal.set(Array.isArray(data) ? data : []);
-      }),
-      catchError(error => {
-        this.toast.show('تعذر تحميل سندات القبض', 'error');
-        return of([]);
-      })
-    ).subscribe();
+    this.http
+      .get<ApiResponse<ReceiptVoucher[]>>(this.apiUrl, { params })
+      .pipe(
+        tap((res) => {
+          const data = res.data;
+          this.vouchersSignal.set(Array.isArray(data) ? data : []);
+        }),
+        catchError((error) => {
+          this.toast.show('تعذر تحميل سندات القبض', 'error');
+          return of([]);
+        }),
+      )
+      .subscribe();
   }
 
   private prependVoucher(v: ReceiptVoucher): void {
@@ -37,34 +40,34 @@ export class ReceiptVoucherService {
   }
 
   private removeVoucher(id: number): void {
-    this.vouchersSignal.set(
-      this.vouchersSignal().filter(v => v.id !== id)
-    );
+    this.vouchersSignal.set(this.vouchersSignal().filter((v) => v.id !== id));
   }
 
   create(voucher: CreateReceiptVoucher): Observable<ApiResponse<ReceiptVoucher>> {
     return this.http.post<ApiResponse<ReceiptVoucher>>(this.apiUrl, voucher).pipe(
-      tap(res => {
+      tap((res) => {
         const created = res.data;
         if (created?.id) this.prependVoucher(created);
-      })
+      }),
     );
   }
 
   getByLibraryId(libraryId: number): Observable<ApiResponse<ReceiptVoucher[]>> {
-    return this.http.get<ApiResponse<ReceiptVoucher[]>>(this.apiUrl, { params: { libraryId: libraryId.toString() } });
+    return this.http.get<ApiResponse<ReceiptVoucher[]>>(this.apiUrl, {
+      params: { libraryId: libraryId.toString() },
+    });
   }
 
   delete(id: number): Observable<ApiResponse<unknown>> {
-    return this.http.delete<ApiResponse<unknown>>(`${this.apiUrl}/${id}`).pipe(
-      tap(() => this.removeVoucher(id))
-    );
+    return this.http
+      .delete<ApiResponse<unknown>>(`${this.apiUrl}/${id}`)
+      .pipe(tap(() => this.removeVoucher(id)));
   }
 
   restoreVoucher(id: number): Observable<ApiResponse<unknown>> {
-    return this.http.post<ApiResponse<unknown>>(`${this.apiUrl}/${id}/restore`, {}).pipe(
-      tap(() => this.fetchVouchers())
-    );
+    return this.http
+      .post<ApiResponse<unknown>>(`${this.apiUrl}/${id}/restore`, {})
+      .pipe(tap(() => this.fetchVouchers()));
   }
 
   executeCompensation(activity: { type?: string; payload?: ActivityPayload }): Observable<void> {

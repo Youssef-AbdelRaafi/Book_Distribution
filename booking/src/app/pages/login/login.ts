@@ -13,7 +13,7 @@ import { ASSET_URLS } from '../../core/constants/asset-urls';
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
   imports: [CommonModule, FormsModule],
-  templateUrl: './login.html'
+  templateUrl: './login.html',
 })
 export class LoginComponent {
   authService = inject(AuthService);
@@ -29,15 +29,18 @@ export class LoginComponent {
   onSubmit() {
     if (this.loading()) return;
     this.loading.set(true);
-    this.authService.login(this.username, this.password).pipe(
-      finalize(() => this.loading.set(false)),
-      takeUntilDestroyed(this.destroyRef)
-    ).subscribe({
-      next: (response) => this.authService.handleLoginResponse(response),
-      error: (error) => {
-        const message = error?.error?.message || 'اسم المستخدم أو كلمة المرور غير صحيحة';
-        this.toast.show(message, 'error');
-      }
-    });
+    this.authService
+      .login(this.username, this.password)
+      .pipe(
+        finalize(() => this.loading.set(false)),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe({
+        next: (response) => this.authService.handleLoginResponse(response),
+        error: (error) => {
+          const message = error?.error?.message || 'اسم المستخدم أو كلمة المرور غير صحيحة';
+          this.toast.show(message, 'error');
+        },
+      });
   }
 }

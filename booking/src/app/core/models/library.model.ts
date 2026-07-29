@@ -21,7 +21,7 @@ export interface Library {
   shift2End?: string;
   // تقييم المكتبة
   responseRating?: string; // سيئ / جيد / ممتاز
-  paymentRating?: string;  // سيئ / جيد / ممتاز
+  paymentRating?: string; // سيئ / جيد / ممتاز
   notes?: string;
   isActive: boolean;
 

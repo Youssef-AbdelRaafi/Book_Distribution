@@ -2,7 +2,7 @@ import { Injectable, signal } from '@angular/core';
 import { LS_DARK_MODE } from '../constants/local-storage-keys';
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class ThemeService {
   isDarkMode = signal(localStorage.getItem(LS_DARK_MODE) === 'true');

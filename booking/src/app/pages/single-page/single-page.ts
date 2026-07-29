@@ -12,42 +12,59 @@ import { SettingsService } from '../../core/services/settings.service';
   selector: 'app-single-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [CommonModule, FormsModule, LibrariesComponent, InvoicesComponent, InventoryComponent, DashboardComponent],
-  templateUrl: './single-page.html'
+  imports: [
+    CommonModule,
+    FormsModule,
+    LibrariesComponent,
+    InvoicesComponent,
+    InventoryComponent,
+    DashboardComponent,
+  ],
+  templateUrl: './single-page.html',
 })
 export class SinglePageComponent {
   trackById = (i: number, item: any) => item?.id ?? i;
   private activityService = inject(ActivityService);
   public settingsService = inject(SettingsService);
-  
+
   isHistoryModalOpen = false;
 
   searchQuery = signal('');
-  timeFilter = signal<'all'|'today'|'yesterday'|'week'>('all');
+  timeFilter = signal<'all' | 'today' | 'yesterday' | 'week'>('all');
 
   activities = this.activityService.activities$;
 
   filteredActivities = computed(() => {
     let list = this.activities();
-    
+
     // Text search
     const q = this.searchQuery().toLowerCase().trim();
     if (q) {
-      list = list.filter(a => a.action.toLowerCase().includes(q) || a.details.toLowerCase().includes(q));
+      list = list.filter(
+        (a) => a.action.toLowerCase().includes(q) || a.details.toLowerCase().includes(q),
+      );
     }
-    
+
     // Time filter
     const tf = this.timeFilter();
     if (tf !== 'all') {
       const now = new Date();
-      list = list.filter(a => {
+      list = list.filter((a) => {
         const d = new Date(a.timestamp);
         if (tf === 'today') {
-          return d.getDate() === now.getDate() && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+          return (
+            d.getDate() === now.getDate() &&
+            d.getMonth() === now.getMonth() &&
+            d.getFullYear() === now.getFullYear()
+          );
         } else if (tf === 'yesterday') {
           const yesterday = new Date(now);
           yesterday.setDate(yesterday.getDate() - 1);
-          return d.getDate() === yesterday.getDate() && d.getMonth() === yesterday.getMonth() && d.getFullYear() === yesterday.getFullYear();
+          return (
+            d.getDate() === yesterday.getDate() &&
+            d.getMonth() === yesterday.getMonth() &&
+            d.getFullYear() === yesterday.getFullYear()
+          );
         } else if (tf === 'week') {
           const weekAgo = new Date(now);
           weekAgo.setDate(weekAgo.getDate() - 7);
@@ -94,5 +111,4 @@ export class SinglePageComponent {
     }
     return act.details + extra;
   }
-
 }

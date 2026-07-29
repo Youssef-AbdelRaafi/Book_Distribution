@@ -16,6 +16,8 @@
 
 # Publish output
 publish/
+BookDistributionAPI/Properties/PublishProfiles/*.pubxml.user
+BookDistributionAPI/Properties/PublishProfiles/*.local.pubxml
 
 # Node / Angular (booking)
 booking/node_modules/

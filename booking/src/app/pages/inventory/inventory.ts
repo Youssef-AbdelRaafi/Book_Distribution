@@ -1,4 +1,13 @@
-import { Component, inject, signal, computed, Input, effect, DestroyRef, ChangeDetectionStrategy } from '@angular/core';
+import {
+  Component,
+  inject,
+  signal,
+  computed,
+  Input,
+  effect,
+  DestroyRef,
+  ChangeDetectionStrategy,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { filter, switchMap } from 'rxjs';
@@ -18,11 +27,11 @@ import { LS_INVNT_LIST_COLLAPSED } from '../../core/constants/local-storage-keys
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
   imports: [CommonModule, FormsModule],
-  templateUrl: './inventory.html'
+  templateUrl: './inventory.html',
 })
 export class InventoryComponent {
   @Input() isCompact = false;
-  trackByIndex = (i: number) => i;  
+  trackByIndex = (i: number) => i;
   public inventoryService = inject(InventoryService);
   public settingsService = inject(SettingsService);
   private toastService = inject(ToastService);
@@ -36,7 +45,7 @@ export class InventoryComponent {
   }
 
   getSemesterName(semesterId: number): string {
-    const sem = this.settingsService.allSemesters().find(s => s.id === semesterId);
+    const sem = this.settingsService.allSemesters().find((s) => s.id === semesterId);
     return sem ? sem.name : '';
   }
 
@@ -64,23 +73,38 @@ export class InventoryComponent {
 
   // Unique lists for filters
   subjectsList = computed(() => {
-    const subjects = this.inventoryList().map(b => b.subject).filter(s => !!s);
+    const subjects = this.inventoryList()
+      .map((b) => b.subject)
+      .filter((s) => !!s);
     return ['كل المواد', ...Array.from(new Set(subjects))];
   });
 
   gradesList = computed(() => {
-    const grades = this.inventoryList().map(b => b.grade).filter(g => !!g);
+    const grades = this.inventoryList()
+      .map((b) => b.grade)
+      .filter((g) => !!g);
     return ['كل الصفوف', ...Array.from(new Set(grades))];
   });
 
   modalGrades = computed(() => {
-    const grades = this.inventoryList().map(b => b.grade).filter(g => !!g);
+    const grades = this.inventoryList()
+      .map((b) => b.grade)
+      .filter((g) => !!g);
     const unique = Array.from(new Set(grades));
-    return unique.length > 0 ? unique : ['إصدارات الصف التاسع', 'إصدارات الصف العاشر', 'إصدارات الصف الحادي عشر', 'إصدارات الصف الثاني عشر'];
+    return unique.length > 0
+      ? unique
+      : [
+          'إصدارات الصف التاسع',
+          'إصدارات الصف العاشر',
+          'إصدارات الصف الحادي عشر',
+          'إصدارات الصف الثاني عشر',
+        ];
   });
 
   modalSubjects = computed(() => {
-    const subjects = this.inventoryList().map(b => b.subject).filter(s => !!s);
+    const subjects = this.inventoryList()
+      .map((b) => b.subject)
+      .filter((s) => !!s);
     const unique = Array.from(new Set(subjects));
     return unique.length > 0 ? unique : ['فيزياء', 'كيمياء', 'علوم بيئية'];
   });
@@ -88,11 +112,11 @@ export class InventoryComponent {
   private destroyRef = inject(DestroyRef);
 
   constructor() {
-    this.inventoryService.inventory$.pipe(
-      takeUntilDestroyed(this.destroyRef)
-    ).subscribe(items => {
-      this.inventoryList.set(items);
-    });
+    this.inventoryService.inventory$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((items) => {
+        this.inventoryList.set(items);
+      });
     effect(() => {
       const activeCode = this.settingsService.activeSemester()?.code;
       if (activeCode === 'A') this.selectedTerm.set('الفصل الأول');
@@ -102,20 +126,32 @@ export class InventoryComponent {
 
   filteredInventory = computed(() => {
     const activeYear = this.settingsService.activeSemester()?.academicYearName;
-    const activeSemIds = this.settingsService.allSemesters()
-      .filter(s => s.academicYearName === activeYear)
-      .map(s => s.id);
-    const sem1Id = this.settingsService.allSemesters().find(s =>
-      s.name === 'الفصل الأول' && (!activeYear || s.academicYearName === activeYear))?.id;
-    const sem2Id = this.settingsService.allSemesters().find(s =>
-      s.name === 'الفصل الثاني' && (!activeYear || s.academicYearName === activeYear))?.id;
+    const activeSemIds = this.settingsService
+      .allSemesters()
+      .filter((s) => s.academicYearName === activeYear)
+      .map((s) => s.id);
+    const sem1Id = this.settingsService
+      .allSemesters()
+      .find(
+        (s) => s.name === 'الفصل الأول' && (!activeYear || s.academicYearName === activeYear),
+      )?.id;
+    const sem2Id = this.settingsService
+      .allSemesters()
+      .find(
+        (s) => s.name === 'الفصل الثاني' && (!activeYear || s.academicYearName === activeYear),
+      )?.id;
 
-    return this.inventoryList().filter(item => {
-      const matchSubject = this.selectedSubject() === 'كل المواد' || item.subject === this.selectedSubject();
-      const matchGrade = this.selectedGrade() === 'كل الصفوف' || item.grade === this.selectedGrade();
-      const matchTerm = this.selectedTerm() === 'كل الفصول'
-        ? activeSemIds.includes(item.semesterId)
-        : (this.selectedTerm() === 'الفصل الأول' ? item.semesterId === sem1Id : item.semesterId === sem2Id);
+    return this.inventoryList().filter((item) => {
+      const matchSubject =
+        this.selectedSubject() === 'كل المواد' || item.subject === this.selectedSubject();
+      const matchGrade =
+        this.selectedGrade() === 'كل الصفوف' || item.grade === this.selectedGrade();
+      const matchTerm =
+        this.selectedTerm() === 'كل الفصول'
+          ? true
+          : this.selectedTerm() === 'الفصل الأول'
+            ? item.semesterId === sem1Id
+            : item.semesterId === sem2Id;
       return matchSubject && matchGrade && matchTerm;
     });
   });
@@ -135,16 +171,28 @@ export class InventoryComponent {
   updatePrice(book: Book, newPrice: number | null) {
     if (newPrice === null || isNaN(newPrice) || newPrice < 0) return;
     if (!book.id) return;
+    if (newPrice === book.price) return; // No change — skip save
 
-    this.inventoryService.updateBook(book.id, { price: newPrice }).pipe(
-      takeUntilDestroyed(this.destroyRef)
-    ).subscribe({
-      next: () => {
-        this.activityService.logActivity('تحديث السعر', `تم تحديث سعر ${book.name} إلى ${newPrice}`, 'UPDATE', { entity: 'inventory', id: book.id, previous: { ...book }, current: { ...book, price: newPrice } });
-        this.toastService.show('تم تحديث السعر بنجاح', 'success');
-      },
-      error: (err) => this.toastService.show(err.error?.message || 'تعذر تحديث السعر', 'error')
-    });
+    this.inventoryService
+      .updateBook(book.id, { price: newPrice })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.activityService.logActivity(
+            'تحديث السعر',
+            `تم تحديث سعر ${book.name} إلى ${newPrice}`,
+            'UPDATE',
+            {
+              entity: 'inventory',
+              id: book.id,
+              previous: { ...book },
+              current: { ...book, price: newPrice },
+            },
+          );
+          this.toastService.show('تم تحديث السعر بنجاح', 'success');
+        },
+        error: (err) => this.toastService.show(err.error?.message || 'تعذر تحديث السعر', 'error'),
+      });
   }
 
   updateStockQuantity(book: Book, newStock: number | null, inputElement?: HTMLInputElement) {
@@ -155,29 +203,44 @@ export class InventoryComponent {
       return;
     }
     if (!book.id) return;
+    if (newStock === book.stockQuantity) return; // No change — skip save
 
     if (newStock < book.stockQuantity) {
-      this.toastService.show('لا يمكن تقليل المخزون يدوياً لكتاب له فواتير. استخدم فواتير البيع والمرتجعات', 'error');
+      this.toastService.show(
+        'لا يمكن تقليل المخزون يدوياً لكتاب له فواتير. استخدم فواتير البيع والمرتجعات',
+        'error',
+      );
       if (inputElement) {
         inputElement.value = book.stockQuantity.toString();
       }
       return;
     }
 
-    this.inventoryService.updateBook(book.id, { stockQuantity: newStock }).pipe(
-      takeUntilDestroyed(this.destroyRef)
-    ).subscribe({
-      next: () => {
-        this.activityService.logActivity('تحديث المخزون', `تم تحديث مخزون ${book.name} إلى ${newStock}`, 'UPDATE', { entity: 'inventory', id: book.id, previous: { ...book }, current: { ...book, stockQuantity: newStock } });
-        this.toastService.show('تم تحديث المخزون بنجاح', 'success');
-      },
-      error: (err) => {
-        this.toastService.show(err.error?.message || 'تعذر تحديث المخزون', 'error');
-        if (inputElement) {
-          inputElement.value = book.stockQuantity.toString();
-        }
-      }
-    });
+    this.inventoryService
+      .updateBook(book.id, { stockQuantity: newStock })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.activityService.logActivity(
+            'تحديث المخزون',
+            `تم تحديث مخزون ${book.name} إلى ${newStock}`,
+            'UPDATE',
+            {
+              entity: 'inventory',
+              id: book.id,
+              previous: { ...book },
+              current: { ...book, stockQuantity: newStock },
+            },
+          );
+          this.toastService.show('تم تحديث المخزون بنجاح', 'success');
+        },
+        error: (err) => {
+          this.toastService.show(err.error?.message || 'تعذر تحديث المخزون', 'error');
+          if (inputElement) {
+            inputElement.value = book.stockQuantity.toString();
+          }
+        },
+      });
   }
 
   showAddModal = signal(false);
@@ -192,7 +255,7 @@ export class InventoryComponent {
     grade: '',
     subject: '',
     price: null,
-    stockQuantity: null
+    stockQuantity: null,
   };
 
   openAddModal() {
@@ -210,7 +273,8 @@ export class InventoryComponent {
       return;
     }
 
-    const semesterId = this.settingsService.activeSemester()?.id || this.settingsService.allSemesters()[0]?.id;
+    const semesterId =
+      this.settingsService.activeSemester()?.id || this.settingsService.allSemesters()[0]?.id;
     if (!semesterId) {
       this.toastService.show('لا يوجد فصل دراسي نشط متاح', 'error');
       return;
@@ -222,39 +286,55 @@ export class InventoryComponent {
       subject: this.newBook.subject,
       price: this.newBook.price ?? 0,
       stockQuantity: this.newBook.stockQuantity ?? 0,
-      semesterId
+      semesterId,
     };
 
-    this.inventoryService.addBook(bookToAdd).pipe(
-      takeUntilDestroyed(this.destroyRef)
-    ).subscribe({
-      next: (res: ApiResponse<Book>) => {
-        const createdBook = res.data;
-        if (!createdBook || !createdBook.id) {
-          this.toastService.show('تم إضافة الكتاب لكن لم يتم تسجيل النشاط - معرف الكتاب غير متوفر', 'info');
+    this.inventoryService
+      .addBook(bookToAdd)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (res: ApiResponse<Book>) => {
+          const createdBook = res.data;
+          if (!createdBook || !createdBook.id) {
+            this.toastService.show(
+              'تم إضافة الكتاب لكن لم يتم تسجيل النشاط - معرف الكتاب غير متوفر',
+              'info',
+            );
+            this.closeAddModal();
+            return;
+          }
+          this.activityService.logActivity(
+            'إضافة كتاب',
+            `تم إضافة ${bookToAdd.name} للمخزون`,
+            'ADD',
+            { entity: 'inventory', id: createdBook.id, data: createdBook },
+          );
+          this.toastService.show('تم إضافة الكتاب للمخزون العام بنجاح', 'success');
           this.closeAddModal();
-          return;
-        }
-        this.activityService.logActivity('إضافة كتاب', `تم إضافة ${bookToAdd.name} للمخزون`, 'ADD', { entity: 'inventory', id: createdBook.id, data: createdBook });
-        this.toastService.show('تم إضافة الكتاب للمخزون العام بنجاح', 'success');
-        this.closeAddModal();
-      },
-      error: (err) => this.toastService.show(err.error?.message || 'تعذر إضافة الكتاب', 'error')
-    });
+        },
+        error: (err) => this.toastService.show(err.error?.message || 'تعذر إضافة الكتاب', 'error'),
+      });
   }
 
   deleteBook(book: Book, event: Event) {
     event.stopPropagation();
-    this.confirmService.confirm(`هل أنت متأكد من حذف "${book.name}"؟`).pipe(
-      filter(result => !!result),
-      switchMap(() => this.inventoryService.deleteBook(book.id)),
-      takeUntilDestroyed(this.destroyRef)
-    ).subscribe({
-      next: () => {
-        this.activityService.logActivity('حذف كتاب', `تم حذف ${book.name} من المخزون`, 'DELETE', { entity: 'inventory', ...book });
-        this.toastService.show('تم حذف الكتاب بنجاح', 'success');
-      },
-      error: (err: HttpErrorResponse) => this.toastService.show(err.error?.message || 'تعذر حذف الكتاب', 'error')
-    });
+    this.confirmService
+      .confirm(`هل أنت متأكد من حذف "${book.name}"؟`)
+      .pipe(
+        filter((result) => !!result),
+        switchMap(() => this.inventoryService.deleteBook(book.id)),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe({
+        next: () => {
+          this.activityService.logActivity('حذف كتاب', `تم حذف ${book.name} من المخزون`, 'DELETE', {
+            entity: 'inventory',
+            ...book,
+          });
+          this.toastService.show('تم حذف الكتاب بنجاح', 'success');
+        },
+        error: (err: HttpErrorResponse) =>
+          this.toastService.show(err.error?.message || 'تعذر حذف الكتاب', 'error'),
+      });
   }
 }

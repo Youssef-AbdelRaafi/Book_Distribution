@@ -16,13 +16,13 @@ interface LoginPayload {
 }
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class AuthService {
   private readonly AUTH_KEY = LS_AUTH_TOKEN;
   private readonly EXPIRY_KEY = LS_AUTH_EXPIRES_AT;
   private readonly apiUrl = `${environment.apiUrl}/auth`;
-  
+
   // Reactive signal for login state
   isAuthenticated = signal<boolean>(this.checkAuth());
 
@@ -30,7 +30,7 @@ export class AuthService {
     private router: Router,
     private toast: ToastService,
     private http: HttpClient,
-    private appData: AppDataService
+    private appData: AppDataService,
   ) {
     if (this.isAuthenticated()) {
       this.appData.loadAuthenticatedData();
@@ -54,11 +54,17 @@ export class AuthService {
   }
 
   login(username: string, password: string): Observable<ApiResponse<LoginPayload>> {
-    return this.http.post<ApiResponse<LoginPayload>>(`${this.apiUrl}/login`, { username, password });
+    return this.http.post<ApiResponse<LoginPayload>>(`${this.apiUrl}/login`, {
+      username,
+      password,
+    });
   }
 
   changePassword(currentPassword: string, newPassword: string): Observable<ApiResponse<unknown>> {
-    return this.http.post<ApiResponse<unknown>>(`${this.apiUrl}/change-password`, { currentPassword, newPassword });
+    return this.http.post<ApiResponse<unknown>>(`${this.apiUrl}/change-password`, {
+      currentPassword,
+      newPassword,
+    });
   }
 
   handleLoginResponse(res: ApiResponse<LoginPayload>): void {

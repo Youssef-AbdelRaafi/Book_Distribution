@@ -44,7 +44,7 @@ public class InvoiceBusinessService
     }
 
     /// <summary>
-    /// Formats the display number: 2026 → "2026A1", 2027+ → "27A1"
+    /// Formats the display number: e.g. 2026 + "A" + 1 → "2026A1"
     /// </summary>
     public static string FormatDisplayNumber(int invoiceYear, string termCode, int invoiceNumber)
     {
@@ -145,6 +145,51 @@ public class InvoiceBusinessService
 
 
 
+    public async Task<Invoice> CreateClearanceAsync(int libraryId, int semesterId, CancellationToken cancellationToken = default)
+    {
+        await using var transaction = await BeginInvoiceTransactionAsync(semesterId, cancellationToken);
+
+        var semester = await GetSemesterAsync(semesterId, cancellationToken);
+        var library = await GetLibraryForClearanceAsync(libraryId, cancellationToken);
+        await EnsureNoClearanceAsync(libraryId, semesterId, cancellationToken);
+        await EnsureFullyPaidAsync(libraryId, semesterId, cancellationToken);
+
+        var libraryInvoices = await _db.Invoices
+            .Include(i => i.Items)
+            .Where(i => i.LibraryId == libraryId && i.SemesterId == semesterId && i.Type != ClearanceType)
+            .ToListAsync(cancellationToken);
+
+        var clearanceResults = BuildClearanceItems(libraryInvoices, out var totalAmount);
+
+        if (clearanceResults.Count == 0)
+            throw new InvalidOperationException("لا توجد عمليات لإنشاء مخالصة لهذه المكتبة");
+
+        var invoiceItems = clearanceResults.Select(r => new InvoiceItem
+        {
+            BookId = r.Item.BookId,
+            BookName = r.Item.BookName,
+            BookGrade = r.Item.BookGrade,
+            Quantity = r.Item.Quantity,
+            UnitPrice = r.Item.UnitPrice,
+            Total = r.Item.Total
+        }).ToList();
+
+        var invoice = await CreateInvoiceAsync(
+            semester, library, ClearanceType, totalAmount, invoiceItems, cancellationToken);
+
+        await transaction.CommitAsync();
+        return invoice;
+    }
+
+    public Task<bool> HasRefundAsync(int libraryId, int semesterId, CancellationToken cancellationToken = default)
+    {
+        return _db.Invoices.AnyAsync(invoice =>
+            invoice.LibraryId == libraryId &&
+            invoice.SemesterId == semesterId &&
+            invoice.Type == RefundType,
+            cancellationToken);
+    }
+
     public async Task<ClearancePreviewDto> GetClearancePreviewAsync(int? libraryId, int semesterId, CancellationToken cancellationToken = default)
     {
         var semester = await GetSemesterAsync(semesterId, cancellationToken);
@@ -199,7 +244,9 @@ public class InvoiceBusinessService
                 UnitPrice = r.Item.UnitPrice,
                 Total = r.Item.Total,
                 OrderedQty = r.OrderedQty,
-                RefundedQty = r.RefundedQty
+                RefundedQty = r.RefundedQty,
+                SoldQuantity = r.Item.Quantity,
+                AmountDue = r.Item.Total
             }).ToList()
         };
 
@@ -270,7 +317,12 @@ public class InvoiceBusinessService
             throw new InvalidOperationException("الفاتورة غير موجودة");
 
         await using var transaction = await BeginInvoiceTransactionAsync(invoice.SemesterId, cancellationToken);
+        await DeleteInvoiceInternalAsync(invoice, saveChanges: true, cancellationToken);
+        await transaction.CommitAsync();
+    }
 
+    private async Task DeleteInvoiceInternalAsync(Invoice invoice, bool saveChanges, CancellationToken cancellationToken)
+    {
         if (invoice.Type != ClearanceType)
         {
             await EnsureNoClearanceAsync(invoice.LibraryId, invoice.SemesterId, cancellationToken);
@@ -320,29 +372,38 @@ public class InvoiceBusinessService
         }
 
         invoice.IsActive = false;
-        await _db.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync();
+        if (saveChanges)
+            await _db.SaveChangesAsync(cancellationToken);
     }
 
     public async Task DeleteInvoicesAsync(List<int> ids, CancellationToken cancellationToken = default)
     {
         var requestedIds = ids.Distinct().ToList();
         var invoices = await _db.Invoices
+            .Include(i => i.Items)
             .Where(i => requestedIds.Contains(i.Id))
-            .Select(i => new { i.Id, i.Type, i.Date })
             .ToListAsync(cancellationToken);
 
         if (invoices.Count != requestedIds.Count)
-            throw new InvalidOperationException("الفواتير غير موجودة");
+            throw new InvalidOperationException("بعض الفواتير غير موجودة");
 
-        var orderedIds = invoices
-            .OrderBy(i => i.Type == ClearanceType ? 0 : i.Type == RefundType ? 1 : 2)
+        var semesterIds = invoices.Select(i => i.SemesterId).Distinct().ToList();
+        await using var transaction = await BeginInvoiceTransactionAsync(semesterIds, cancellationToken);
+
+        var orderedInvoices = invoices
+            .OrderBy(i => i.Type == "clearance" ? 0 : i.Type == "refund" ? 1 : 2)
             .ThenByDescending(i => i.Date)
-            .Select(i => i.Id)
             .ToList();
 
-        foreach (var id in orderedIds)
-            await DeleteInvoiceAsync(id, cancellationToken);
+        foreach (var typeGroup in orderedInvoices.GroupBy(i => i.Type))
+        {
+            foreach (var invoice in typeGroup)
+                await DeleteInvoiceInternalAsync(invoice, saveChanges: false, cancellationToken);
+
+            await _db.SaveChangesAsync(cancellationToken);
+        }
+
+        await transaction.CommitAsync();
     }
 
     public async Task RestoreInvoiceAsync(int invoiceId, CancellationToken cancellationToken = default)
@@ -355,6 +416,48 @@ public class InvoiceBusinessService
         if (invoice == null)
             throw new InvalidOperationException("الفاتورة غير موجودة أو هي نشطة بالفعل");
 
+        await using var transaction = await BeginInvoiceTransactionAsync(invoice.SemesterId, cancellationToken);
+        await RestoreInvoiceInternalAsync(invoice, cancellationToken);
+        await _db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync();
+    }
+
+    public async Task RestoreInvoicesAsync(List<int> ids, CancellationToken cancellationToken = default)
+    {
+        var requestedIds = ids.Distinct().ToList();
+        var invoices = await _db.Invoices
+            .IgnoreQueryFilters()
+            .Include(i => i.Items)
+            .Where(i => requestedIds.Contains(i.Id))
+            .ToListAsync(cancellationToken);
+
+        if (invoices.Count != requestedIds.Count)
+            throw new InvalidOperationException("بعض الفواتير غير موجودة");
+
+        if (invoices.Any(i => i.IsActive))
+            throw new InvalidOperationException("بعض الفواتير نشطة بالفعل ولا يمكن استعادتها");
+
+        await using var transaction = await BeginInvoiceTransactionAsync(
+            invoices.Select(i => i.SemesterId), cancellationToken);
+
+        var orderedInvoices = invoices
+            .OrderBy(i => i.Type == OrderType ? 0 : i.Type == RefundType ? 1 : 2)
+            .ThenBy(i => i.Date)
+            .ToList();
+
+        foreach (var typeGroup in orderedInvoices.GroupBy(i => i.Type))
+        {
+            foreach (var invoice in typeGroup)
+                await RestoreInvoiceInternalAsync(invoice, cancellationToken);
+
+            await _db.SaveChangesAsync(cancellationToken);
+        }
+
+        await transaction.CommitAsync();
+    }
+
+    private async Task RestoreInvoiceInternalAsync(Invoice invoice, CancellationToken cancellationToken)
+    {
         // Prevent restoring if a clearance was created after deletion
         if (invoice.Type != "clearance")
         {
@@ -366,13 +469,34 @@ public class InvoiceBusinessService
                 throw new InvalidOperationException("لا يمكن استعادة الفاتورة بعد إنشاء المخالصة النهائية");
         }
 
-        await using var transaction = await BeginInvoiceTransactionAsync(invoice.SemesterId, cancellationToken);
-
         // Restore stock quantities
         var affectedBookIds = invoice.Items.Select(i => i.BookId).ToList();
         var booksToUpdate = await _db.Books
             .Where(b => affectedBookIds.Contains(b.Id))
             .ToDictionaryAsync(b => b.Id, cancellationToken);
+
+        // Validation loop
+        if (invoice.Type == "order")
+        {
+            foreach (var item in invoice.Items)
+            {
+                if (booksToUpdate.TryGetValue(item.BookId, out var book))
+                {
+                    if (book.StockQuantity < item.Quantity)
+                        throw new InvalidOperationException($"لا يمكن استعادة الفاتورة: المخزون الحالي للكتاب «{book.Name}» ({book.StockQuantity}) أقل من الكمية المطلوبة ({item.Quantity}). قد يكون المخزون قد استُهلك منذ حذف الفاتورة.");
+                }
+            }
+        }
+        else if (invoice.Type == "refund")
+        {
+            var refundableQuantities = await GetRefundableQuantitiesAsync(invoice.LibraryId, invoice.SemesterId, cancellationToken);
+            foreach (var item in invoice.Items)
+            {
+                refundableQuantities.TryGetValue(item.BookId, out var available);
+                if (item.Quantity > available)
+                    throw new InvalidOperationException($"لا يمكن استعادة المرتجع: كمية المرتجع ({item.Quantity}) تتجاوز الكمية المتاحة للاسترجاع ({available}) للكتاب «{item.BookName}»");
+            }
+        }
 
         foreach (var item in invoice.Items)
         {
@@ -381,34 +505,45 @@ public class InvoiceBusinessService
 
             if (invoice.Type == "order")
             {
-                if (book.StockQuantity < item.Quantity)
-                    throw new InvalidOperationException($"لا يمكن استعادة الفاتورة: المخزون الحالي للكتاب «{book.Name}» ({book.StockQuantity}) أقل من الكمية المطلوبة ({item.Quantity}). قد يكون المخزون قد استُهلك منذ حذف الفاتورة.");
                 book.StockQuantity -= item.Quantity;
             }
             else if (invoice.Type == "refund")
+            {
                 book.StockQuantity += item.Quantity;
+            }
         }
 
         invoice.IsActive = true;
-        await _db.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync();
     }
 
-    private async Task<TransactionWithLock> BeginInvoiceTransactionAsync(int semesterId, CancellationToken cancellationToken = default)
+    private Task<TransactionWithLock> BeginInvoiceTransactionAsync(int semesterId, CancellationToken cancellationToken = default)
     {
-        var lockKey = $"invoice-semester:{semesterId}";
-        var semaphore = _locks.GetOrAdd(lockKey, _ => new SemaphoreSlim(1, 1));
-        await semaphore.WaitAsync(cancellationToken);
+        return BeginInvoiceTransactionAsync(new[] { semesterId }, cancellationToken);
+    }
+
+    private async Task<TransactionWithLock> BeginInvoiceTransactionAsync(IEnumerable<int> semesterIds, CancellationToken cancellationToken = default)
+    {
+        var semaphores = semesterIds
+            .Distinct()
+            .OrderBy(id => id)
+            .Select(semesterId => _locks.GetOrAdd($"invoice-semester:{semesterId}", _ => new SemaphoreSlim(1, 1)))
+            .ToList();
+
+        foreach (var semaphore in semaphores)
+            await semaphore.WaitAsync(cancellationToken);
+
         if (Interlocked.Increment(ref _lockAccessCount) % LockCleanupInterval == 0)
             CleanupStaleLocks();
+
         try
         {
             var transaction = await _db.Database.BeginTransactionAsync(System.Data.IsolationLevel.RepeatableRead, cancellationToken);
-            return new TransactionWithLock(transaction, semaphore);
+            return new TransactionWithLock(transaction, semaphores);
         }
         catch
         {
-            semaphore.Release();
+            foreach (var semaphore in semaphores.AsEnumerable().Reverse())
+                semaphore.Release();
             throw;
         }
     }
@@ -427,13 +562,13 @@ public class InvoiceBusinessService
     private sealed class TransactionWithLock : IAsyncDisposable
     {
         private readonly IDbContextTransaction _transaction;
-        private readonly SemaphoreSlim _semaphore;
+        private readonly IReadOnlyList<SemaphoreSlim> _semaphores;
         private bool _disposed;
 
-        public TransactionWithLock(IDbContextTransaction transaction, SemaphoreSlim semaphore)
+        public TransactionWithLock(IDbContextTransaction transaction, IReadOnlyList<SemaphoreSlim> semaphores)
         {
             _transaction = transaction;
-            _semaphore = semaphore;
+            _semaphores = semaphores;
         }
 
         public async ValueTask DisposeAsync()
@@ -446,7 +581,8 @@ public class InvoiceBusinessService
             }
             finally
             {
-                _semaphore.Release();
+                foreach (var semaphore in _semaphores.Reverse())
+                    semaphore.Release();
             }
         }
 
@@ -505,6 +641,26 @@ public class InvoiceBusinessService
 
         if (hasClearance)
             throw new InvalidOperationException("لا يمكن إنشاء طلب أو مرتجع بعد إصدار المخالصة النهائية");
+    }
+
+    private async Task EnsureFullyPaidAsync(int libraryId, int semesterId, CancellationToken cancellationToken)
+    {
+        var invoiceTotals = await _db.Invoices
+            .Where(invoice => invoice.LibraryId == libraryId && invoice.SemesterId == semesterId)
+            .GroupBy(invoice => invoice.Type)
+            .Select(group => new { Type = group.Key, Total = group.Sum(invoice => invoice.TotalAmount) })
+            .ToListAsync(cancellationToken);
+
+        var orderTotal = invoiceTotals.FirstOrDefault(total => total.Type == OrderType)?.Total ?? 0m;
+        var refundTotal = invoiceTotals.FirstOrDefault(total => total.Type == RefundType)?.Total ?? 0m;
+        var paidTotal = await _db.ReceiptVouchers
+            .Where(voucher => voucher.LibraryId == libraryId && voucher.SemesterId == semesterId)
+            .SumAsync(voucher => (decimal?)voucher.Amount, cancellationToken) ?? 0m;
+
+        var outstandingAmount = orderTotal - refundTotal - paidTotal;
+        if (outstandingAmount > 0m)
+            throw new InvalidOperationException(
+                $"لا يمكن إصدار المخالصة النهائية قبل سداد الرصيد المتبقي ({outstandingAmount:N3})");
     }
 
     private async Task<Dictionary<int, Book>> LoadBooksAsync(IEnumerable<int> bookIds, int semesterId, CancellationToken cancellationToken = default)
@@ -685,8 +841,8 @@ public class InvoiceBusinessService
             if (netQty <= 0)
                 continue;
 
-            var avgPrice = (summary.TotalOrderCost - summary.TotalRefundCost) / netQty;
-            var lineTotal = netQty * avgPrice;
+            var lineTotal = summary.TotalOrderCost - summary.TotalRefundCost;
+            var avgPrice = decimal.Round(lineTotal / netQty, 3, MidpointRounding.AwayFromZero);
             totalAmount += lineTotal;
 
             items.Add((new InvoiceItem

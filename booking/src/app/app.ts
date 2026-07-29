@@ -17,7 +17,7 @@ import { ThemeService } from './core/services/theme.service';
   standalone: true,
   imports: [CommonModule, RouterOutlet, HeaderComponent],
   templateUrl: './app.html',
-  styleUrl: './app.css'
+  styleUrl: './app.css',
 })
 export class App {
   trackById = (i: number, item: any) => item?.id ?? i;
@@ -35,11 +35,13 @@ export class App {
   private destroyRef = inject(DestroyRef);
 
   constructor() {
-    this.router.events.pipe(
-      filter(event => event instanceof NavigationEnd),
-      takeUntilDestroyed(this.destroyRef)
-    ).subscribe((event: NavigationEnd) => {
-      this.isLoginPage.set(event.urlAfterRedirects.includes('/login'));
-    });
+    this.router.events
+      .pipe(
+        filter((event) => event instanceof NavigationEnd),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((event: NavigationEnd) => {
+        this.isLoginPage.set(event.urlAfterRedirects.includes('/login'));
+      });
   }
 }

@@ -17,6 +17,7 @@ export interface PrintSettings {
 
 export interface SemesterInfo {
   id: number;
+  academicYearId: number;
   name: string;
   code: string;
   academicYearName: string;
@@ -38,7 +39,7 @@ export class SettingsService {
     mainCurrency: 'R.O.',
     subCurrency: 'Bz',
     ownerSignatureName: 'مدحت محمد عبد الستار',
-    whatsappNumber: '91913020'
+    whatsappNumber: '91913020',
   };
 
   printSettings = signal<PrintSettings>(this.loadSettings());
@@ -59,33 +60,39 @@ export class SettingsService {
   }
 
   fetchSettingsFull(): void {
-    this.http.get<ApiResponse<Record<string, unknown>>>(`${this.apiUrl}/full`).pipe(
-      tap(res => {
-        const data = res.data as unknown as Record<string, string>;
-        if (data) {
-          const settings: PrintSettings = {
-            brandName: data['brandName'] || this.defaultSettings.brandName,
-            phones: data['phones'] || this.defaultSettings.phones,
-            mainCurrency: data['mainCurrency'] || this.defaultSettings.mainCurrency,
-            subCurrency: data['subCurrency'] || this.defaultSettings.subCurrency,
-            ownerSignatureName: data['ownerSignatureName'] || this.defaultSettings.ownerSignatureName,
-            whatsappNumber: data['whatsappNumber'] || this.defaultSettings.whatsappNumber
-          };
-          this.printSettings.set(settings);
-          localStorage.setItem(this.STORAGE_KEY, JSON.stringify(settings));
-        }
-      }),
-      catchError(error => {
-        this.toast.show('تعذر تحميل الإعدادات', 'error');
-        return of(null);
-      })
-    ).subscribe();
+    this.http
+      .get<ApiResponse<Record<string, unknown>>>(`${this.apiUrl}/full`)
+      .pipe(
+        tap((res) => {
+          const data = res.data as unknown as Record<string, string>;
+          if (data) {
+            const settings: PrintSettings = {
+              brandName: data['brandName'] || this.defaultSettings.brandName,
+              phones: data['phones'] || this.defaultSettings.phones,
+              mainCurrency: data['mainCurrency'] || this.defaultSettings.mainCurrency,
+              subCurrency: data['subCurrency'] || this.defaultSettings.subCurrency,
+              ownerSignatureName:
+                data['ownerSignatureName'] || this.defaultSettings.ownerSignatureName,
+              whatsappNumber: data['whatsappNumber'] || this.defaultSettings.whatsappNumber,
+            };
+            this.printSettings.set(settings);
+            localStorage.setItem(this.STORAGE_KEY, JSON.stringify(settings));
+          }
+        }),
+        catchError((error) => {
+          this.toast.show('تعذر تحميل الإعدادات', 'error');
+          return of(null);
+        }),
+      )
+      .subscribe();
   }
 
   private loadSettings(): PrintSettings {
     const saved = localStorage.getItem(this.STORAGE_KEY);
     if (saved) {
-      try { return JSON.parse(saved); } catch (e) {}
+      try {
+        return JSON.parse(saved);
+      } catch (e) {}
     }
     return this.defaultSettings;
   }
@@ -104,44 +111,51 @@ export class SettingsService {
 
   fetchSettings(): void {
     // Public endpoint returns only branding (safe for login page)
-    this.http.get<ApiResponse<Record<string, unknown>>>(this.apiUrl).pipe(
-      tap(res => {
-        const data = res.data as unknown as Record<string, string>;
-        if (data) {
-          const settings: PrintSettings = {
-            brandName: data['brandName'] || this.defaultSettings.brandName,
-            phones: data['phones'] || this.defaultSettings.phones,
-            mainCurrency: data['mainCurrency'] || this.defaultSettings.mainCurrency,
-            subCurrency: data['subCurrency'] || this.defaultSettings.subCurrency,
-            ownerSignatureName: data['ownerSignatureName'] || this.defaultSettings.ownerSignatureName,
-            whatsappNumber: data['whatsappNumber'] || this.defaultSettings.whatsappNumber
-          };
-          this.printSettings.set(settings);
-          localStorage.setItem(this.STORAGE_KEY, JSON.stringify(settings));
-        }
-      }),
-      catchError(error => {
-        this.toast.show('تعذر تحميل الإعدادات', 'error');
-        return of(null);
-      })
-    ).subscribe();
+    this.http
+      .get<ApiResponse<Record<string, unknown>>>(this.apiUrl)
+      .pipe(
+        tap((res) => {
+          const data = res.data as unknown as Record<string, string>;
+          if (data) {
+            const settings: PrintSettings = {
+              brandName: data['brandName'] || this.defaultSettings.brandName,
+              phones: data['phones'] || this.defaultSettings.phones,
+              mainCurrency: data['mainCurrency'] || this.defaultSettings.mainCurrency,
+              subCurrency: data['subCurrency'] || this.defaultSettings.subCurrency,
+              ownerSignatureName:
+                data['ownerSignatureName'] || this.defaultSettings.ownerSignatureName,
+              whatsappNumber: data['whatsappNumber'] || this.defaultSettings.whatsappNumber,
+            };
+            this.printSettings.set(settings);
+            localStorage.setItem(this.STORAGE_KEY, JSON.stringify(settings));
+          }
+        }),
+        catchError((error) => {
+          this.toast.show('تعذر تحميل الإعدادات', 'error');
+          return of(null);
+        }),
+      )
+      .subscribe();
   }
 
   fetchSemesters(): void {
-    this.http.get<ApiResponse<SemesterInfo[]>>(this.semesterUrl).pipe(
-      tap(res => {
-        const data = res.data;
-        if (Array.isArray(data)) {
-          this.allSemesters.set(data);
-          const active = data.find((s: SemesterInfo) => s.isActive) ?? data[0];
-          if (active) this.activeSemester.set(active);
-        }
-      }),
-      catchError(error => {
-        this.toast.show('تعذر تحميل الفصول الدراسية', 'error');
-        return of(null);
-      })
-    ).subscribe();
+    this.http
+      .get<ApiResponse<SemesterInfo[]>>(this.semesterUrl)
+      .pipe(
+        tap((res) => {
+          const data = res.data;
+          if (Array.isArray(data)) {
+            this.allSemesters.set(data);
+            const active = data.find((s: SemesterInfo) => s.isActive) ?? data[0];
+            if (active) this.activeSemester.set(active);
+          }
+        }),
+        catchError((error) => {
+          this.toast.show('تعذر تحميل الفصول الدراسية', 'error');
+          return of(null);
+        }),
+      )
+      .subscribe();
   }
 
   getCurrentTerm(): string {
@@ -156,19 +170,21 @@ export class SettingsService {
 
   getActiveSemesterId(): number | null {
     const active = this.activeSemester();
-    return active?.id ?? this.allSemesters().find(s => s.isActive)?.id ?? null;
+    return active?.id ?? this.allSemesters().find((s) => s.isActive)?.id ?? null;
   }
 
   activateSemester(semesterId: number): Observable<ApiResponse<unknown>> {
-    return this.http.put<ApiResponse<unknown>>(`${this.semesterUrl}/${semesterId}/activate`, {}).pipe(
-    tap(() => {
-      this.allSemesters.update(list =>
-        list.map(s => ({ ...s, isActive: s.id === semesterId }))
+    return this.http
+      .put<ApiResponse<unknown>>(`${this.semesterUrl}/${semesterId}/activate`, {})
+      .pipe(
+        tap(() => {
+          this.allSemesters.update((list) =>
+            list.map((s) => ({ ...s, isActive: s.id === semesterId })),
+          );
+          const activated = this.allSemesters().find((s) => s.id === semesterId);
+          if (activated) this.activeSemester.set(activated);
+        }),
       );
-      const activated = this.allSemesters().find(s => s.id === semesterId);
-      if (activated) this.activeSemester.set(activated);
-    })
-    );
   }
 
   activateSemesterByCode(code: string): Observable<ApiResponse<unknown>> {
@@ -180,21 +196,23 @@ export class SettingsService {
   }
 
   startNewYear(startYear: number): Observable<ApiResponse<unknown>> {
-    return this.http.post<ApiResponse<unknown>>(`${this.semesterUrl}/start-new-year`, { startYear }).pipe(
-      tap(() => {
-        this.fetchSemesters();
-      })
-    );
+    return this.http
+      .post<ApiResponse<unknown>>(`${this.semesterUrl}/start-new-year`, { startYear })
+      .pipe(
+        tap(() => {
+          this.fetchSemesters();
+        }),
+      );
   }
 
   private resolveSemesterByCode(code: string): SemesterInfo | undefined {
-    const matches = this.allSemesters().filter(s => s.code === code);
+    const matches = this.allSemesters().filter((s) => s.code === code);
     if (matches.length === 0) return undefined;
 
     const active = this.activeSemester();
     const yearName = active?.academicYearName;
     if (yearName) {
-      const sameYear = matches.find(s => s.academicYearName === yearName);
+      const sameYear = matches.find((s) => s.academicYearName === yearName);
       if (sameYear) return sameYear;
     }
 
@@ -207,10 +225,10 @@ export class SettingsService {
         this.printSettings.set(settings);
         localStorage.setItem(this.STORAGE_KEY, JSON.stringify(settings));
       }),
-      catchError(error => {
+      catchError((error) => {
         this.toast.show('تعذر حفظ إعدادات الطباعة', 'error');
         return throwError(() => error);
-      })
+      }),
     );
   }
 

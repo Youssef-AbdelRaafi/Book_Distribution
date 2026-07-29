@@ -21,27 +21,33 @@ export class LibraryService {
   governorates = signal<Governorate[]>([]);
 
   fetchLibraries(): void {
-    this.http.get<ApiResponse<Library[]>>(`${this.apiUrl}?includeDeleted=true`).pipe(
-      tap(res => {
-        this.librariesSubject.next(Array.isArray(res.data) ? res.data : []);
-      }),
-      catchError(error => {
-        this.toast.show('تعذر تحميل المكتبات', 'error');
-        return of({ data: [], success: false } as ApiResponse<Library[]>);
-      })
-    ).subscribe();
+    this.http
+      .get<ApiResponse<Library[]>>(`${this.apiUrl}?includeDeleted=true`)
+      .pipe(
+        tap((res) => {
+          this.librariesSubject.next(Array.isArray(res.data) ? res.data : []);
+        }),
+        catchError((error) => {
+          this.toast.show('تعذر تحميل المكتبات', 'error');
+          return of({ data: [], success: false } as ApiResponse<Library[]>);
+        }),
+      )
+      .subscribe();
   }
 
   fetchGovernorates(): void {
-    this.http.get<ApiResponse<Governorate[]>>(this.govUrl).pipe(
-      tap(res => {
-        this.governorates.set(Array.isArray(res.data) ? res.data : []);
-      }),
-      catchError(error => {
-        this.toast.show('تعذر تحميل المحافظات', 'error');
-        return of({ data: [], success: false } as ApiResponse<Governorate[]>);
-      })
-    ).subscribe();
+    this.http
+      .get<ApiResponse<Governorate[]>>(this.govUrl)
+      .pipe(
+        tap((res) => {
+          this.governorates.set(Array.isArray(res.data) ? res.data : []);
+        }),
+        catchError((error) => {
+          this.toast.show('تعذر تحميل المحافظات', 'error');
+          return of({ data: [], success: false } as ApiResponse<Governorate[]>);
+        }),
+      )
+      .subscribe();
   }
 
   private prependLibrary(lib: Library): void {
@@ -49,51 +55,50 @@ export class LibraryService {
   }
 
   private replaceLibrary(id: number, lib: Library): void {
-    this.librariesSubject.next(
-      this.librariesSubject.value.map(l => l.id === id ? lib : l)
-    );
+    this.librariesSubject.next(this.librariesSubject.value.map((l) => (l.id === id ? lib : l)));
   }
 
   private removeLibrary(id: number): void {
-    this.librariesSubject.next(
-      this.librariesSubject.value.filter(l => l.id !== id)
-    );
+    this.librariesSubject.next(this.librariesSubject.value.filter((l) => l.id !== id));
   }
 
   addLibrary(lib: Partial<Library>): Observable<ApiResponse<Library>> {
     return this.http.post<ApiResponse<Library>>(this.apiUrl, lib).pipe(
-      tap(res => {
+      tap((res) => {
         const created = res.data;
         if (created?.id) this.prependLibrary(created);
-      })
+      }),
     );
   }
 
   updateLibrary(id: number, lib: Partial<Library>): Observable<ApiResponse<Library>> {
     return this.http.put<ApiResponse<Library>>(`${this.apiUrl}/${id}`, lib).pipe(
-      tap(res => {
+      tap((res) => {
         const updated = res.data;
         if (updated?.id) this.replaceLibrary(id, updated);
-      })
+      }),
     );
   }
 
-  updateRating(id: number, rating: { responseRating?: string; paymentRating?: string; notes?: string }): Observable<ApiResponse<unknown>> {
-    return this.http.put<ApiResponse<unknown>>(`${this.apiUrl}/${id}/rating`, rating).pipe(
-      tap(() => this.fetchLibraries())
-    );
+  updateRating(
+    id: number,
+    rating: { responseRating?: string; paymentRating?: string; notes?: string },
+  ): Observable<ApiResponse<unknown>> {
+    return this.http
+      .put<ApiResponse<unknown>>(`${this.apiUrl}/${id}/rating`, rating)
+      .pipe(tap(() => this.fetchLibraries()));
   }
 
   deleteLibrary(id: number): Observable<ApiResponse<unknown>> {
-    return this.http.delete<ApiResponse<unknown>>(`${this.apiUrl}/${id}`).pipe(
-      tap(() => this.fetchLibraries())
-    );
+    return this.http
+      .delete<ApiResponse<unknown>>(`${this.apiUrl}/${id}`)
+      .pipe(tap(() => this.fetchLibraries()));
   }
 
   restoreLibrary(id: number): Observable<ApiResponse<unknown>> {
-    return this.http.put<ApiResponse<unknown>>(`${this.apiUrl}/${id}/restore`, {}).pipe(
-      tap(() => this.fetchLibraries())
-    );
+    return this.http
+      .put<ApiResponse<unknown>>(`${this.apiUrl}/${id}/restore`, {})
+      .pipe(tap(() => this.fetchLibraries()));
   }
 
   getLibraryBooks(libraryId: number, semesterId?: number): Observable<ApiResponse<unknown>> {
@@ -102,16 +107,21 @@ export class LibraryService {
     return this.http.get<ApiResponse<unknown>>(`${this.apiUrl}/${libraryId}/books`, { params });
   }
 
-  updateLibraryBooks(libraryId: number, books: { bookId: number; quantity: number }[]): Observable<ApiResponse<unknown>> {
-    return this.http.put<ApiResponse<unknown>>(`${this.apiUrl}/${libraryId}/books`, { items: books });
+  updateLibraryBooks(
+    libraryId: number,
+    books: { bookId: number; quantity: number }[],
+  ): Observable<ApiResponse<unknown>> {
+    return this.http.put<ApiResponse<unknown>>(`${this.apiUrl}/${libraryId}/books`, {
+      items: books,
+    });
   }
 
   uploadLogo(id: number, file: File): Observable<ApiResponse<unknown>> {
     const formData = new FormData();
     formData.append('file', file);
-    return this.http.post<ApiResponse<unknown>>(`${this.apiUrl}/${id}/logo`, formData).pipe(
-      tap(() => this.fetchLibraries())
-    );
+    return this.http
+      .post<ApiResponse<unknown>>(`${this.apiUrl}/${id}/logo`, formData)
+      .pipe(tap(() => this.fetchLibraries()));
   }
 
   executeCompensation(activity: { type?: string; payload?: ActivityPayload }): Observable<void> {
@@ -122,7 +132,9 @@ export class LibraryService {
     } else if (activity.type === 'DELETE' && payload?.id) {
       return this.restoreLibrary(payload.id).pipe(map(() => undefined));
     } else if (activity.type === 'UPDATE' && payload?.id && payload?.previous) {
-      return this.updateLibrary(payload.id, payload.previous as unknown as Partial<Library>).pipe(map(() => undefined));
+      return this.updateLibrary(payload.id, payload.previous as unknown as Partial<Library>).pipe(
+        map(() => undefined),
+      );
     }
     return throwError(() => new Error('لا يمكن التراجع عن هذا النشاط'));
   }
@@ -134,7 +146,9 @@ export class LibraryService {
     } else if (activity.type === 'DELETE' && payload?.id) {
       return this.deleteLibrary(payload.id).pipe(map(() => undefined));
     } else if (activity.type === 'UPDATE' && payload?.id && payload?.current) {
-      return this.updateLibrary(payload.id, payload.current as unknown as Partial<Library>).pipe(map(() => undefined));
+      return this.updateLibrary(payload.id, payload.current as unknown as Partial<Library>).pipe(
+        map(() => undefined),
+      );
     }
     return throwError(() => new Error('لا يمكن إعادة هذا النشاط'));
   }

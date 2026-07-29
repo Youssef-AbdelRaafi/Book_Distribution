@@ -1,4 +1,13 @@
-import { Component, computed, signal, inject, ChangeDetectorRef, Input, DestroyRef, ChangeDetectionStrategy } from '@angular/core';
+import {
+  Component,
+  computed,
+  signal,
+  inject,
+  ChangeDetectorRef,
+  Input,
+  DestroyRef,
+  ChangeDetectionStrategy,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -16,7 +25,10 @@ import { Library } from '../../core/models/library.model';
 import { SettingsService } from '../../core/services/settings.service';
 import { formatAmountRials, formatAmountBaisa } from '../../core/utils/format.utils';
 import { ASSET_URLS } from '../../core/constants/asset-urls';
-import { LS_LIB_ADD_FORM_COLLAPSED, LS_LIB_LIST_COLLAPSED } from '../../core/constants/local-storage-keys';
+import {
+  LS_LIB_ADD_FORM_COLLAPSED,
+  LS_LIB_LIST_COLLAPSED,
+} from '../../core/constants/local-storage-keys';
 import { printWhenImagesReady } from '../../core/utils/print.utils';
 import { InvoicePrintFooterComponent } from '../../shared/invoice-print-footer/invoice-print-footer';
 import { environment } from '../../../environments/environment';
@@ -38,7 +50,7 @@ interface ClearanceSummaryItem {
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
   imports: [CommonModule, FormsModule, InvoicePrintFooterComponent],
-  templateUrl: './libraries.html'
+  templateUrl: './libraries.html',
 })
 export class LibrariesComponent {
   @Input() isCompact = false;
@@ -56,12 +68,12 @@ export class LibrariesComponent {
   private activityService = inject(ActivityService);
 
   librariesList = signal<Library[]>([]);
-  
+
   // Modals state
   isClearanceModalOpen = false;
   isMapModalOpen = false;
   isDetailsModalOpen = false;
-  
+
   selectedLibraryForMap = signal<Library | null>(null);
   selectedLibraryForDetails = signal<Library | null>(null);
 
@@ -80,7 +92,15 @@ export class LibrariesComponent {
   editShift1End = '13:00';
   editShift2Start = '16:00';
   editShift2End = '22:00';
-  libraryInvoices = signal<any[]>([]);
+  libraryInvoices = signal<
+    (Invoice | (ReceiptVoucher & { type: 'receipt_voucher'; totalAmount: number }))[]
+  >([]);
+  /** Helper to safely access voucherNumber in templates */
+  getVoucherNumber(
+    inv: Invoice | (ReceiptVoucher & { type: 'receipt_voucher'; totalAmount: number }),
+  ): number | undefined {
+    return 'voucherNumber' in inv ? inv.voucherNumber : undefined;
+  }
   libraryVouchers = signal<ReceiptVoucher[]>([]);
   expandedInvoiceId = signal<number | null>(null);
 
@@ -95,6 +115,7 @@ export class LibrariesComponent {
   rvBankName = '';
   rvPurpose = '';
   rvDate = new Date().toISOString().split('T')[0];
+  isSavingReceiptVoucher = false;
 
   isAddFormCollapsed = signal(localStorage.getItem(LS_LIB_ADD_FORM_COLLAPSED) === 'true');
   toggleAddForm() {
@@ -107,7 +128,7 @@ export class LibrariesComponent {
   private listEditTimeout: any;
 
   toggleListEditMode() {
-    this.isListEditMode.update(v => !v);
+    this.isListEditMode.update((v) => !v);
     if (this.isListEditMode()) {
       if (this.isListCollapsed()) {
         this.isListCollapsed.set(false);
@@ -124,10 +145,10 @@ export class LibrariesComponent {
   searchTerm = signal('');
 
   showDeletedLibraries = signal(false);
-  hasDeletedLibraries = computed(() => this.librariesList().some(l => l.isActive === false));
+  hasDeletedLibraries = computed(() => this.librariesList().some((l) => l.isActive === false));
 
   toggleShowDeleted() {
-    this.showDeletedLibraries.update(v => !v);
+    this.showDeletedLibraries.update((v) => !v);
     if (this.showDeletedLibraries()) {
       this.isListEditMode.set(false);
       if (this.isListCollapsed()) {
@@ -142,16 +163,17 @@ export class LibrariesComponent {
     const showDeleted = this.showDeletedLibraries();
     let filtered = libs;
     if (showDeleted) {
-      filtered = filtered.filter(l => l.isActive === false);
+      filtered = filtered.filter((l) => l.isActive === false);
     } else {
-      filtered = filtered.filter(l => l.isActive !== false);
+      filtered = filtered.filter((l) => l.isActive !== false);
     }
     const t = this.searchTerm().trim().toLowerCase();
     if (!t) return filtered;
-    return filtered.filter(l =>
-      l.name.toLowerCase().includes(t) ||
-      (l.governorateName || '').toLowerCase().includes(t) ||
-      (l.cityName || '').toLowerCase().includes(t)
+    return filtered.filter(
+      (l) =>
+        l.name.toLowerCase().includes(t) ||
+        (l.governorateName || '').toLowerCase().includes(t) ||
+        (l.cityName || '').toLowerCase().includes(t),
     );
   });
 
@@ -164,8 +186,8 @@ export class LibrariesComponent {
     localStorage.setItem(LS_LIB_LIST_COLLAPSED, String(this.isListCollapsed()));
   }
 
-  clearanceLibrary = signal<any>(null);
-  clearanceItems = signal<{grade: string, items: ClearanceSummaryItem[]}[]>([]);
+  clearanceLibrary = signal<(Partial<Library> & { id: number; name: string }) | null>(null);
+  clearanceItems = signal<{ grade: string; items: ClearanceSummaryItem[] }[]>([]);
   clearanceTotal = signal<number>(0);
   clearanceOriginalTotal = signal<number>(0);
   clearancePaidAmount = signal<number>(0);
@@ -178,22 +200,23 @@ export class LibrariesComponent {
     const term = this.clearanceSearchTerm().trim().toLowerCase();
     const gradeFilter = this.clearanceGradeFilter();
     return this.clearanceItems()
-      .map(group => ({
+      .map((group) => ({
         grade: group.grade,
-        items: group.items.filter(item => {
+        items: group.items.filter((item) => {
           if (term && !item.name.toLowerCase().includes(term)) return false;
           if (gradeFilter && item.grade !== gradeFilter) return false;
           return true;
-        })
+        }),
       }))
-      .filter(group => group.items.length > 0);
+      .filter((group) => group.items.length > 0);
   });
 
   clearanceGradeList = computed(() => {
-    return ['كل الصفوف', ...new Set(this.clearanceItems().map(g => g.grade))];
+    return ['كل الصفوف', ...new Set(this.clearanceItems().map((g) => g.grade))];
   });
 
-  clearanceToPrint = signal<any | null>(null);
+  clearanceToPrint = signal<Invoice | null>(null);
+  isCreatingClearance = false;
 
   getInvoiceDisplayNumber(invoice: Invoice | null): string {
     if (!invoice) return '';
@@ -203,13 +226,18 @@ export class LibrariesComponent {
 
   getPrintTypeLabel(type: string | undefined): string {
     switch (type) {
-      case 'order': return 'فاتورة رقم';
-      case 'refund': return 'مرتجع رقم';
-      default: return 'مخالصة رقم';
+      case 'order':
+        return 'فاتورة رقم';
+      case 'refund':
+        return 'مرتجع رقم';
+      default:
+        return 'مخالصة رقم';
     }
   }
 
-  getPrintGroups(invoice: Invoice | null): { grade: string, items: (InvoiceItem & { globalIndex: number })[] }[] {
+  getPrintGroups(
+    invoice: Invoice | null,
+  ): { grade: string; items: (InvoiceItem & { globalIndex: number })[] }[] {
     if (!invoice) return [];
     const groupsMap = new Map<string, (InvoiceItem & { globalIndex: number })[]>();
     (invoice.items || []).forEach((item, index) => {
@@ -219,7 +247,6 @@ export class LibrariesComponent {
     });
     return Array.from(groupsMap.entries()).map(([grade, items]) => ({ grade, items }));
   }
-
 
   formatAmountRials = formatAmountRials;
   formatAmountBaisa = formatAmountBaisa;
@@ -237,25 +264,22 @@ export class LibrariesComponent {
   shift1End = '13:00';
   shift2Start = '16:00';
   shift2End = '22:00';
-  
+
   selectedGovName = '';
   selectedCityName = '';
 
   private destroyRef = inject(DestroyRef);
 
   constructor() {
-    this.libraryService.libraries$.pipe(
-      takeUntilDestroyed(this.destroyRef)
-    ).subscribe(items => {
+    this.libraryService.libraries$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((items) => {
       this.librariesList.set(items);
     });
-
   }
 
   // Filtered cities based on selected governorate
   filteredCities() {
     const govs = this.libraryService.governorates();
-    const gov = govs.find(g => g.id === Number(this.selectedGovernorateId));
+    const gov = govs.find((g) => g.id === Number(this.selectedGovernorateId));
     if (!gov) return [];
     return gov.cities;
   }
@@ -274,8 +298,13 @@ export class LibrariesComponent {
   }
 
   getLibraryStatus(lib?: Library | null): { text: string; colorClass: string; bgClass: string } {
-    if (!lib) return { text: 'غير محدد', colorClass: 'text-on-surface-variant', bgClass: 'bg-surface-variant' };
-    
+    if (!lib)
+      return {
+        text: 'غير محدد',
+        colorClass: 'text-on-surface-variant',
+        bgClass: 'bg-surface-variant',
+      };
+
     const shift1Start = lib.shift1Start;
     const shift1End = lib.shift1End;
     const shift2Start = lib.shift2Start;
@@ -330,74 +359,94 @@ export class LibrariesComponent {
     this.editShift1End = lib.shift1End || '13:00';
     this.editShift2Start = lib.shift2Start || '16:00';
     this.editShift2End = lib.shift2End || '22:00';
-    
-    // Fetch invoices for this library from API
-    this.invoiceService.getInvoicesByLibraryId(lib.id).pipe(
-      switchMap((res) => {
-        const data = res.data;
-        const invs = Array.isArray(data) ? data : [];
-        return this.receiptVoucherService.getByLibraryId(lib.id).pipe(
-          switchMap((vRes) => {
-            const vData = vRes.data;
-            const vouchers = Array.isArray(vData) ? vData.map((v: any) => ({
-              ...v,
-              type: 'receipt_voucher',
-              totalAmount: v.amount
-            })) : [];
 
-            const combined = [...invs, ...vouchers];
-            combined.sort((a: any, b: any) => {
-              const d1 = a.date ? new Date(a.date).getTime() : 0;
-              const d2 = b.date ? new Date(b.date).getTime() : 0;
-              return d2 - d1;
-            });
-            this.libraryInvoices.set(combined);
-            return [];
-          })
-        );
-      }),
-      takeUntilDestroyed(this.destroyRef)
-    ).subscribe({
-      error: () => this.libraryInvoices.set([])
-    });
+    // Fetch invoices for this library from API
+    this.invoiceService
+      .getInvoicesByLibraryId(lib.id)
+      .pipe(
+        switchMap((res) => {
+          const data = res.data;
+          const invs = Array.isArray(data) ? data : [];
+          return this.receiptVoucherService.getByLibraryId(lib.id).pipe(
+            switchMap((vRes) => {
+              const vData = vRes.data;
+              const vouchers = Array.isArray(vData)
+                ? vData.map((v: any) => ({
+                    ...v,
+                    type: 'receipt_voucher',
+                    totalAmount: v.amount,
+                  }))
+                : [];
+
+              const combined = [...invs, ...vouchers];
+              combined.sort((a, b) => {
+                const d1 = a.date ? new Date(a.date).getTime() : 0;
+                const d2 = b.date ? new Date(b.date).getTime() : 0;
+                return d2 - d1;
+              });
+              this.libraryInvoices.set(combined);
+              return [];
+            }),
+          );
+        }),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe({
+        error: () => this.libraryInvoices.set([]),
+      });
     this.isDetailsModalOpen = true;
   }
 
-  triggerEditLogoUpload(fileInput: HTMLInputElement) { fileInput.click(); }
+  triggerEditLogoUpload(fileInput: HTMLInputElement) {
+    fileInput.click();
+  }
 
   onEditLogoSelected(event: Event) {
     const file = (event.target as HTMLInputElement).files?.[0];
     const lib = this.selectedLibraryForDetails();
     if (file && lib) {
-      this.libraryService.uploadLogo(lib.id, file).pipe(
-        takeUntilDestroyed(this.destroyRef)
-      ).subscribe({
-        next: (res: any) => {
-          const logo = res.data?.logo || res.logo;
-          if (logo) this.editLibLogo = logo;
-          this.toast.show('تم رفع الشعار بنجاح', 'success');
-        },
-        error: () => this.toast.show('تعذر رفع الشعار', 'error')
-      });
+      this.libraryService
+        .uploadLogo(lib.id, file)
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe({
+          next: (res: any) => {
+            const logo = res.data?.logo || res.logo;
+            if (logo) this.editLibLogo = logo;
+            this.toast.show('تم رفع الشعار بنجاح', 'success');
+          },
+          error: () => this.toast.show('تعذر رفع الشعار', 'error'),
+        });
     }
   }
 
   saveEditedLibrary() {
     const lib = this.selectedLibraryForDetails();
     if (!lib) return;
-    if (!this.editLibName.trim()) { this.toast.show('الرجاء إدخال اسم المكتبة', 'error'); return; }
-    
+    if (!this.editLibName.trim()) {
+      this.toast.show('الرجاء إدخال اسم المكتبة', 'error');
+      return;
+    }
+
     const cleanOwnerPhone = (this.editOwnerPhone || '').replace(/\s+/g, '');
     const cleanRespPhone = (this.editResponsiblePhone || '').replace(/\s+/g, '');
     const cleanLandline = this.editLandlinePhone ? this.editLandlinePhone.replace(/\s+/g, '') : '';
 
-    if (cleanOwnerPhone && !/^\d{8}$/.test(cleanOwnerPhone)) { this.toast.show('رقم هاتف صاحب المكتبة يجب أن يكون 8 أرقام', 'error'); return; }
-    if (cleanRespPhone && !/^\d{8}$/.test(cleanRespPhone)) { this.toast.show('رقم هاتف المسؤول يجب أن يكون 8 أرقام', 'error'); return; }
-    if (cleanLandline && !/^\d{8}$/.test(cleanLandline)) { this.toast.show('رقم التليفون الثابت يجب أن يكون 8 أرقام', 'error'); return; }
+    if (cleanOwnerPhone && !/^\d{8}$/.test(cleanOwnerPhone)) {
+      this.toast.show('رقم هاتف صاحب المكتبة يجب أن يكون 8 أرقام', 'error');
+      return;
+    }
+    if (cleanRespPhone && !/^\d{8}$/.test(cleanRespPhone)) {
+      this.toast.show('رقم هاتف المسؤول يجب أن يكون 8 أرقام', 'error');
+      return;
+    }
+    if (cleanLandline && !/^\d{8}$/.test(cleanLandline)) {
+      this.toast.show('رقم التليفون الثابت يجب أن يكون 8 أرقام', 'error');
+      return;
+    }
 
-    const updatedLib: Library = { 
-      ...lib, 
-      name: this.editLibName, 
+    const updatedLib: Library = {
+      ...lib,
+      name: this.editLibName,
       logo: this.editLibLogo || lib.logo,
       ownerName: this.editOwnerName || '',
       ownerPhone: cleanOwnerPhone,
@@ -410,71 +459,97 @@ export class LibrariesComponent {
       shift2End: this.editShift2End || undefined,
       responseRating: this.editResponseRating || undefined,
       paymentRating: this.editPaymentRating || undefined,
-      notes: this.editLibraryNotes || undefined
+      notes: this.editLibraryNotes || undefined,
     };
-    this.libraryService.updateLibrary(lib.id, updatedLib).pipe(
-      takeUntilDestroyed(this.destroyRef)
-    ).subscribe({
-      next: () => {
-        this.selectedLibraryForDetails.set(updatedLib);
-        this.isEditingLibrary = false;
-        this.activityService.logActivity('تعديل مكتبة', `تم تعديل بيانات المكتبة "${updatedLib.name}"`, 'UPDATE', { entity: 'library', id: lib.id, previous: lib as any, current: updatedLib as any });
-        this.toast.show('تم تحديث بيانات المكتبة بنجاح!', 'success');
-      },
-      error: () => this.toast.show('حدث خطأ في تحديث البيانات', 'error')
-    });
+    this.libraryService
+      .updateLibrary(lib.id, updatedLib)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.selectedLibraryForDetails.set(updatedLib);
+          this.isEditingLibrary = false;
+          this.activityService.logActivity(
+            'تعديل مكتبة',
+            `تم تعديل بيانات المكتبة "${updatedLib.name}"`,
+            'UPDATE',
+            { entity: 'library', id: lib.id, previous: lib as any, current: updatedLib as any },
+          );
+          this.toast.show('تم تحديث بيانات المكتبة بنجاح!', 'success');
+        },
+        error: () => this.toast.show('حدث خطأ في تحديث البيانات', 'error'),
+      });
   }
 
   deleteLibrary() {
     const lib = this.selectedLibraryForDetails();
     if (!lib) return;
-    this.confirmService.confirm(`هل أنت متأكد من حذف المكتبة: ${lib.name}؟`).pipe(
-      filter(result => !!result),
-      switchMap(() => this.libraryService.deleteLibrary(lib.id)),
-      takeUntilDestroyed(this.destroyRef)
-    ).subscribe({
-      next: () => {
-        this.activityService.logActivity('حذف مكتبة', `تم حذف المكتبة "${lib.name}"`, 'DELETE', { entity: 'library', id: lib.id });
-        this.toast.show('تم حذف المكتبة بنجاح', 'success');
-        this.closeDetails();
-      },
-      error: () => this.toast.show('حدث خطأ في حذف المكتبة', 'error')
-    });
+    this.confirmService
+      .confirm(`هل أنت متأكد من حذف المكتبة: ${lib.name}؟`)
+      .pipe(
+        filter((result) => !!result),
+        switchMap(() => this.libraryService.deleteLibrary(lib.id)),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe({
+        next: () => {
+          this.activityService.logActivity('حذف مكتبة', `تم حذف المكتبة "${lib.name}"`, 'DELETE', {
+            entity: 'library',
+            id: lib.id,
+          });
+          this.toast.show('تم حذف المكتبة بنجاح', 'success');
+          this.closeDetails();
+        },
+        error: () => this.toast.show('حدث خطأ في حذف المكتبة', 'error'),
+      });
   }
 
   deleteLibraryQuick(lib: Library, event: Event) {
     event.stopPropagation();
-    this.confirmService.confirm(`هل أنت متأكد من حذف المكتبة: ${lib.name}؟`).pipe(
-      filter(result => !!result),
-      switchMap(() => this.libraryService.deleteLibrary(lib.id)),
-      takeUntilDestroyed(this.destroyRef)
-    ).subscribe({
-      next: () => {
-        this.activityService.logActivity('حذف مكتبة', `تم حذف المكتبة "${lib.name}"`, 'DELETE', { entity: 'library', id: lib.id });
-        this.toast.show('تم حذف المكتبة بنجاح', 'success');
-      },
-      error: () => this.toast.show('حدث خطأ في حذف المكتبة', 'error')
-    });
+    this.confirmService
+      .confirm(`هل أنت متأكد من حذف المكتبة: ${lib.name}؟`)
+      .pipe(
+        filter((result) => !!result),
+        switchMap(() => this.libraryService.deleteLibrary(lib.id)),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe({
+        next: () => {
+          this.activityService.logActivity('حذف مكتبة', `تم حذف المكتبة "${lib.name}"`, 'DELETE', {
+            entity: 'library',
+            id: lib.id,
+          });
+          this.toast.show('تم حذف المكتبة بنجاح', 'success');
+        },
+        error: () => this.toast.show('حدث خطأ في حذف المكتبة', 'error'),
+      });
   }
 
   restoreLibraryQuick(lib: Library, event: Event) {
     event.stopPropagation();
-    this.libraryService.restoreLibrary(lib.id).pipe(
-      takeUntilDestroyed(this.destroyRef)
-    ).subscribe({
-      next: () => {
-        this.activityService.logActivity('استعادة مكتبة', `تم استعادة المكتبة "${lib.name}"`, 'ADD', { entity: 'library', id: lib.id });
-        this.toast.show('تم استعادة المكتبة بنجاح', 'success');
-      },
-      error: () => this.toast.show('حدث خطأ في استعادة المكتبة', 'error')
-    });
+    this.libraryService
+      .restoreLibrary(lib.id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.activityService.logActivity(
+            'استعادة مكتبة',
+            `تم استعادة المكتبة "${lib.name}"`,
+            'ADD',
+            { entity: 'library', id: lib.id },
+          );
+          this.toast.show('تم استعادة المكتبة بنجاح', 'success');
+        },
+        error: () => this.toast.show('حدث خطأ في استعادة المكتبة', 'error'),
+      });
   }
 
-  closeDetails() { this.isDetailsModalOpen = false; this.selectedLibraryForDetails.set(null); }
+  closeDetails() {
+    this.isDetailsModalOpen = false;
+    this.selectedLibraryForDetails.set(null);
+  }
 
   clearanceLoading = signal(false);
   clearanceError = signal('');
-
 
   clearance(lib?: Library) {
     const semesterId = this.settingsService.getActiveSemesterId();
@@ -499,47 +574,102 @@ export class LibrariesComponent {
     this.clearanceGradeFilter.set('');
 
     const libId = lib?.id;
-    this.invoiceService.getClearancePreview(semesterId, libId).pipe(
-      takeUntilDestroyed(this.destroyRef)
-    ).subscribe({
-      next: (res) => {
-        const preview = res.data!;
-        this.clearancePaidAmount.set(preview.paidAmount || 0);
-        this.clearanceOriginalTotal.set(preview.totalAmount || 0);
-        const netAmount = Math.max((preview.totalAmount || 0) - (preview.paidAmount || 0), 0);
-        this.clearanceTotal.set(netAmount);
+    this.invoiceService
+      .getClearancePreview(semesterId, libId)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (res) => {
+          const preview = res.data!;
+          this.clearancePaidAmount.set(preview.paidAmount || 0);
+          this.clearanceOriginalTotal.set(preview.totalAmount || 0);
+          const netAmount = Math.max((preview.totalAmount || 0) - (preview.paidAmount || 0), 0);
+          this.clearanceTotal.set(netAmount);
 
-        const grouped = new Map<string, any[]>();
-        (preview.items || []).forEach((item: any) => {
-          const grade = item.bookGrade || 'أخرى';
-          if (!grouped.has(grade)) { grouped.set(grade, []); }
-          const gradeItems = grouped.get(grade);
-          if (gradeItems) gradeItems.push({
-            id: item.bookId,
-            name: item.bookName,
-            grade: grade,
-            orderedQty: item.orderedQty || 0,
-            refundedQty: item.refundedQty || 0,
-            netQty: item.quantity,
-            price: item.unitPrice,
-            total: item.total
+          const grouped = new Map<string, any[]>();
+          (preview.items || []).forEach((item: any) => {
+            const grade = item.bookGrade || 'أخرى';
+            if (!grouped.has(grade)) {
+              grouped.set(grade, []);
+            }
+            const gradeItems = grouped.get(grade);
+            if (gradeItems)
+              gradeItems.push({
+                id: item.bookId,
+                name: item.bookName,
+                grade: grade,
+                orderedQty: item.orderedQty || 0,
+                refundedQty: item.refundedQty || 0,
+                netQty: item.quantity,
+                price: item.unitPrice,
+                total: item.total,
+              });
           });
-        });
 
-        const groupedArray = Array.from(grouped.entries()).map(([grade, items]) => ({ grade, items }));
-        this.clearanceItems.set(groupedArray);
-        this.clearanceLoading.set(false);
-      },
-      error: (err: HttpErrorResponse) => {
-        this.clearanceLoading.set(false);
-        this.clearanceError.set(err.error?.message || 'حدث خطأ في جلب بيانات المخالصة');
-      }
-    });
+          const groupedArray = Array.from(grouped.entries()).map(([grade, items]) => ({
+            grade,
+            items,
+          }));
+          this.clearanceItems.set(groupedArray);
+          this.clearanceLoading.set(false);
+        },
+        error: (err: HttpErrorResponse) => {
+          this.clearanceLoading.set(false);
+          this.clearanceError.set(err.error?.message || 'حدث خطأ في جلب بيانات المخالصة');
+        },
+      });
   }
 
   closeClearance() {
     this.isClearanceModalOpen = false;
     this.clearanceError.set('');
+  }
+
+  createClearance() {
+    const library = this.clearanceLibrary();
+    const semesterId = this.settingsService.getActiveSemesterId();
+
+    if (!library?.id || !semesterId || this.isCreatingClearance) return;
+    if (this.clearanceTotal() > 0) {
+      this.toast.show('يجب إصدار سند قبض وسداد الرصيد المتبقي قبل إصدار المخالصة النهائية', 'error');
+      return;
+    }
+
+    this.confirmService
+      .confirm(`سيتم إقفال حساب المكتبة \"${library.name}\" لهذا الفصل نهائياً. هل تريد المتابعة؟`)
+      .pipe(
+        filter((confirmed) => confirmed),
+        switchMap(() => {
+          this.isCreatingClearance = true;
+          return this.invoiceService.createClearance({ libraryId: library.id, semesterId });
+        }),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe({
+        next: (response) => {
+          this.isCreatingClearance = false;
+          const invoice = response.data;
+          if (!invoice) {
+            this.toast.show('تعذر إنشاء المخالصة النهائية', 'error');
+            return;
+          }
+
+          this.activityService.logActivity(
+            'مخالصة نهائية',
+            `تم إصدار مخالصة نهائية للمكتبة \"${invoice.libraryName}\" بقيمة ${invoice.totalAmount} ريال`,
+            'ADD',
+            { entity: 'invoice', id: invoice.id, current: invoice as unknown as Record<string, unknown> },
+          );
+          this.closeClearance();
+          this.clearanceToPrint.set(invoice);
+          this.cdr.detectChanges();
+          printWhenImagesReady('.invoice-print-page', () => this.clearanceToPrint.set(null));
+          this.toast.show('تم إصدار المخالصة النهائية بنجاح', 'success');
+        },
+        error: (error: HttpErrorResponse) => {
+          this.isCreatingClearance = false;
+          this.toast.show(error.error?.message || 'تعذر إنشاء المخالصة النهائية', 'error');
+        },
+      });
   }
 
   toggleInvoiceDetails(inv: any) {
@@ -551,7 +681,11 @@ export class LibrariesComponent {
   selectedLogoData: string | null = null;
   getLogoUrl(logoPath: string | null | undefined): string {
     if (!logoPath) return '';
-    if (logoPath.startsWith('data:') || logoPath.startsWith('http://') || logoPath.startsWith('https://')) {
+    if (
+      logoPath.startsWith('data:') ||
+      logoPath.startsWith('http://') ||
+      logoPath.startsWith('https://')
+    ) {
       return logoPath;
     }
     const serverUrl = environment.apiUrl.replace('/api', '');
@@ -560,7 +694,9 @@ export class LibrariesComponent {
     return prefix + path;
   }
   private pendingLogoFile: File | null = null;
-  triggerLogoUpload(fileInput: HTMLInputElement) { fileInput.click(); }
+  triggerLogoUpload(fileInput: HTMLInputElement) {
+    fileInput.click();
+  }
 
   onLogoSelected(event: Event) {
     const file = (event.target as HTMLInputElement).files?.[0];
@@ -580,17 +716,35 @@ export class LibrariesComponent {
   }
 
   saveLibrary() {
-    if (!this.libraryName.trim()) { this.toast.show('الرجاء إدخال اسم المكتبة', 'error'); return; }
-    if (!this.selectedGovernorateId) { this.toast.show('الرجاء اختيار المحافظة', 'error'); return; }
-    if (!this.selectedCityId) { this.toast.show('الرجاء اختيار الولاية', 'error'); return; }
+    if (!this.libraryName.trim()) {
+      this.toast.show('الرجاء إدخال اسم المكتبة', 'error');
+      return;
+    }
+    if (!this.selectedGovernorateId) {
+      this.toast.show('الرجاء اختيار المحافظة', 'error');
+      return;
+    }
+    if (!this.selectedCityId) {
+      this.toast.show('الرجاء اختيار الولاية', 'error');
+      return;
+    }
 
     const cleanOwnerPhone = this.ownerPhone.replace(/\s+/g, '');
     const cleanRespPhone = this.responsiblePhone.replace(/\s+/g, '');
     const cleanLandline = this.landlinePhone ? this.landlinePhone.replace(/\s+/g, '') : '';
 
-    if (cleanOwnerPhone && !/^\d{8}$/.test(cleanOwnerPhone)) { this.toast.show('رقم هاتف صاحب المكتبة يجب أن يكون 8 أرقام', 'error'); return; }
-    if (cleanRespPhone && !/^\d{8}$/.test(cleanRespPhone)) { this.toast.show('رقم هاتف المسؤول يجب أن يكون 8 أرقام', 'error'); return; }
-    if (cleanLandline && !/^\d{8}$/.test(cleanLandline)) { this.toast.show('رقم التليفون الثابت يجب أن يكون 8 أرقام', 'error'); return; }
+    if (cleanOwnerPhone && !/^\d{8}$/.test(cleanOwnerPhone)) {
+      this.toast.show('رقم هاتف صاحب المكتبة يجب أن يكون 8 أرقام', 'error');
+      return;
+    }
+    if (cleanRespPhone && !/^\d{8}$/.test(cleanRespPhone)) {
+      this.toast.show('رقم هاتف المسؤول يجب أن يكون 8 أرقام', 'error');
+      return;
+    }
+    if (cleanLandline && !/^\d{8}$/.test(cleanLandline)) {
+      this.toast.show('رقم التليفون الثابت يجب أن يكون 8 أرقام', 'error');
+      return;
+    }
 
     const newLib: Partial<Library> = {
       name: this.libraryName,
@@ -604,40 +758,48 @@ export class LibrariesComponent {
       shift1Start: this.shift1Start,
       shift1End: this.shift1End,
       shift2Start: this.shift2Start || undefined,
-      shift2End: this.shift2End || undefined
+      shift2End: this.shift2End || undefined,
     };
 
-    this.libraryService.addLibrary(newLib).pipe(
-      switchMap(res => {
-        const libId = (res as any).data?.id ?? (res as any).id;
-        if (libId && this.pendingLogoFile) {
-          const file = this.pendingLogoFile;
-          this.pendingLogoFile = null;
-          return this.libraryService.uploadLogo(libId, file).pipe(map(() => res));
-        }
-        return of(res);
-      }),
-      takeUntilDestroyed(this.destroyRef)
-    ).subscribe({
-      next: res => {
-        const libId = (res as any).data?.id ?? (res as any).id;
-        this.activityService.logActivity('إضافة مكتبة', `تم إضافة مكتبة جديدة باسم: ${this.libraryName}`, 'ADD', { entity: 'library', id: libId });
-        this.libraryName = '';
-        this.ownerName = '';
-        this.ownerPhone = '';
-        this.responsibleName = '';
-        this.responsiblePhone = '';
-        this.landlinePhone = '';
-        if (this.selectedLogoData) URL.revokeObjectURL(this.selectedLogoData);
-        this.selectedLogoData = null;
-        this.selectedGovernorateId = 0;
-        this.selectedCityId = 0;
-        this.toast.show('تم حفظ المكتبة بنجاح!', 'success');
-      },
-      error: (err: HttpErrorResponse) => {
-        this.toast.show(err.error?.message || 'حدث خطأ في حفظ المكتبة', 'error');
-      }
-    });
+    this.libraryService
+      .addLibrary(newLib)
+      .pipe(
+        switchMap((res) => {
+          const libId = (res as any).data?.id ?? (res as any).id;
+          if (libId && this.pendingLogoFile) {
+            const file = this.pendingLogoFile;
+            this.pendingLogoFile = null;
+            return this.libraryService.uploadLogo(libId, file).pipe(map(() => res));
+          }
+          return of(res);
+        }),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe({
+        next: (res) => {
+          const libId = (res as any).data?.id ?? (res as any).id;
+          this.activityService.logActivity(
+            'إضافة مكتبة',
+            `تم إضافة مكتبة جديدة باسم: ${this.libraryName}`,
+            'ADD',
+            { entity: 'library', id: libId },
+          );
+          this.libraryName = '';
+          this.ownerName = '';
+          this.ownerPhone = '';
+          this.responsibleName = '';
+          this.responsiblePhone = '';
+          this.landlinePhone = '';
+          if (this.selectedLogoData) URL.revokeObjectURL(this.selectedLogoData);
+          this.selectedLogoData = null;
+          this.selectedGovernorateId = 0;
+          this.selectedCityId = 0;
+          this.toast.show('تم حفظ المكتبة بنجاح!', 'success');
+        },
+        error: (err: HttpErrorResponse) => {
+          this.toast.show(err.error?.message || 'حدث خطأ في حفظ المكتبة', 'error');
+        },
+      });
   }
 
   // ===== Receipt Voucher Methods =====
@@ -645,21 +807,22 @@ export class LibrariesComponent {
   openReceiptVoucherFromClearance() {
     const lib = this.clearanceLibrary();
     if (!lib || !lib.id) return;
-    
+
     this.closeClearance();
-    
-    this.receiptVoucherLibrary.set(lib);
+
+    this.receiptVoucherLibrary.set(lib as unknown as Library);
     this.rvMaxAmount = this.clearanceTotal();
     this.rvAmount = this.clearanceTotal(); // Fill it automatically as requested
     this.rvPaymentMethod = 'cash';
     this.rvChequeNumber = '';
     this.rvBankName = '';
-    
+
     const semesterId = this.settingsService.getActiveSemesterId();
-    const semName = this.settingsService.allSemesters().find(s => s.id === semesterId)?.name || '';
+    const semName =
+      this.settingsService.allSemesters().find((s) => s.id === semesterId)?.name || '';
     this.rvPurpose = semName ? `تسوية حساب الفصل الدراسي ${semName}` : 'تسوية حساب';
     this.rvDate = new Date().toISOString().split('T')[0];
-    
+
     this.isReceiptVoucherModalOpen = true;
   }
 
@@ -676,28 +839,29 @@ export class LibrariesComponent {
 
     const semesterId = this.settingsService.getActiveSemesterId();
     if (semesterId && lib.id) {
-      this.invoiceService.getClearancePreview(semesterId, lib.id).pipe(
-        takeUntilDestroyed(this.destroyRef)
-      ).subscribe({
-        next: (res) => {
-          const preview = res.data!;
-          const netAmount = Math.max((preview.totalAmount || 0) - (preview.paidAmount || 0), 0);
-          
-          if (netAmount <= 0) {
-            this.toast.show('حساب هذه المكتبة خالص، لا توجد مبالغ مستحقة للتحصيل', 'error');
+      this.invoiceService
+        .getClearancePreview(semesterId, lib.id)
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe({
+          next: (res) => {
+            const preview = res.data!;
+            const netAmount = Math.max((preview.totalAmount || 0) - (preview.paidAmount || 0), 0);
+
+            if (netAmount <= 0) {
+              this.toast.show('حساب هذه المكتبة خالص، لا توجد مبالغ مستحقة للتحصيل', 'error');
+              return;
+            }
+
+            this.rvAmount = netAmount; // Autofill
+            this.rvMaxAmount = netAmount;
+            this.rvPurpose = `تسوية حساب الفصل الدراسي ${preview.semesterName || ''}`;
+            this.isReceiptVoucherModalOpen = true;
+          },
+          error: () => {
+            this.toast.show('تعذر تحميل بيانات التسوية. يرجى المحاولة لاحقاً', 'error');
             return;
-          }
-          
-          this.rvAmount = netAmount; // Autofill
-          this.rvMaxAmount = netAmount;
-          this.rvPurpose = `تسوية حساب الفصل الدراسي ${preview.semesterName || ''}`;
-          this.isReceiptVoucherModalOpen = true;
-        },
-        error: () => {
-          this.toast.show('تعذر تحميل بيانات التسوية. يرجى المحاولة لاحقاً', 'error');
-          return;
-        } 
-      });
+          },
+        });
     } else {
       this.isReceiptVoucherModalOpen = true;
     }
@@ -710,14 +874,17 @@ export class LibrariesComponent {
 
   saveAndPrintReceiptVoucher() {
     const lib = this.receiptVoucherLibrary();
-    if (!lib) return;
+    if (!lib || this.isSavingReceiptVoucher) return;
 
     if (!this.rvAmount || this.rvAmount <= 0) {
       this.toast.show('الرجاء إدخال مبلغ صحيح', 'error');
       return;
     }
     if (this.rvMaxAmount !== null && this.rvAmount > this.rvMaxAmount) {
-      this.toast.show(`المبلغ المدخل (${this.rvAmount}) أكبر من المستحق الفعلي (${this.rvMaxAmount})`, 'error');
+      this.toast.show(
+        `المبلغ المدخل (${this.rvAmount}) أكبر من المستحق الفعلي (${this.rvMaxAmount})`,
+        'error',
+      );
       return;
     }
     if (!this.rvPurpose.trim()) {
@@ -737,25 +904,34 @@ export class LibrariesComponent {
       chequeNumber: this.rvPaymentMethod === 'cheque' ? this.rvChequeNumber : undefined,
       bankName: this.rvPaymentMethod === 'cheque' ? this.rvBankName : undefined,
       purpose: this.rvPurpose,
-      date: new Date(this.rvDate).toISOString()
+      date: new Date(this.rvDate).toISOString(),
     };
 
-    this.receiptVoucherService.create(voucherData).pipe(
-      takeUntilDestroyed(this.destroyRef)
-    ).subscribe({
-      next: (res) => {
-        const voucher = res.data!;
-        this.activityService.logActivity('سند قبض', `تم إنشاء سند قبض للمكتبة "${lib.name}" بقيمة ${this.rvAmount} ريال`, 'ADD', { entity: 'receipt_voucher', id: voucher.id });
-        this.toast.show('تم إنشاء سند القبض بنجاح', 'success');
-        this.receiptVoucherToPrint.set(voucher);
-        this.cdr.detectChanges();
-        printWhenImagesReady('.receipt-voucher-print-page', () => {
-          this.closeReceiptVoucher();
-        });
-      },
-      error: (err: HttpErrorResponse) => {
-        this.toast.show(err.error?.message || 'حدث خطأ في إنشاء سند القبض', 'error');
-      }
-    });
+    this.isSavingReceiptVoucher = true;
+    this.receiptVoucherService
+      .create(voucherData)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (res) => {
+          this.isSavingReceiptVoucher = false;
+          const voucher = res.data!;
+          this.activityService.logActivity(
+            'سند قبض',
+            `تم إنشاء سند قبض للمكتبة "${lib.name}" بقيمة ${this.rvAmount} ريال`,
+            'ADD',
+            { entity: 'receipt_voucher', id: voucher.id },
+          );
+          this.toast.show('تم إنشاء سند القبض بنجاح', 'success');
+          this.receiptVoucherToPrint.set(voucher);
+          this.cdr.detectChanges();
+          printWhenImagesReady('.receipt-voucher-print-page', () => {
+            this.closeReceiptVoucher();
+          });
+        },
+        error: (err: HttpErrorResponse) => {
+          this.isSavingReceiptVoucher = false;
+          this.toast.show(err.error?.message || 'حدث خطأ في إنشاء سند القبض', 'error');
+        },
+      });
   }
 }

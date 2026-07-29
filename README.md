@@ -1,64 +1,57 @@
 # Book Distribution System
 
-نظام إدارة توزيع الكتب — لإدارة مبيعات الكتب الدراسية، المخازن، والمخالصات للمكتبات.
+نظام لإدارة مخزون الكتب، أوامر الصرف، المرتجعات، المخالصات وسندات القبض.
 
-## Tech Stack
+## Stack
 
-- **Frontend:** Angular 19, TypeScript 5.7, Tailwind CSS 4, Signals
-- **Backend:** .NET 9, EF Core 9 + SQLite, JWT Auth
-- **Infra:** Docker, multi-stage build
+- Frontend: Angular 22, TypeScript 6, Tailwind CSS 4
+- Backend: .NET 10, EF Core 10, SQLite, JWT
+- Deployment: Docker Compose (single-client / single-server deployment)
 
-## Quick Start
+## Production startup
 
-```bash
-# 1. Copy env file
-cp .env.example .env
-# Edit .env — set Auth__JwtSigningKey (min 32 chars)
+1. Install and start Docker Desktop.
+2. Copy `.env.example` to `.env`.
+3. Generate a unique JWT key in PowerShell and place it in `JWT_SIGNING_KEY`:
 
-# 2. Run with Docker
-docker compose up --build
+   ```powershell
+   $bytes = New-Object byte[] 48
+   $rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+   $rng.GetBytes($bytes)
+   $rng.Dispose()
+   [Convert]::ToBase64String($bytes)
+   ```
 
-# Or run locally:
-# Backend
-cd BookDistributionAPI
-dotnet run
+4. Run `./BookDistributionAPI/scripts/generate-admin-password-hash.ps1`, choose the first admin password, and place its output in `ADMIN_PASSWORD_HASH`.
+5. Start the application:
 
-# Frontend (separate terminal)
-cd booking
-npm install
-npm start
+   ```powershell
+   docker compose up -d --build
+   ```
+
+6. Open `http://localhost:8080` and sign in with the password chosen in step 4.
+
+The application will refuse a first production startup without both secrets. Do not use or distribute a default password.
+
+## Data and backup
+
+- On the first Docker startup, the packaged client database and uploaded logos are copied into the persistent `book-data` volume once. Existing data is never overwritten.
+- A consistent SQLite backup runs every day at 2:00 AM and is retained for 30 days in `book-backups`.
+- To create a manual backup:
+
+  ```powershell
+  docker exec book_distribution_app /app/backup-db.sh
+  ```
+
+- `docker compose down -v` permanently removes the database and backups. Only use it after confirming a usable external backup.
+
+## Development
+
+```powershell
+dotnet build BookDistributionAPI/BookDistributionAPI.csproj
+Set-Location booking
+npm ci
+npm run build
 ```
 
-- Frontend: `http://localhost:4200`
-- Backend API: `http://localhost:5291`
-- Default login: `admin` / `admin@123`
-
-## Project Structure
-
-```
-BookDistribution_Project/
-├── BookDistributionAPI/   # .NET 9 backend
-│   ├── Features/          # Feature modules (Auth, Books, Invoices, etc.)
-│   ├── Data/              # EF Core DbContext, migrations, seed
-│   ├── Common/            # Shared DTOs, helpers, middleware
-│   └── scripts/           # entrypoint, backup, crontab
-├── booking/               # Angular 19 frontend
-│   └── src/app/
-│       ├── pages/         # Page components (dashboard, invoices, etc.)
-│       ├── core/          # Services, models, interceptors, utils
-│       └── layout/        # Header, app shell
-├── Dockerfile
-├── docker-compose.yml
-└── .env.example
-```
-
-## Environment Variables
-
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `Auth__JwtSigningKey` | Yes | — | JWT signing key (min 32 chars) |
-| `ConnectionStrings__DefaultConnection` | No | `Data Source=app.db` | SQLite connection string |
-
-## Backup
-
-Automatic daily backup at 2:00 AM via cron inside the container. Backups stored in `/app/backups/` volume. Retention: 30 days.
+See [DEPLOYMENT.md](DEPLOYMENT.md) for the delivery checklist.

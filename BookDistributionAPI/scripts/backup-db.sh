@@ -1,9 +1,11 @@
 #!/bin/bash
+set -eu
+
 # Backup script for SQLite database
 # Usage: ./backup-db.sh [data_dir] [backup_dir] [retention_days]
 DATA_DIR="${1:-/app/data}"
 BACKUP_DIR="${2:-/app/backups}"
-DB_NAME="app.db"
+DB_NAME="${DATABASE_FILE_NAME:-new_database.db}"
 RETENTION_DAYS="${3:-30}"
 
 mkdir -p "$BACKUP_DIR"

@@ -36,6 +36,8 @@ public class InvoiceItemDto
     // تفصيل الجرد — يُستخدم في المخالصة فقط
     public int? OrderedQty { get; set; }
     public int? RefundedQty { get; set; }
+    public int? SoldQuantity { get; set; }
+    public decimal? AmountDue { get; set; }
 }
 
 public class CreateOrderDto
@@ -62,7 +64,13 @@ public class CreateRefundDto
     public List<CreateInvoiceItemDto> Items { get; set; } = new();
 }
 
-
+public class CreateClearanceDto
+{
+    [Range(1, int.MaxValue)]
+    public int LibraryId { get; set; }
+    [Range(1, int.MaxValue)]
+    public int SemesterId { get; set; }
+}
 
 public class ClearancePreviewDto
 {

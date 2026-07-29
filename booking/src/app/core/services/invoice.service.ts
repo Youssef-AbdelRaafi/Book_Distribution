@@ -1,7 +1,12 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, tap, map, catchError, of, throwError, switchMap } from 'rxjs';
-import { Invoice, ClearancePreview, ClearanceLibraryPreview } from '../models/invoice.model';
+import {
+  Invoice,
+  ClearancePreview,
+  ClearanceLibraryPreview,
+  DashboardData,
+} from '../models/invoice.model';
 import { ApiResponse } from '../models/api-response.model';
 import { ActivityPayload } from '../models/activity.model';
 import { ToastService } from './toast.service';
@@ -52,16 +57,19 @@ export class InvoiceService {
       if (filters.semesterId) params = params.set('semesterId', filters.semesterId);
       if (filters.libraryId) params = params.set('libraryId', filters.libraryId);
     }
-    this.http.get<ApiResponse<Invoice[]>>(this.apiUrl, { params }).pipe(
-      tap(res => {
-        const data = res.data;
-        this.invoicesSignal.set(Array.isArray(data) ? data : []);
-      }),
-      catchError(() => {
-        this.toast.show('تعذر تحميل الفواتير', 'error');
-        return of([]);
-      })
-    ).subscribe();
+    this.http
+      .get<ApiResponse<Invoice[]>>(this.apiUrl, { params })
+      .pipe(
+        tap((res) => {
+          const data = res.data;
+          this.invoicesSignal.set(Array.isArray(data) ? data : []);
+        }),
+        catchError(() => {
+          this.toast.show('تعذر تحميل الفواتير', 'error');
+          return of([]);
+        }),
+      )
+      .subscribe();
   }
 
   private prependInvoice(inv: Invoice): void {
@@ -69,106 +77,146 @@ export class InvoiceService {
   }
 
   private replaceInvoice(id: number, inv: Invoice): void {
-    this.invoicesSignal.set(
-      this.invoicesSignal().map(i => i.id === id ? inv : i)
-    );
+    this.invoicesSignal.set(this.invoicesSignal().map((i) => (i.id === id ? inv : i)));
   }
 
   private removeInvoice(id: number): void {
-    this.invoicesSignal.set(
-      this.invoicesSignal().filter(i => i.id !== id)
-    );
+    this.invoicesSignal.set(this.invoicesSignal().filter((i) => i.id !== id));
   }
 
   createOrder(order: CreateOrderRequest): Observable<ApiResponse<Invoice>> {
     return this.http.post<ApiResponse<Invoice>>(`${this.apiUrl}/order`, order).pipe(
-      tap(res => {
+      tap((res) => {
         const created = res.data;
         if (created?.id) this.prependInvoice(created);
-      })
+      }),
     );
   }
 
   createRefund(refund: CreateRefundRequest): Observable<ApiResponse<Invoice>> {
     return this.http.post<ApiResponse<Invoice>>(`${this.apiUrl}/refund`, refund).pipe(
-      tap(res => {
+      tap((res) => {
         const created = res.data;
         if (created?.id) this.prependInvoice(created);
-      })
+      }),
     );
   }
 
-
-  getClearancePreview(semesterId: number, libraryId?: number): Observable<ApiResponse<ClearancePreview>> {
-    let params = new HttpParams().set('semesterId', semesterId.toString());
-    if (libraryId) params = params.set('libraryId', libraryId.toString());
-    return this.http.get<ApiResponse<ClearancePreview>>(`${this.apiUrl}/clearance/preview`, { params });
+  hasExistingRefund(
+    libraryId: number,
+    semesterId: number,
+  ): Observable<ApiResponse<{ exists: boolean }>> {
+    const params = new HttpParams()
+      .set('libraryId', libraryId.toString())
+      .set('semesterId', semesterId.toString());
+    return this.http.get<ApiResponse<{ exists: boolean }>>(`${this.apiUrl}/refunds/exists`, {
+      params,
+    });
   }
 
+  getGradeOrder(): Observable<ApiResponse<string[]>> {
+    return this.http.get<ApiResponse<string[]>>(`${environment.apiUrl}/books/grades`);
+  }
+
+  getClearancePreview(
+    semesterId: number,
+    libraryId?: number,
+  ): Observable<ApiResponse<ClearancePreview>> {
+    let params = new HttpParams().set('semesterId', semesterId.toString());
+    if (libraryId) params = params.set('libraryId', libraryId.toString());
+    return this.http.get<ApiResponse<ClearancePreview>>(`${this.apiUrl}/clearance/preview`, {
+      params,
+    });
+  }
+
+  createClearance(request: CreateClearanceRequest): Observable<ApiResponse<Invoice>> {
+    return this.http.post<ApiResponse<Invoice>>(`${this.apiUrl}/clearance`, request).pipe(
+      tap((res) => {
+        const created = res.data;
+        if (created?.id) this.prependInvoice(created);
+      }),
+    );
+  }
 
   getInvoicesByLibrary(libraryName: string): Invoice[] {
-    return this.invoicesSignal().filter(inv => inv.libraryName === libraryName);
+    return this.invoicesSignal().filter((inv) => inv.libraryName === libraryName);
   }
 
   getInvoicesByLibraryId(libraryId: number): Observable<ApiResponse<Invoice[]>> {
-    return this.http.get<ApiResponse<Invoice[]>>(this.apiUrl, { params: new HttpParams().set('libraryId', libraryId.toString()) });
+    return this.http.get<ApiResponse<Invoice[]>>(this.apiUrl, {
+      params: new HttpParams().set('libraryId', libraryId.toString()),
+    });
   }
 
-  updatePrintStatus(id: number, status: string): Observable<ApiResponse<Invoice>> {
-    return this.http.put<ApiResponse<Invoice>>(`${this.apiUrl}/${id}/print-status`, { printStatus: status }).pipe(
-      tap(res => {
-        const updated = res.data;
-        if (updated?.id) this.replaceInvoice(id, updated);
-      })
-    );
+  updatePrintStatus(id: number, status: string): Observable<ApiResponse<boolean>> {
+    return this.http.put<ApiResponse<boolean>>(`${this.apiUrl}/${id}/print-status`, {
+      printStatus: status,
+    });
   }
 
   deleteInvoice(id: number): Observable<ApiResponse<unknown>> {
     return this.http.delete<ApiResponse<unknown>>(`${this.apiUrl}/${id}`).pipe(
       tap(() => this.removeInvoice(id)),
-      catchError(err => {
+      catchError((err) => {
         const msg = err.error?.message || 'تعذر حذف الفاتورة';
         return throwError(() => new Error(msg));
-      })
+      }),
     );
   }
 
   deleteInvoices(ids: number[]): Observable<ApiResponse<unknown>> {
     return this.http.post<ApiResponse<unknown>>(`${this.apiUrl}/delete-batch`, { ids }).pipe(
       tap(() => {
-        ids.forEach(id => this.removeInvoice(id));
+        ids.forEach((id) => this.removeInvoice(id));
       }),
-      catchError(err => {
+      catchError((err) => {
         const msg = err.error?.message || 'تعذر حذف الفواتير';
         return throwError(() => new Error(msg));
-      })
+      }),
     );
   }
 
   getNextNumber(semesterId: number): Observable<ApiResponse<NextNumberResponse>> {
-    return this.http.get<ApiResponse<NextNumberResponse>>(`${this.apiUrl}/next-number`, { params: new HttpParams().set('semesterId', semesterId.toString()) });
+    return this.http.get<ApiResponse<NextNumberResponse>>(`${this.apiUrl}/next-number`, {
+      params: new HttpParams().set('semesterId', semesterId.toString()),
+    });
+  }
+
+  getDashboardAnalytics(filters?: {
+    semesterId?: number;
+    academicYearId?: number;
+  }): Observable<ApiResponse<DashboardData>> {
+    let params = new HttpParams();
+    if (filters?.semesterId) params = params.set('semesterId', filters.semesterId.toString());
+    if (filters?.academicYearId)
+      params = params.set('academicYearId', filters.academicYearId.toString());
+    return this.http.get<ApiResponse<DashboardData>>(`${environment.apiUrl}/analytics/dashboard`, {
+      params,
+    });
   }
 
   restoreInvoice(id: number): Observable<ApiResponse<unknown>> {
     return this.http.post<ApiResponse<unknown>>(`${this.apiUrl}/${id}/restore`, {}).pipe(
       tap(() => this.fetchInvoices()),
-      catchError(err => {
+      catchError((err) => {
         const msg = err.error?.message || 'تعذر استعادة الفاتورة';
         return throwError(() => new Error(msg));
-      })
+      }),
     );
   }
 
   restoreInvoices(ids: number[]): Observable<void> {
     if (ids.length === 0) return throwError(() => new Error('لا توجد فواتير لاستعادتها'));
-    if (ids.length === 1) return this.restoreInvoice(ids[0]).pipe(map(() => undefined));
-    // For multiple, restore sequentially
-    const requests = ids.map(id => this.restoreInvoice(id).pipe(map(() => undefined)));
-    let result = requests[0];
-    for (let i = 1; i < requests.length; i++) {
-      result = result.pipe(switchMap(() => requests[i]));
-    }
-    return result.pipe(tap(() => { this.fetchInvoices(); this.inventoryService.fetchBooks(); }));
+    return this.http.post<ApiResponse<unknown>>(`${this.apiUrl}/restore-batch`, { ids }).pipe(
+      tap(() => {
+        this.fetchInvoices();
+        this.inventoryService.fetchBooks();
+      }),
+      map(() => undefined),
+      catchError((err) =>
+        throwError(() => new Error(err.error?.message || 'تعذر استعادة الفواتير')),
+      ),
+    );
   }
 
   executeCompensation(activity: { type?: string; payload?: ActivityPayload }): Observable<void> {
@@ -182,14 +230,18 @@ export class InvoiceService {
         return this.deleteInvoices(payload.ids).pipe(
           tap(() => this.inventoryService.fetchBooks()),
           map(() => undefined),
-          catchError(err => throwError(() => new Error(`فشل التراجع عن المجموعة: ${err.message}`)))
+          catchError((err) =>
+            throwError(() => new Error(`فشل التراجع عن المجموعة: ${err.message}`)),
+          ),
         );
       }
       if (payload.id) {
         return this.deleteInvoice(payload.id).pipe(
           tap(() => this.inventoryService.fetchBooks()),
           map(() => undefined),
-          catchError(err => throwError(() => new Error(`فشل التراجع عن الفاتورة: ${err.message}`)))
+          catchError((err) =>
+            throwError(() => new Error(`فشل التراجع عن الفاتورة: ${err.message}`)),
+          ),
         );
       }
       return throwError(() => new Error('لا يمكن التراجع عن هذا النشاط'));
@@ -199,7 +251,9 @@ export class InvoiceService {
         return this.restoreInvoice(payload.id).pipe(
           tap(() => this.inventoryService.fetchBooks()),
           map(() => undefined),
-          catchError(err => throwError(() => new Error(`فشل استعادة الفاتورة المحذوفة: ${err.message}`)))
+          catchError((err) =>
+            throwError(() => new Error(`فشل استعادة الفاتورة المحذوفة: ${err.message}`)),
+          ),
         );
       }
       return throwError(() => new Error('لا يمكن التراجع عن هذا النشاط'));
@@ -217,14 +271,14 @@ export class InvoiceService {
       if (payload.ids && Array.isArray(payload.ids) && payload.ids.length > 0) {
         return this.restoreInvoices(payload.ids).pipe(
           map(() => undefined),
-          catchError(err => throwError(() => new Error(`فشلت إعادة المجموعة: ${err.message}`)))
+          catchError((err) => throwError(() => new Error(`فشلت إعادة المجموعة: ${err.message}`))),
         );
       }
       if (payload.id) {
         return this.restoreInvoice(payload.id).pipe(
           tap(() => this.inventoryService.fetchBooks()),
           map(() => undefined),
-          catchError(err => throwError(() => new Error(`فشلت إعادة الفاتورة: ${err.message}`)))
+          catchError((err) => throwError(() => new Error(`فشلت إعادة الفاتورة: ${err.message}`))),
         );
       }
       return throwError(() => new Error('لا يمكن إعادة هذا النشاط'));
@@ -234,7 +288,9 @@ export class InvoiceService {
         return this.deleteInvoice(payload.id).pipe(
           tap(() => this.inventoryService.fetchBooks()),
           map(() => undefined),
-          catchError(err => throwError(() => new Error(`فشلت إعادة حذف الفاتورة: ${err.message}`)))
+          catchError((err) =>
+            throwError(() => new Error(`فشلت إعادة حذف الفاتورة: ${err.message}`)),
+          ),
         );
       }
       return throwError(() => new Error('لا يمكن إعادة هذا النشاط'));

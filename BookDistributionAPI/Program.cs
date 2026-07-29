@@ -58,9 +58,13 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAngularDev", policy =>
+    options.AddPolicy("AllowedClientOrigins", policy =>
     {
-        policy.AllowAnyOrigin()
+        policy.WithOrigins(
+                  "http://localhost:4200",
+                  "http://localhost:5291",
+                  "http://cambridge.runasp.net",
+                  "https://cambridge.runasp.net")
               .AllowAnyHeader()
               .AllowAnyMethod();
     });
@@ -105,8 +109,36 @@ using (var scope = app.Services.CreateScope())
     catch { /* WAL mode may not be supported on all systems */ }
     await db.Database.MigrateAsync();
 
+    var configuredAdminPasswordHash = Environment.GetEnvironmentVariable("ADMIN_PASSWORD_HASH") ?? string.Empty;
+    var hasConfiguredAdminPassword = PasswordHasher.IsSupportedHashFormat(configuredAdminPasswordHash);
+
+    // The bundled database may contain historical client data and an old administrator hash.
+    // On the one startup where the entrypoint copies that database into a new volume, replace
+    // the administrator password with the deployment-specific value before serving requests.
+    if (string.Equals(Environment.GetEnvironmentVariable("DATABASE_INITIALIZED_FROM_PACKAGE"), "true", StringComparison.Ordinal))
+    {
+        if (!hasConfiguredAdminPassword)
+            throw new InvalidOperationException(
+                "ADMIN_PASSWORD_HASH must be configured before the first production startup. " +
+                "Use BookDistributionAPI/scripts/generate-admin-password-hash.ps1 to create it.");
+
+        var administrator = await db.Users.SingleOrDefaultAsync(user => user.Username == "admin");
+        if (administrator is null)
+            throw new InvalidOperationException("The packaged database does not contain the required admin user.");
+
+        administrator.PasswordHash = configuredAdminPasswordHash;
+        await db.SaveChangesAsync();
+    }
+
     if (!await db.AcademicYears.AnyAsync())
+    {
+        if (!app.Environment.IsDevelopment() && !hasConfiguredAdminPassword && !await db.Users.AnyAsync())
+            throw new InvalidOperationException(
+                "ADMIN_PASSWORD_HASH must be configured before the first production startup. " +
+                "Use BookDistributionAPI/scripts/generate-admin-password-hash.ps1 to create it.");
+
         await SeedData.InitializeAsync(db, scope.ServiceProvider.GetRequiredService<ILogger<Program>>());
+    }
 }
 
 app.UseMiddleware<ApiExceptionMiddleware>();
@@ -156,7 +188,7 @@ app.UseStaticFiles(new StaticFileOptions
     }
 });
 
-app.UseCors("AllowAngularDev");
+app.UseCors("AllowedClientOrigins");
 
 app.UseAuthentication();
 app.UseAuthorization();

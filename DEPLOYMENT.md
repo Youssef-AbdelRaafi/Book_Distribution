@@ -1,84 +1,98 @@
-# دليل تشغيل نظام توزيع الكتب — تعليمات للعميل
+# دليل تسليم وتشغيل نظام توزيع الكتب
 
-## أولاً: متطلبات التشغيل
-- ويندوز 10 أو 11
-- **Docker Desktop** للويندوز (يتم تحميله من https://www.docker.com/products/docker-desktop/)
-- 1 جيجابايت RAM فارغ على الأقل
-- 5 جيجابايت مساحة تخزين فارغة
+## قبل التسليم
 
-## ثانيًا: تحميل وتثبيت Docker Desktop
-1. اذهب إلى https://www.docker.com/products/docker-desktop/
-2. اضغط **Download for Windows**
-3. شغّل الملف اللي نزلته (`Docker Desktop Installer.exe`)
-4. اتبع التعليمات (الخيارات الافتراضية مناسبة)
-5. **أعد تشغيل الكمبيوتر** بعد التثبيت
-6. افتح Docker Desktop من قائمة ابدأ وانتظر علامة التشغيل (العلامة الخضراء في أسفل الشاشة)
+1. تأكد من وجود Docker Desktop وتشغيله على جهاز العميل.
+2. احتفظ بنسخة خارجية من قاعدة البيانات وملفات النسخ الاحتياطي قبل نقل المشروع.
+3. لا تُسلّم ملف `.env` بمفتاح أو كلمة مرور معروفة أو مستخدمة في مشروع آخر.
+4. نفّذ الاختبارات الواردة في قسم التحقق أدناه.
 
-## ثالثًا: تشغيل التطبيق
-1. افتح **PowerShell** (من قائمة ابدأ اكتب PowerShell واضغط Enter)
-2. اكتب الأوامر التالية بالترتيب:
+## إعداد الأسرار لأول مرة
+
+من مجلد المشروع:
 
 ```powershell
-# انتقل إلى مجلد المشروع (غير المسار حسب مكان الملفات عندك)
-cd C:\Book_Distribution
-
-# شغّل التطبيق
-docker compose up -d
+Copy-Item .env.example .env
 ```
 
-3. انتظر 30 ثانية حتى يشتغل التطبيق بالكامل
-4. افتح المتصفح (Google Chrome أو Edge) واكتب:
-   ```
-   http://localhost:8080
-   ```
+أنشئ قيمة `JWT_SIGNING_KEY` فريدة وضعها في `.env`:
 
-## رابعًا: تسجيل الدخول
-- **Username**: admin
-- **Password**: Admin@2026
-
-## تنبيه مهم قبل التشغيل
-قبل تشغيل `docker compose up -d`، تأكد من:
-1. ملف `.env` موجود في نفس مجلد المشروع (جنب `docker-compose.yml`)
-2. ملف `.env` يحتوي على `JWT_SIGNING_KEY` قوي (أقل حاجة 32 حرف)
-3. ملف `.env` يحتوي على `ADMIN_PASSWORD_HASH` (اختياري — لو مش موجود، الباسورد هيكون `admin@123`)
-4. Docker Desktop شغال (العلامة الخضراء)
-
-## خامسًا: إيقاف التطبيق
-- لو عاوز تطفى التطبيق: في PowerShell اكتب:
-  ```powershell
-  docker compose down
-  ```
-- لو عاوز تطفى وتحذف البيانات (مسح كل الفواتير والمكتبات): 
-  ```powershell
-  docker compose down -v
-  ```
-  **⚠️ تحذير:** الأمر اللي فوق يمسح كل البيانات ولا يمكن استرجاعها!
-
-## سادسًا: النسخ الاحتياطي
-التطبيق بيعمل نسخة احتياطية تلقائيًا كل يوم الساعة 2:00 AM.
-النسخ موجودة في مجلد مخصص ولا تتأثر بإيقاف التطبيق.
-
-لو عاوز تعمل نسخة يدويًا:
 ```powershell
+$bytes = New-Object byte[] 48
+$rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+$rng.GetBytes($bytes)
+$rng.Dispose()
+[Convert]::ToBase64String($bytes)
+```
+
+أنشئ hash لكلمة مرور المدير ثم الصق الناتج في `ADMIN_PASSWORD_HASH` داخل `.env`:
+
+```powershell
+.\BookDistributionAPI\scripts\generate-admin-password-hash.ps1
+```
+
+الناتج يحتوي `$$` عمدًا؛ اتركه كما هو عند لصقه في ملف `.env`.
+
+## التشغيل
+
+```powershell
+docker compose up -d --build
+docker compose ps
+```
+
+افتح `http://localhost:8080` وسجل الدخول باسم `admin` وكلمة المرور التي اخترتها عند إنشاء الـhash.
+
+## البيانات والنسخ الاحتياطي
+
+- عند أول تشغيل فقط، تُنسخ `new_database.db` والشعارات المرفقة إلى Docker volume الدائم `book-data`.
+- لن يكتب النظام فوق volume موجود؛ لذلك تُحافظ إعادة التشغيل أو التحديث على بيانات العميل.
+- النسخة اليومية تُحفظ في `book-backups` الساعة 2:00 AM لمدة 30 يومًا.
+- أنشئ نسخة يدوية قبل أي تحديث:
+
+  ```powershell
+  docker exec book_distribution_app /app/backup-db.sh
+  ```
+
+- لا تستخدم `docker compose down -v` إلا إذا كانت لديك نسخة احتياطية مؤكدة؛ فهذا الأمر يحذف البيانات والنسخ الاحتياطية نهائيًا.
+
+## التحقق قبل الاستلام
+
+```powershell
+docker compose ps
+Invoke-WebRequest http://localhost:8080/api/health
 docker exec book_distribution_app /app/backup-db.sh
+docker exec book_distribution_app ls -la /app/backups
 ```
 
-## سابعًا: مشاكل وحلول
+ثم اختبر من الواجهة: تسجيل الدخول، صرف كتاب، مرتجع جزئي، سند قبض، عرض الرصيد، طباعة مستند، وإعادة تشغيل الحاوية. يجب أن تبقى البيانات موجودة بعد إعادة التشغيل.
 
-### المشكلة: "Port is already in use"
-حل: غيّر البورت في ملف `docker-compose.yml` من `8080:8080` إلى `9090:8080` مثلاً، وافتح `http://localhost:9090` في المتصفح.
+## إيقاف النظام
 
-### المشكلة: التطبيق مش شغال بعد docker compose up
-حل:
 ```powershell
-docker compose logs
+docker compose down
 ```
-وأرسل اللي يظهر معانا عشان نساعدك.
 
-### المشكلة: نسيت كلمة السر
-- ارسل لينا نرسلك hash جديد ونحدثه في ملف `.env`
-- أو امسح قاعدة البيانات بـ `docker compose down -v` واشتغل من أول وجديد (بيرجع admin / Admin@2026)
+## RunAsp / IIS publishing
 
-## ملاحظة مهمة
-- البيانات محفوظة في **Docker volume** اسمه `book-data` — حتى لو حذفت التطبيق وركّبته تاني، البيانات لسة موجودة
-- لو حذفت الـ volume (`docker compose down -v`)، كل البيانات تروح وتيجي من أول وجديد مع seeding
+The tracked `cambridge.pubxml` is a password-free template. Create a local,
+ignored profile before publishing and keep the MSDeploy password only there:
+
+```powershell
+Copy-Item .\BookDistributionAPI\Properties\PublishProfiles\cambridge.pubxml `
+  .\BookDistributionAPI\Properties\PublishProfiles\cambridge.local.pubxml
+```
+
+Add the MSDeploy `<Password>` element only to `cambridge.local.pubxml`, then
+publish with the helper below. It temporarily injects the JWT signing key from
+the ignored `.env` file into the deployment package and removes that temporary
+file immediately after the publish completes.
+
+```powershell
+.\BookDistributionAPI\scripts\publish-runasp.ps1 -PublishProfile cambridge.local
+```
+
+For HTTPS, first enable a valid TLS certificate and the port-443 binding for
+`cambridge.runasp.net` in the RunAsp control panel. Verify
+`https://cambridge.runasp.net/api/health` succeeds before enabling an HTTP to
+HTTPS redirect. Never commit deployment passwords, JWT keys, or production
+settings files.

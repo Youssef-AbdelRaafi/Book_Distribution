@@ -11,7 +11,7 @@ export class ConfirmService {
   state = signal<ConfirmState | null>(null);
 
   confirm(message: string): Observable<boolean> {
-    return new Observable<boolean>(observer => {
+    return new Observable<boolean>((observer) => {
       const resolve = (result: boolean) => {
         cleanup();
         observer.next(result);

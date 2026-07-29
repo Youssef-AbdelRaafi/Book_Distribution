@@ -7,7 +7,7 @@ COPY booking/ ./
 RUN npm run build
 
 # Stage 2: Build .NET Backend
-FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build-backend
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build-backend
 WORKDIR /app/backend
 COPY BookDistributionAPI/BookDistributionAPI.csproj ./BookDistributionAPI/
 RUN dotnet restore ./BookDistributionAPI/BookDistributionAPI.csproj
@@ -16,26 +16,29 @@ WORKDIR /app/backend/BookDistributionAPI
 RUN dotnet publish -c Release --no-restore -o /app/publish
 
 # Copy Angular build to .NET wwwroot
-COPY --from=build-frontend /app/frontend/dist/booking/browser /app/publish/wwwroot
+COPY --from=build-frontend /app/frontend/dist/browser /app/publish/wwwroot
 
 # Stage 3: Runtime
-FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl sqlite3 \
     && rm -rf /var/lib/apt/lists/*
 
 # Create data and backup directories
-RUN mkdir -p /app/data /app/backups
+RUN mkdir -p /app/data /app/backups /app/seed/uploads
 
 # Create non-root user for security
 RUN groupadd --system appgroup && useradd --system --gid appgroup --home-dir /app --shell /usr/sbin/nologin appuser && \
     chown -R appuser:appgroup /app/data /app/backups
 
 COPY --from=build-backend /app/publish .
+COPY --chown=appuser:appgroup BookDistributionAPI/new_database.db /app/seed/new_database.db
+COPY --chown=appuser:appgroup BookDistributionAPI/Data/uploads/ /app/seed/uploads/
 COPY --chown=appuser:appgroup BookDistributionAPI/scripts/backup-db.sh /app/backup-db.sh
 COPY --chown=appuser:appgroup BookDistributionAPI/scripts/entrypoint.sh /app/entrypoint.sh
-RUN chmod +x /app/backup-db.sh /app/entrypoint.sh
+RUN chmod +x /app/backup-db.sh /app/entrypoint.sh && \
+    chown -R appuser:appgroup /app/data /app/backups /app/seed
 
 # Set environment variables for production
 ENV ASPNETCORE_ENVIRONMENT=Production

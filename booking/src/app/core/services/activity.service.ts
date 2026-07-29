@@ -9,7 +9,7 @@ import { ConfirmService } from './confirm.service';
 import { Observable, throwError } from 'rxjs';
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class ActivityService {
   private activitiesSignal = signal<Activity[]>([]);
@@ -24,7 +24,7 @@ export class ActivityService {
   private confirmService = inject(ConfirmService);
 
   constructor() {
-    this.loadActivities(); 
+    this.loadActivities();
   }
 
   private loadActivities() {
@@ -45,7 +45,12 @@ export class ActivityService {
     return Date.now().toString(36) + Math.random().toString(36).substring(2, 10);
   }
 
-  logActivity(action: string, details: string, type?: 'ADD' | 'UPDATE' | 'DELETE' | 'GENERAL', payload?: ActivityPayload) {
+  logActivity(
+    action: string,
+    details: string,
+    type?: 'ADD' | 'UPDATE' | 'DELETE' | 'GENERAL',
+    payload?: ActivityPayload,
+  ) {
     const newActivity: Activity = {
       id: this.generateId(),
       action,
@@ -53,35 +58,42 @@ export class ActivityService {
       timestamp: new Date().toISOString(),
       type,
       payload,
-      status: 'active'
+      status: 'active',
     };
-    
+
     const updated = [newActivity, ...this.activitiesSignal()].slice(0, this.maxActivities);
     this.activitiesSignal.set(updated);
     localStorage.setItem(this.storageKey, JSON.stringify(updated));
   }
 
   private executeCompensation(activity: Activity): Observable<any> {
-    if (!activity.type || !activity.payload) return throwError(() => new Error('لا يمكن التراجع عن هذا النشاط'));
-    if (activity.payload.entity === 'library') return this.libraryService.executeCompensation(activity);
-    if (activity.payload.entity === 'inventory') return this.inventoryService.executeCompensation(activity);
-    if (activity.payload.entity === 'invoice') return this.invoiceService.executeCompensation(activity);
-    if (activity.payload.entity === 'receipt_voucher') return this.receiptVoucherService.executeCompensation(activity);
+    if (!activity.type || !activity.payload)
+      return throwError(() => new Error('لا يمكن التراجع عن هذا النشاط'));
+    if (activity.payload.entity === 'library')
+      return this.libraryService.executeCompensation(activity);
+    if (activity.payload.entity === 'inventory')
+      return this.inventoryService.executeCompensation(activity);
+    if (activity.payload.entity === 'invoice')
+      return this.invoiceService.executeCompensation(activity);
+    if (activity.payload.entity === 'receipt_voucher')
+      return this.receiptVoucherService.executeCompensation(activity);
     return throwError(() => new Error('لا يمكن التراجع عن هذا النشاط'));
   }
 
   private executeRedo(activity: Activity): Observable<any> {
-    if (!activity.type || !activity.payload) return throwError(() => new Error('لا يمكن إعادة هذا النشاط'));
+    if (!activity.type || !activity.payload)
+      return throwError(() => new Error('لا يمكن إعادة هذا النشاط'));
     if (activity.payload.entity === 'library') return this.libraryService.executeRedo(activity);
     if (activity.payload.entity === 'inventory') return this.inventoryService.executeRedo(activity);
     if (activity.payload.entity === 'invoice') return this.invoiceService.executeRedo(activity);
-    if (activity.payload.entity === 'receipt_voucher') return this.receiptVoucherService.executeRedo(activity);
+    if (activity.payload.entity === 'receipt_voucher')
+      return this.receiptVoucherService.executeRedo(activity);
     return throwError(() => new Error('لا يمكن إعادة هذا النشاط'));
   }
 
   undoActivity(activityId: string) {
     const activities = this.activitiesSignal();
-    const index = activities.findIndex(a => a.id === activityId);
+    const index = activities.findIndex((a) => a.id === activityId);
     if (index === -1 || activities[index].status === 'undone') return;
 
     const activity = activities[index];
@@ -90,7 +102,7 @@ export class ActivityService {
       this.executeCompensation(activity).subscribe({
         next: () => {
           const current = this.activitiesSignal();
-          const idx = current.findIndex(a => a.id === activityId);
+          const idx = current.findIndex((a) => a.id === activityId);
           if (idx === -1 || current[idx].status === 'undone') return;
           const updated = [...current];
           updated[idx] = { ...current[idx], status: 'undone' };
@@ -99,25 +111,28 @@ export class ActivityService {
           this.toast.show(`تم التراجع عن: ${activity.action}`, 'success');
         },
         error: (err) => {
-          const msg = err.error?.message || err.error?.title || err?.message || 'حدث خطأ في التراجع';
+          const msg =
+            err.error?.message || err.error?.title || err?.message || 'حدث خطأ في التراجع';
           this.toast.show(msg, 'error');
-        }
+        },
       });
     };
 
     if (isFinancial) {
-      this.confirmService.confirm(
-        `⚠️ هل أنت متأكد من التراجع عن العملية التالية؟\n\n"${activity.action}"\n${activity.details}\n\nقد يؤثر ذلك على الأرصدة المالية.`
-      ).subscribe({
-        next: (result) => {
-          if (result) {
-            doUndo();
-          } else {
-            this.toast.show('تم إلغاء التراجع', 'info');
-          }
-        },
-        error: () => this.toast.show('تم إلغاء التراجع', 'info')
-      });
+      this.confirmService
+        .confirm(
+          `⚠️ هل أنت متأكد من التراجع عن العملية التالية؟\n\n"${activity.action}"\n${activity.details}\n\nقد يؤثر ذلك على الأرصدة المالية.`,
+        )
+        .subscribe({
+          next: (result) => {
+            if (result) {
+              doUndo();
+            } else {
+              this.toast.show('تم إلغاء التراجع', 'info');
+            }
+          },
+          error: () => this.toast.show('تم إلغاء التراجع', 'info'),
+        });
     } else {
       doUndo();
     }
@@ -125,7 +140,7 @@ export class ActivityService {
 
   redoActivity(activityId: string) {
     const activities = this.activitiesSignal();
-    const index = activities.findIndex(a => a.id === activityId);
+    const index = activities.findIndex((a) => a.id === activityId);
     if (index === -1 || activities[index].status !== 'undone') return;
 
     const activity = activities[index];
@@ -134,7 +149,7 @@ export class ActivityService {
       this.executeRedo(activity).subscribe({
         next: () => {
           const current = this.activitiesSignal();
-          const idx = current.findIndex(a => a.id === activityId);
+          const idx = current.findIndex((a) => a.id === activityId);
           if (idx === -1 || current[idx].status !== 'undone') return;
           const updated = [...current];
           updated[idx] = { ...current[idx], status: 'active' };
@@ -144,23 +159,25 @@ export class ActivityService {
         },
         error: (err) => {
           this.toast.show(err?.message || 'حدث خطأ في الإعادة', 'error');
-        }
+        },
       });
     };
 
     if (isFinancial) {
-      this.confirmService.confirm(
-        `⚠️ هل أنت متأكد من إعادة العملية التالية؟\n\n"${activity.action}"\n${activity.details}\n\nقد يؤثر ذلك على الأرصدة المالية.`
-      ).subscribe({
-        next: (result) => {
-          if (result) {
-            doRedo();
-          } else {
-            this.toast.show('تم إلغاء الإعادة', 'info');
-          }
-        },
-        error: () => this.toast.show('تم إلغاء الإعادة', 'info')
-      });
+      this.confirmService
+        .confirm(
+          `⚠️ هل أنت متأكد من إعادة العملية التالية؟\n\n"${activity.action}"\n${activity.details}\n\nقد يؤثر ذلك على الأرصدة المالية.`,
+        )
+        .subscribe({
+          next: (result) => {
+            if (result) {
+              doRedo();
+            } else {
+              this.toast.show('تم إلغاء الإعادة', 'info');
+            }
+          },
+          error: () => this.toast.show('تم إلغاء الإعادة', 'info'),
+        });
     } else {
       doRedo();
     }
@@ -170,5 +187,4 @@ export class ActivityService {
     this.activitiesSignal.set([]);
     localStorage.removeItem(this.storageKey);
   }
-
 }
