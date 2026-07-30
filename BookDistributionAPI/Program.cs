@@ -4,6 +4,7 @@ using BookDistributionAPI.Common;
 using BookDistributionAPI.Features.Auth;
 using BookDistributionAPI.Features.Invoices;
 using BookDistributionAPI.Features.ReceiptVouchers;
+using BookDistributionAPI.Features.Settings;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Authorization;
@@ -32,11 +33,21 @@ if (string.IsNullOrWhiteSpace(connectionString))
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite(connectionString));
 
-var authOptions = builder.Configuration.GetSection(AuthOptions.SectionName).Get<AuthOptions>() ?? new AuthOptions();
-authOptions.Validate();
-builder.Services.Configure<AuthOptions>(builder.Configuration.GetSection(AuthOptions.SectionName));
-
 var isDevelopment = builder.Environment.IsDevelopment();
+var authOptions = builder.Configuration.GetSection(AuthOptions.SectionName).Get<AuthOptions>() ?? new AuthOptions();
+if (isDevelopment && string.IsNullOrWhiteSpace(authOptions.JwtSigningKey))
+{
+    authOptions.JwtSigningKey = Convert.ToBase64String(RandomNumberGenerator.GetBytes(48));
+}
+authOptions.Validate();
+builder.Services.Configure<AuthOptions>(options =>
+{
+    options.JwtIssuer = authOptions.JwtIssuer;
+    options.JwtAudience = authOptions.JwtAudience;
+    options.JwtSigningKey = authOptions.JwtSigningKey;
+    options.BootstrapAdminPasswordHash = authOptions.BootstrapAdminPasswordHash;
+    options.TokenMinutes = authOptions.TokenMinutes;
+});
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -109,35 +120,41 @@ using (var scope = app.Services.CreateScope())
     catch { /* WAL mode may not be supported on all systems */ }
     await db.Database.MigrateAsync();
 
-    var configuredAdminPasswordHash = Environment.GetEnvironmentVariable("ADMIN_PASSWORD_HASH") ?? string.Empty;
+    var configuredAdminPasswordHash = authOptions.BootstrapAdminPasswordHash;
     var hasConfiguredAdminPassword = PasswordHasher.IsSupportedHashFormat(configuredAdminPasswordHash);
 
-    // The bundled database may contain historical client data and an old administrator hash.
-    // On the one startup where the entrypoint copies that database into a new volume, replace
-    // the administrator password with the deployment-specific value before serving requests.
-    if (string.Equals(Environment.GetEnvironmentVariable("DATABASE_INITIALIZED_FROM_PACKAGE"), "true", StringComparison.Ordinal))
+    if (hasConfiguredAdminPassword)
     {
-        if (!hasConfiguredAdminPassword)
-            throw new InvalidOperationException(
-                "ADMIN_PASSWORD_HASH must be configured before the first production startup. " +
-                "Use BookDistributionAPI/scripts/generate-admin-password-hash.ps1 to create it.");
-
         var administrator = await db.Users.SingleOrDefaultAsync(user => user.Username == "admin");
-        if (administrator is null)
-            throw new InvalidOperationException("The packaged database does not contain the required admin user.");
+        if (administrator is not null)
+        {
+            var fingerprint = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(configuredAdminPasswordHash)));
+            const string fingerprintKey = "deployment.adminPasswordHashFingerprint";
+            var appliedFingerprint = await db.AppSettings.SingleOrDefaultAsync(setting => setting.Key == fingerprintKey);
 
-        administrator.PasswordHash = configuredAdminPasswordHash;
-        await db.SaveChangesAsync();
+            if (!string.Equals(appliedFingerprint?.Value, fingerprint, StringComparison.Ordinal))
+            {
+                administrator.PasswordHash = configuredAdminPasswordHash;
+                if (appliedFingerprint is null)
+                    db.AppSettings.Add(new AppSetting { Key = fingerprintKey, Value = fingerprint });
+                else
+                    appliedFingerprint.Value = fingerprint;
+
+                await db.SaveChangesAsync();
+            }
+        }
     }
 
     if (!await db.AcademicYears.AnyAsync())
     {
-        if (!app.Environment.IsDevelopment() && !hasConfiguredAdminPassword && !await db.Users.AnyAsync())
+        if (!hasConfiguredAdminPassword && !await db.Users.AnyAsync())
             throw new InvalidOperationException(
-                "ADMIN_PASSWORD_HASH must be configured before the first production startup. " +
-                "Use BookDistributionAPI/scripts/generate-admin-password-hash.ps1 to create it.");
+                "Auth:BootstrapAdminPasswordHash must be configured before the first startup of an empty database.");
 
-        await SeedData.InitializeAsync(db, scope.ServiceProvider.GetRequiredService<ILogger<Program>>());
+        await SeedData.InitializeAsync(
+            db,
+            scope.ServiceProvider.GetRequiredService<ILogger<Program>>(),
+            configuredAdminPasswordHash);
     }
 }
 

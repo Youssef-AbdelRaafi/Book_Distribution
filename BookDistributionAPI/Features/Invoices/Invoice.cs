@@ -21,6 +21,8 @@ public class Invoice
     public Semesters.Semester Semester { get; set; } = null!;
     public DateTime Date { get; set; } = DateTime.UtcNow;
     public decimal TotalAmount { get; set; }
+    public decimal? ClearancePaidAmount { get; set; }
+    public decimal? ClearanceOutstandingAmount { get; set; }
     public string PrintStatus { get; set; } = "pending";
     public string? ResponsibleName { get; set; }
     public string? ResponsiblePhone { get; set; }

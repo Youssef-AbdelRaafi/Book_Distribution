@@ -217,6 +217,14 @@ public class AppDbContext : DbContext
             .Property(i => i.TotalAmount)
             .HasColumnType("decimal(10,3)");
 
+        modelBuilder.Entity<Invoice>()
+            .Property(i => i.ClearancePaidAmount)
+            .HasColumnType("decimal(10,3)");
+
+        modelBuilder.Entity<Invoice>()
+            .Property(i => i.ClearanceOutstandingAmount)
+            .HasColumnType("decimal(10,3)");
+
         modelBuilder.Entity<InvoiceItem>()
             .HasIndex(ii => ii.BookId);
 

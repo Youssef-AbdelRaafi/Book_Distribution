@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { formatAmountBaisa, formatAmountRials } from './format.utils';
 
 describe('currency-format utilities', () => {
-  it('formats the whole-rial component without rounding up', () => {
-    expect(formatAmountRials(12.999)).toBe('12');
+  it('carries a rounded fractional amount into the whole-rial component', () => {
+    expect(formatAmountRials(1.9999)).toBe('2');
   });
 
   it('formats the baisa component as three digits', () => {
@@ -12,5 +12,9 @@ describe('currency-format utilities', () => {
 
   it('keeps a valid baisa component for negative values', () => {
     expect(formatAmountBaisa(-1.234)).toBe('234');
+  });
+
+  it('never produces a four-digit baisa component', () => {
+    expect(formatAmountBaisa(1.9999)).toBe('000');
   });
 });

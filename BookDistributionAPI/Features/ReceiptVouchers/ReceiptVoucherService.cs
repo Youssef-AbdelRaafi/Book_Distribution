@@ -32,6 +32,8 @@ public class ReceiptVoucherBusinessService
 
     public async Task<ReceiptVoucher> CreateAsync(CreateReceiptVoucherDto dto, CancellationToken cancellationToken = default)
     {
+        Money.RequireSupportedPrecision(dto.Amount, "Receipt voucher amount");
+
         var semesterId = dto.SemesterId
             ?? throw new InvalidOperationException("يجب تحديد الفصل الدراسي لسند القبض");
 

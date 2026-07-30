@@ -152,7 +152,7 @@ public class InvoiceBusinessService
         var semester = await GetSemesterAsync(semesterId, cancellationToken);
         var library = await GetLibraryForClearanceAsync(libraryId, cancellationToken);
         await EnsureNoClearanceAsync(libraryId, semesterId, cancellationToken);
-        await EnsureFullyPaidAsync(libraryId, semesterId, cancellationToken);
+        var settlement = await EnsureFullyPaidAsync(libraryId, semesterId, cancellationToken);
 
         var libraryInvoices = await _db.Invoices
             .Include(i => i.Items)
@@ -175,7 +175,14 @@ public class InvoiceBusinessService
         }).ToList();
 
         var invoice = await CreateInvoiceAsync(
-            semester, library, ClearanceType, totalAmount, invoiceItems, cancellationToken);
+            semester,
+            library,
+            ClearanceType,
+            totalAmount,
+            invoiceItems,
+            cancellationToken,
+            settlement.PaidAmount,
+            settlement.OutstandingAmount);
 
         await transaction.CommitAsync();
         return invoice;
@@ -291,6 +298,8 @@ public class InvoiceBusinessService
             SemesterName = inv.Semester?.Name ?? "",
             Date = inv.Date,
             TotalAmount = inv.TotalAmount,
+            ClearancePaidAmount = inv.ClearancePaidAmount,
+            ClearanceOutstandingAmount = inv.ClearanceOutstandingAmount,
             PrintStatus = inv.PrintStatus,
             ResponsibleName = inv.ResponsibleName,
             ResponsiblePhone = inv.ResponsiblePhone,
@@ -643,7 +652,7 @@ public class InvoiceBusinessService
             throw new InvalidOperationException("لا يمكن إنشاء طلب أو مرتجع بعد إصدار المخالصة النهائية");
     }
 
-    private async Task EnsureFullyPaidAsync(int libraryId, int semesterId, CancellationToken cancellationToken)
+    private async Task<SettlementTotals> EnsureFullyPaidAsync(int libraryId, int semesterId, CancellationToken cancellationToken)
     {
         var invoiceTotals = await _db.Invoices
             .Where(invoice => invoice.LibraryId == libraryId && invoice.SemesterId == semesterId)
@@ -661,7 +670,11 @@ public class InvoiceBusinessService
         if (outstandingAmount > 0m)
             throw new InvalidOperationException(
                 $"لا يمكن إصدار المخالصة النهائية قبل سداد الرصيد المتبقي ({outstandingAmount:N3})");
+
+        return new SettlementTotals(paidTotal, Math.Max(0m, outstandingAmount));
     }
+
+    private sealed record SettlementTotals(decimal PaidAmount, decimal OutstandingAmount);
 
     private async Task<Dictionary<int, Book>> LoadBooksAsync(IEnumerable<int> bookIds, int semesterId, CancellationToken cancellationToken = default)
     {
@@ -733,7 +746,9 @@ public class InvoiceBusinessService
         string type,
         decimal totalAmount,
         List<InvoiceItem> invoiceItems,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        decimal clearancePaidAmount = 0m,
+        decimal clearanceOutstandingAmount = 0m)
     {
         if (semester.AcademicYear == null)
             throw new InvalidOperationException($"Academic year not loaded for semester {semester.Id}");
@@ -755,6 +770,8 @@ public class InvoiceBusinessService
             SemesterId = semester.Id,
             Date = DateTime.UtcNow,
             TotalAmount = totalAmount,
+            ClearancePaidAmount = clearancePaidAmount,
+            ClearanceOutstandingAmount = clearanceOutstandingAmount,
             PrintStatus = PendingPrintStatus,
             ResponsibleName = library.ResponsibleName,
             ResponsiblePhone = library.ResponsiblePhone,

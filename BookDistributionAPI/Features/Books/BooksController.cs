@@ -105,6 +105,9 @@ public class BooksController : ControllerBase
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Create([FromBody] CreateBookDto dto, CancellationToken cancellationToken)
     {
+        if (!Money.HasSupportedPrecision(dto.Price))
+            return BadRequest(ApiResponse<object>.Fail("سعر الكتاب لا يمكن أن يحتوي على أكثر من 3 منازل عشرية"));
+
         if (!await _db.Semesters.AnyAsync(s => s.Id == dto.SemesterId, cancellationToken))
             return BadRequest(ApiResponse<object>.Fail("الفصل الدراسي غير موجود"));
 
@@ -161,6 +164,9 @@ public class BooksController : ControllerBase
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> CreateBulk([FromBody] BulkCreateBooksDto dto, CancellationToken cancellationToken)
     {
+        if (dto.Books.Any(book => !Money.HasSupportedPrecision(book.Price)))
+            return BadRequest(ApiResponse<object>.Fail("سعر الكتاب لا يمكن أن يحتوي على أكثر من 3 منازل عشرية"));
+
         var semesterIds = dto.Books.Select(b => b.SemesterId).Distinct().ToList();
         var existingSemesterIds = await _db.Semesters
             .Where(s => semesterIds.Contains(s.Id))
@@ -228,6 +234,9 @@ public class BooksController : ControllerBase
         if (dto.Subject != null) book.Subject = dto.Subject;
         if (dto.Price.HasValue && dto.Price.Value != book.Price)
         {
+            if (!Money.HasSupportedPrecision(dto.Price.Value))
+                return BadRequest(ApiResponse<object>.Fail("سعر الكتاب لا يمكن أن يحتوي على أكثر من 3 منازل عشرية"));
+
             var hasInvoiceItems = await _db.InvoiceItems.AnyAsync(ii => ii.BookId == id, cancellationToken);
             if (hasInvoiceItems)
                 return BadRequest(ApiResponse<object>.Fail("لا يمكن تغيير سعر كتاب تم استخدامه في فواتير. أضف كتاباً جديداً بالسعر الجديد"));

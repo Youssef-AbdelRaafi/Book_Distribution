@@ -18,6 +18,8 @@ public class InvoiceDto
     public string SemesterName { get; set; } = string.Empty;
     public DateTime Date { get; set; }
     public decimal TotalAmount { get; set; }
+    public decimal? ClearancePaidAmount { get; set; }
+    public decimal? ClearanceOutstandingAmount { get; set; }
     public string PrintStatus { get; set; } = string.Empty;
     public string? ResponsibleName { get; set; }
     public string? ResponsiblePhone { get; set; }

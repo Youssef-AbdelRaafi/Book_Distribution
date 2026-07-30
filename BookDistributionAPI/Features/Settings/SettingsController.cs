@@ -49,8 +49,8 @@ public class SettingsController : ControllerBase
             Phones = settings.GetValueOrDefault("phones")?.Value ?? "",
             MainCurrency = settings.GetValueOrDefault("mainCurrency")?.Value ?? "R.O.",
             SubCurrency = settings.GetValueOrDefault("subCurrency")?.Value ?? "Bz",
-            OwnerSignatureName = settings.GetValueOrDefault("ownerSignatureName")?.Value ?? "مدحت محمد عبد الستار",
-            WhatsAppNumber = settings.GetValueOrDefault("whatsappNumber")?.Value ?? "91913020"
+            OwnerSignatureName = settings.GetValueOrDefault("ownerSignatureName")?.Value ?? "",
+            WhatsAppNumber = settings.GetValueOrDefault("whatsappNumber")?.Value ?? ""
         };
         return Ok(ApiResponse<object>.Ok(dto));
     }

@@ -1,9 +1,10 @@
 export function formatAmountRials(amount: number): string {
-  return Math.floor(amount).toString();
+  const thousandths = Math.round((amount || 0) * 1000);
+  const sign = thousandths < 0 ? '-' : '';
+  return `${sign}${Math.floor(Math.abs(thousandths) / 1000)}`;
 }
 
 export function formatAmountBaisa(amount: number): string {
-  return Math.abs(Math.round(((amount || 0) * 1000) % 1000))
-    .toString()
-    .padStart(3, '0');
+  const thousandths = Math.round((amount || 0) * 1000);
+  return (Math.abs(thousandths) % 1000).toString().padStart(3, '0');
 }

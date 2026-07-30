@@ -9,6 +9,7 @@ public sealed class AuthOptions
     public string JwtIssuer { get; set; } = "BookDistributionAPI";
     public string JwtAudience { get; set; } = "BookDistributionClient";
     public string JwtSigningKey { get; set; } = string.Empty;
+    public string BootstrapAdminPasswordHash { get; set; } = string.Empty;
     public int TokenMinutes { get; set; } = 10080;
 
     public void Validate()
@@ -18,6 +19,12 @@ public sealed class AuthOptions
 
         if (TokenMinutes < 15 || TokenMinutes > 43200)
             throw new InvalidOperationException("Auth:TokenMinutes must be between 15 and 43200.");
+
+        if (!string.IsNullOrWhiteSpace(BootstrapAdminPasswordHash) &&
+            !PasswordHasher.IsSupportedHashFormat(BootstrapAdminPasswordHash))
+        {
+            throw new InvalidOperationException("Auth:BootstrapAdminPasswordHash is not a supported password hash.");
+        }
     }
 }
 
