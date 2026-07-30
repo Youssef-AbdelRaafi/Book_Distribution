@@ -118,7 +118,23 @@ using (var scope = app.Services.CreateScope())
     // Enable WAL mode for better concurrent read performance
     try { await db.Database.ExecuteSqlRawAsync("PRAGMA journal_mode=WAL;"); }
     catch { /* WAL mode may not be supported on all systems */ }
-    await db.Database.MigrateAsync();
+
+    try
+    {
+        await db.Database.MigrateAsync();
+    }
+    catch (Exception ex)
+    {
+        Log.Warning(ex, "MigrateAsync failed. Falling back to EnsureCreatedAsync.");
+        try
+        {
+            await db.Database.EnsureCreatedAsync();
+        }
+        catch (Exception ensureEx)
+        {
+            Log.Error(ensureEx, "EnsureCreatedAsync also failed. Database may already exist.");
+        }
+    }
 
     var configuredAdminPasswordHash = authOptions.BootstrapAdminPasswordHash;
     var hasConfiguredAdminPassword = PasswordHasher.IsSupportedHashFormat(configuredAdminPasswordHash);

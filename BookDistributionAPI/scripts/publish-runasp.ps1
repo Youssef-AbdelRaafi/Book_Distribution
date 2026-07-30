@@ -23,12 +23,21 @@ if ([string]::IsNullOrWhiteSpace($jwtSigningKey)) {
     throw 'JWT_SIGNING_KEY is required in .env before publishing.'
 }
 
+$adminHashLine = Get-Content -LiteralPath $dotenvPath |
+    Where-Object { $_ -match '^ADMIN_PASSWORD_HASH=' } |
+    Select-Object -First 1
+$adminPasswordHash = if ($adminHashLine) { $adminHashLine -replace '^ADMIN_PASSWORD_HASH=', '' } else { '' }
+
 if (Test-Path -LiteralPath $temporarySettingsPath) {
     throw 'Refusing to overwrite an existing appsettings.Production.json.'
 }
 
-$temporarySettings = @{ Auth = @{ JwtSigningKey = $jwtSigningKey } } |
-    ConvertTo-Json -Depth 3
+$authData = @{ JwtSigningKey = $jwtSigningKey }
+if (-not [string]::IsNullOrWhiteSpace($adminPasswordHash)) {
+    $authData['BootstrapAdminPasswordHash'] = $adminPasswordHash
+}
+
+$temporarySettings = @{ Auth = $authData } | ConvertTo-Json -Depth 3
 
 try {
     [System.IO.File]::WriteAllText(
