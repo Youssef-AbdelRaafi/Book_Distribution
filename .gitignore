@@ -48,5 +48,6 @@ npm-debug.log*
 yarn-error.log*
 
 app.db
-app.db-shm
-app.db-wal
+*.db-shm
+*.db-wal
+2025-2026/
