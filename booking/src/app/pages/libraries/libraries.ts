@@ -77,6 +77,41 @@ export class LibrariesComponent {
   selectedLibraryForMap = signal<Library | null>(null);
   selectedLibraryForDetails = signal<Library | null>(null);
 
+  // Both Terms Summary Modal State
+  isBothTermsModalOpen = signal(false);
+  bothTermsData = signal<any>(null);
+  isBothTermsLoading = signal(false);
+  selectedLibraryForBothTerms = signal<Library | null>(null);
+
+  openBothTermsSummary(lib: Library, event?: Event) {
+    if (event) event.stopPropagation();
+    this.selectedLibraryForBothTerms.set(lib);
+    this.isBothTermsModalOpen.set(true);
+    this.isBothTermsLoading.set(true);
+    this.bothTermsData.set(null);
+
+    const activeYearId = this.settingsService.activeSemester()?.academicYearId;
+    this.libraryService
+      .getBothTermsSummary(lib.id, activeYearId)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (res) => {
+          this.bothTermsData.set(res.data);
+          this.isBothTermsLoading.set(false);
+        },
+        error: () => {
+          this.toast.show('تعذر تحميل إجمالي مبيعات الترمين للمكتبة', 'error');
+          this.isBothTermsLoading.set(false);
+        },
+      });
+  }
+
+  closeBothTermsSummary() {
+    this.isBothTermsModalOpen.set(false);
+    this.bothTermsData.set(null);
+    this.selectedLibraryForBothTerms.set(null);
+  }
+
   isEditingLibrary = false;
   editLibName = '';
   editLibLogo = '';

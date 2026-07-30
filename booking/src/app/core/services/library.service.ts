@@ -128,6 +128,12 @@ export class LibraryService {
       .pipe(tap(() => this.fetchLibraries()));
   }
 
+  getBothTermsSummary(libraryId: number, academicYearId?: number): Observable<ApiResponse<any>> {
+    let params = new HttpParams();
+    if (academicYearId) params = params.set('academicYearId', academicYearId.toString());
+    return this.http.get<ApiResponse<any>>(`${this.apiUrl}/${libraryId}/both-terms-summary`, { params });
+  }
+
   executeCompensation(activity: { type?: string; payload?: ActivityPayload }): Observable<void> {
     const payload = activity?.payload;
     if (!payload) return throwError(() => new Error('لا يمكن التراجع عن هذا النشاط'));

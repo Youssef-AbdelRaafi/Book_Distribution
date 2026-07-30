@@ -1,5 +1,6 @@
 using BookDistributionAPI.Common;
 using BookDistributionAPI.Data;
+using BookDistributionAPI.Features.Auth;
 using BookDistributionAPI.Features.AcademicYears;
 using BookDistributionAPI.Features.Analytics;
 using BookDistributionAPI.Features.Books;

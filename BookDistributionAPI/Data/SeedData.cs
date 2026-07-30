@@ -28,18 +28,30 @@ public static class SeedData
         {
             if (!await db.AcademicYears.AnyAsync(cancellationToken))
             {
+                var year2025 = new AcademicYear
+                {
+                    Name = "2025-2026",
+                    IsActive = false
+                };
+                db.AcademicYears.Add(year2025);
+                await db.SaveChangesAsync(cancellationToken);
+
+                db.Semesters.AddRange(
+                    new Semester { AcademicYearId = year2025.Id, Name = "الفصل الأول", Code = "A", IsActive = false },
+                    new Semester { AcademicYearId = year2025.Id, Name = "الفصل الثاني", Code = "B", IsActive = false });
+
                 var currentYear = DateTime.UtcNow.Year;
-                var year = new AcademicYear
+                var year2026 = new AcademicYear
                 {
                     Name = $"{currentYear}-{currentYear + 1}",
                     IsActive = true
                 };
-                db.AcademicYears.Add(year);
+                db.AcademicYears.Add(year2026);
                 await db.SaveChangesAsync(cancellationToken);
 
                 db.Semesters.AddRange(
-                    new Semester { AcademicYearId = year.Id, Name = "الفصل الأول", Code = "A", IsActive = true },
-                    new Semester { AcademicYearId = year.Id, Name = "الفصل الثاني", Code = "B", IsActive = false });
+                    new Semester { AcademicYearId = year2026.Id, Name = "الفصل الأول", Code = "A", IsActive = true },
+                    new Semester { AcademicYearId = year2026.Id, Name = "الفصل الثاني", Code = "B", IsActive = false });
 
                 var governorate = new Governorate { Name = "غير محدد" };
                 db.Governorates.Add(governorate);

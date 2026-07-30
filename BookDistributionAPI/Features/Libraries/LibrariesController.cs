@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using BookDistributionAPI.Common;
 using BookDistributionAPI.Data;
+using BookDistributionAPI.Features.AcademicYears;
 using System.Buffers;
 
 
@@ -347,6 +348,74 @@ public class LibrariesController : ControllerBase
 
         await _db.SaveChangesAsync(cancellationToken);
         return Ok(ApiResponse<object>.Ok(true, "تم تحديث كميات المكتبة بنجاح"));
+    }
+
+    [HttpGet("{id}/both-terms-summary")]
+    public async Task<IActionResult> GetBothTermsSummary(int id, [FromQuery] int? academicYearId, CancellationToken cancellationToken)
+    {
+        var lib = await _db.Libraries.FirstOrDefaultAsync(l => l.Id == id, cancellationToken);
+        if (lib == null) return NotFound(ApiResponse<object>.Fail("المكتبة غير موجودة"));
+
+        AcademicYear? year = null;
+        if (academicYearId.HasValue)
+        {
+            year = await _db.AcademicYears
+                .Include(a => a.Semesters)
+                .FirstOrDefaultAsync(a => a.Id == academicYearId.Value, cancellationToken);
+        }
+        if (year == null)
+        {
+            year = await _db.AcademicYears
+                .Include(a => a.Semesters)
+                .FirstOrDefaultAsync(a => a.IsActive, cancellationToken);
+        }
+        if (year == null)
+            return BadRequest(ApiResponse<object>.Fail("لم يتم العثور على سنة دراسية"));
+
+        var semA = year.Semesters.FirstOrDefault(s => s.Code == "A");
+        var semB = year.Semesters.FirstOrDefault(s => s.Code == "B");
+
+        var semAId = semA?.Id ?? 0;
+        var semBId = semB?.Id ?? 0;
+
+        var term1Invoices = await _db.Invoices
+            .Include(i => i.Items)
+            .Where(i => i.LibraryId == id && i.SemesterId == semAId && i.IsActive)
+            .ToListAsync(cancellationToken);
+
+        var term2Invoices = await _db.Invoices
+            .Include(i => i.Items)
+            .Where(i => i.LibraryId == id && i.SemesterId == semBId && i.IsActive)
+            .ToListAsync(cancellationToken);
+
+        decimal term1Orders = term1Invoices.Where(i => i.Type == "order").Sum(i => i.TotalAmount);
+        decimal term1Refunds = term1Invoices.Where(i => i.Type == "refund").Sum(i => i.TotalAmount);
+        decimal term1NetSales = term1Orders - term1Refunds;
+
+        decimal term2Orders = term2Invoices.Where(i => i.Type == "order").Sum(i => i.TotalAmount);
+        decimal term2Refunds = term2Invoices.Where(i => i.Type == "refund").Sum(i => i.TotalAmount);
+        decimal term2NetSales = term2Orders - term2Refunds;
+
+        decimal totalNetSalesBothTerms = term1NetSales + term2NetSales;
+
+        var result = new
+        {
+            LibraryId = lib.Id,
+            LibraryName = lib.Name,
+            AcademicYearId = year.Id,
+            AcademicYearName = year.Name,
+            Term1Name = semA?.Name ?? "الفصل الأول",
+            Term1Orders = term1Orders,
+            Term1Refunds = term1Refunds,
+            Term1NetSales = term1NetSales,
+            Term2Name = semB?.Name ?? "الفصل الثاني",
+            Term2Orders = term2Orders,
+            Term2Refunds = term2Refunds,
+            Term2NetSales = term2NetSales,
+            TotalNetSalesBothTerms = totalNetSalesBothTerms
+        };
+
+        return Ok(ApiResponse<object>.Ok(result));
     }
 
     private static LibraryDto MapToDto(Library l) => new()

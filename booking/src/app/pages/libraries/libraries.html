@@ -459,6 +459,15 @@
                 >
                   سند قبض (تسوية)
                 </button>
+                <button
+                  type="button"
+                  (click)="openBothTermsSummary(lib, $event)"
+                  class="text-amber-600 dark:text-amber-400 text-xs font-bold hover:underline flex items-center gap-1"
+                  title="الجرد النهائي - إجمالي مبيعات الترمين"
+                >
+                  <span class="material-symbols-outlined text-[14px]">analytics</span>
+                  مبيعات الترمين
+                </button>
               </div>
               <div class="flex gap-3" *ngIf="lib.isActive === false">
                 <button
@@ -1786,9 +1795,139 @@
       </div>
     </div>
   </div>
+</div>
+
+<!-- Both Terms Sales Summary Modal (الجرد النهائي - إجمالي مبيعات الترمين) -->
+<div
+  *ngIf="isBothTermsModalOpen()"
+  class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in"
+>
+  <div
+    class="bg-surface border border-outline-variant rounded-2xl max-w-xl w-full p-6 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+  >
+    <!-- Modal Header -->
+    <div class="flex justify-between items-center pb-4 border-b border-surface-container-high">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+          <span class="material-symbols-outlined text-2xl">analytics</span>
+        </div>
+        <div>
+          <h3 class="text-lg font-bold text-on-surface">الجرد النهائي - إجمالي مبيعات الترمين</h3>
+          <p class="text-xs text-on-surface-variant">
+            {{ selectedLibraryForBothTerms()?.name }}
+            <span *ngIf="bothTermsData()?.academicYearName" class="font-semibold text-primary">
+              ({{ bothTermsData()?.academicYearName }})
+            </span>
+          </p>
+        </div>
+      </div>
+      <button
+        (click)="closeBothTermsSummary()"
+        class="w-8 h-8 rounded-full bg-surface-container-high text-on-surface-variant hover:bg-surface-container-highest flex items-center justify-center transition-colors"
+      >
+        <span class="material-symbols-outlined text-lg">close</span>
+      </button>
+    </div>
+
+    <!-- Modal Content -->
+    <div class="py-5 overflow-y-auto flex-1 custom-scrollbar space-y-5">
+      <!-- Loading state -->
+      <div *ngIf="isBothTermsLoading()" class="py-12 text-center">
+        <span class="material-symbols-outlined animate-spin text-3xl text-primary mb-2">progress_activity</span>
+        <p class="text-sm text-on-surface-variant">جاري حساب إجمالي مبيعات الترمين...</p>
+      </div>
+
+      <!-- Data display -->
+      <div *ngIf="!isBothTermsLoading() && bothTermsData()" class="space-y-4">
+        <!-- 3 Summary Cards -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <!-- Term 1 Card -->
+          <div class="bg-surface-container-lowest border border-outline-variant/60 rounded-xl p-4 flex flex-col justify-between">
+            <span class="text-xs font-medium text-on-surface-variant flex items-center gap-1 mb-1">
+              <span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
+              {{ bothTermsData()?.term1Name || 'الفصل الأول' }}
+            </span>
+            <div class="text-lg font-extrabold text-on-surface dir-ltr text-right mt-1">
+              {{ formatAmountRials(bothTermsData()?.term1NetSales || 0) }}
+              <span class="text-xs font-normal text-on-surface-variant">ر.ع</span>
+            </div>
+            <div class="text-[11px] text-on-surface-variant/80 mt-2 space-y-0.5 border-t border-surface-container-high pt-2">
+              <div class="flex justify-between">
+                <span>طلب:</span>
+                <span>{{ formatAmountRials(bothTermsData()?.term1Orders || 0) }}</span>
+              </div>
+              <div class="flex justify-between text-error">
+                <span>مرتجع:</span>
+                <span>{{ formatAmountRials(bothTermsData()?.term1Refunds || 0) }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Term 2 Card -->
+          <div class="bg-surface-container-lowest border border-outline-variant/60 rounded-xl p-4 flex flex-col justify-between">
+            <span class="text-xs font-medium text-on-surface-variant flex items-center gap-1 mb-1">
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+              {{ bothTermsData()?.term2Name || 'الفصل الثاني' }}
+            </span>
+            <div class="text-lg font-extrabold text-on-surface dir-ltr text-right mt-1">
+              {{ formatAmountRials(bothTermsData()?.term2NetSales || 0) }}
+              <span class="text-xs font-normal text-on-surface-variant">ر.ع</span>
+            </div>
+            <div class="text-[11px] text-on-surface-variant/80 mt-2 space-y-0.5 border-t border-surface-container-high pt-2">
+              <div class="flex justify-between">
+                <span>طلب:</span>
+                <span>{{ formatAmountRials(bothTermsData()?.term2Orders || 0) }}</span>
+              </div>
+              <div class="flex justify-between text-error">
+                <span>مرتجع:</span>
+                <span>{{ formatAmountRials(bothTermsData()?.term2Refunds || 0) }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Total Both Terms Card -->
+          <div class="bg-gradient-to-br from-amber-500/10 to-amber-600/20 border border-amber-500/30 rounded-xl p-4 flex flex-col justify-between">
+            <span class="text-xs font-bold text-amber-700 dark:text-amber-300 flex items-center gap-1 mb-1">
+              <span class="material-symbols-outlined text-sm">stars</span>
+              إجمالي مبيعات الترمين
+            </span>
+            <div class="text-xl font-black text-amber-800 dark:text-amber-200 dir-ltr text-right mt-1">
+              {{ formatAmountRials(bothTermsData()?.totalNetSalesBothTerms || 0) }}
+              <span class="text-xs font-normal opacity-80">ر.ع</span>
+            </div>
+            <p class="text-[10px] text-amber-700/80 dark:text-amber-300/80 mt-2 border-t border-amber-500/20 pt-2">
+              مجموع صافي المبيعات للفصلين الأول والثاني
+            </p>
+          </div>
+        </div>
+
+        <!-- Details Info Box -->
+        <div class="p-4 rounded-xl bg-surface-container-high/40 border border-outline-variant/40 space-y-2 text-xs">
+          <div class="flex justify-between items-center">
+            <span class="text-on-surface-variant">اسم المكتبة:</span>
+            <span class="font-bold text-on-surface">{{ bothTermsData()?.libraryName }}</span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-on-surface-variant">السنة الدراسية:</span>
+            <span class="font-bold text-primary">{{ bothTermsData()?.academicYearName }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Footer -->
+    <div class="pt-4 border-t border-surface-container-high flex justify-end">
+      <button
+        (click)="closeBothTermsSummary()"
+        class="px-5 py-2 rounded-xl bg-surface-container-high text-on-surface hover:bg-surface-container-highest font-medium text-sm transition-colors"
+      >
+        إغلاق
+      </button>
+    </div>
+  </div>
+</div>
 
   <!-- Voucher Number Footer -->
   <div class="text-left text-[12px] text-gray-400 font-sans" dir="ltr">
     Voucher No: {{ receiptVoucherToPrint()?.displayNumber }}
   </div>
-</div>
