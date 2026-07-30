@@ -80,7 +80,9 @@ export class SettingsService {
           }
         }),
         catchError((error) => {
-          this.toast.show('تعذر تحميل الإعدادات', 'error');
+          if (error?.status !== 401) {
+            this.toast.show('تعذر تحميل الإعدادات', 'error');
+          }
           return of(null);
         }),
       )
@@ -131,7 +133,9 @@ export class SettingsService {
           }
         }),
         catchError((error) => {
-          this.toast.show('تعذر تحميل الإعدادات', 'error');
+          if (error?.status !== 401) {
+            this.toast.show('تعذر تحميل الإعدادات', 'error');
+          }
           return of(null);
         }),
       )
@@ -151,7 +155,9 @@ export class SettingsService {
           }
         }),
         catchError((error) => {
-          this.toast.show('تعذر تحميل الفصول الدراسية', 'error');
+          if (error?.status !== 401) {
+            this.toast.show('تعذر تحميل الفصول الدراسية', 'error');
+          }
           return of(null);
         }),
       )

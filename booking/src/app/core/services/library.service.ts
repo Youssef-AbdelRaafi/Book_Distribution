@@ -28,7 +28,9 @@ export class LibraryService {
           this.librariesSubject.next(Array.isArray(res.data) ? res.data : []);
         }),
         catchError((error) => {
-          this.toast.show('تعذر تحميل المكتبات', 'error');
+          if (error?.status !== 401) {
+            this.toast.show('تعذر تحميل المكتبات', 'error');
+          }
           return of({ data: [], success: false } as ApiResponse<Library[]>);
         }),
       )
@@ -43,7 +45,9 @@ export class LibraryService {
           this.governorates.set(Array.isArray(res.data) ? res.data : []);
         }),
         catchError((error) => {
-          this.toast.show('تعذر تحميل المحافظات', 'error');
+          if (error?.status !== 401) {
+            this.toast.show('تعذر تحميل المحافظات', 'error');
+          }
           return of({ data: [], success: false } as ApiResponse<Governorate[]>);
         }),
       )

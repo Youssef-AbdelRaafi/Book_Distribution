@@ -28,7 +28,9 @@ export class ReceiptVoucherService {
           this.vouchersSignal.set(Array.isArray(data) ? data : []);
         }),
         catchError((error) => {
-          this.toast.show('تعذر تحميل سندات القبض', 'error');
+          if (error?.status !== 401) {
+            this.toast.show('تعذر تحميل سندات القبض', 'error');
+          }
           return of([]);
         }),
       )

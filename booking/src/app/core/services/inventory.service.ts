@@ -27,7 +27,9 @@ export class InventoryService {
           this.inventorySubject.next(Array.isArray(data) ? data : []);
         }),
         catchError((error) => {
-          this.toast.show('تعذر تحميل المخزون', 'error');
+          if (error?.status !== 401) {
+            this.toast.show('تعذر تحميل المخزون', 'error');
+          }
           return of([]);
         }),
       )

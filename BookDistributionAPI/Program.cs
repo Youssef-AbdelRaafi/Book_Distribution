@@ -30,6 +30,24 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 if (string.IsNullOrWhiteSpace(connectionString))
     throw new InvalidOperationException("ConnectionStrings:DefaultConnection is required.");
 
+if (connectionString.Contains("Data Source=") && !connectionString.Contains("Data Source=:memory:"))
+{
+    var parts = connectionString.Split(';');
+    for (int i = 0; i < parts.Length; i++)
+    {
+        if (parts[i].StartsWith("Data Source=", StringComparison.OrdinalIgnoreCase))
+        {
+            var dbPath = parts[i].Substring("Data Source=".Length).Trim();
+            if (!Path.IsPathRooted(dbPath))
+            {
+                var absoluteDbPath = Path.GetFullPath(Path.Combine(builder.Environment.ContentRootPath, dbPath));
+                parts[i] = $"Data Source={absoluteDbPath}";
+            }
+        }
+    }
+    connectionString = string.Join(";", parts);
+}
+
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite(connectionString));
 

@@ -64,8 +64,10 @@ export class InvoiceService {
           const data = res.data;
           this.invoicesSignal.set(Array.isArray(data) ? data : []);
         }),
-        catchError(() => {
-          this.toast.show('تعذر تحميل الفواتير', 'error');
+        catchError((error) => {
+          if (error?.status !== 401) {
+            this.toast.show('تعذر تحميل الفواتير', 'error');
+          }
           return of([]);
         }),
       )
