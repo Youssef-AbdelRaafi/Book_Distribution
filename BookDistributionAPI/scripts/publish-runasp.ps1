@@ -26,7 +26,7 @@ if ([string]::IsNullOrWhiteSpace($jwtSigningKey)) {
 $adminHashLine = Get-Content -LiteralPath $dotenvPath |
     Where-Object { $_ -match '^ADMIN_PASSWORD_HASH=' } |
     Select-Object -First 1
-$adminPasswordHash = if ($adminHashLine) { $adminHashLine -replace '^ADMIN_PASSWORD_HASH=', '' } else { '' }
+$adminPasswordHash = if ($adminHashLine) { ($adminHashLine -replace '^ADMIN_PASSWORD_HASH=', '') -replace '\$\$', '$' } else { '' }
 
 if (Test-Path -LiteralPath $temporarySettingsPath) {
     throw 'Refusing to overwrite an existing appsettings.Production.json.'

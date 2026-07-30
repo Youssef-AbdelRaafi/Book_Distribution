@@ -15,15 +15,20 @@ public sealed class AuthOptions
     public void Validate()
     {
         if (string.IsNullOrWhiteSpace(JwtSigningKey) || JwtSigningKey.Length < 32)
-            throw new InvalidOperationException("Auth:JwtSigningKey must be at least 32 characters.");
+        {
+            JwtSigningKey = Convert.ToBase64String(RandomNumberGenerator.GetBytes(48));
+        }
 
         if (TokenMinutes < 15 || TokenMinutes > 43200)
-            throw new InvalidOperationException("Auth:TokenMinutes must be between 15 and 43200.");
+            TokenMinutes = 10080;
 
-        if (!string.IsNullOrWhiteSpace(BootstrapAdminPasswordHash) &&
-            !PasswordHasher.IsSupportedHashFormat(BootstrapAdminPasswordHash))
+        if (!string.IsNullOrWhiteSpace(BootstrapAdminPasswordHash))
         {
-            throw new InvalidOperationException("Auth:BootstrapAdminPasswordHash is not a supported password hash.");
+            BootstrapAdminPasswordHash = BootstrapAdminPasswordHash.Replace("$$", "$");
+            if (!PasswordHasher.IsSupportedHashFormat(BootstrapAdminPasswordHash))
+            {
+                throw new InvalidOperationException("Auth:BootstrapAdminPasswordHash is not a supported password hash.");
+            }
         }
     }
 }
@@ -51,6 +56,10 @@ public static class PasswordHasher
     {
         try
         {
+            if (string.IsNullOrWhiteSpace(storedHash))
+                return false;
+
+            storedHash = storedHash.Replace("$$", "$");
             var parts = storedHash.Split('$');
             if (parts.Length != 4 || parts[0] != "pbkdf2-sha256")
                 return false;
@@ -87,6 +96,7 @@ public static class PasswordHasher
         if (string.IsNullOrWhiteSpace(storedHash))
             return false;
 
+        storedHash = storedHash.Replace("$$", "$");
         var parts = storedHash.Split('$');
         return parts.Length == 4
             && parts[0] == "pbkdf2-sha256"

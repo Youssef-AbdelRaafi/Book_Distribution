@@ -131,64 +131,78 @@ var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
 {
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-    // Enable WAL mode for better concurrent read performance
-    try { await db.Database.ExecuteSqlRawAsync("PRAGMA journal_mode=WAL;"); }
-    catch { /* WAL mode may not be supported on all systems */ }
-
     try
     {
-        await db.Database.MigrateAsync();
-    }
-    catch (Exception ex)
-    {
-        Log.Warning(ex, "MigrateAsync failed. Falling back to EnsureCreatedAsync.");
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        // Enable WAL mode for better concurrent read performance
+        try { await db.Database.ExecuteSqlRawAsync("PRAGMA journal_mode=WAL;"); }
+        catch { /* WAL mode may not be supported on all systems */ }
+
         try
         {
-            await db.Database.EnsureCreatedAsync();
+            await db.Database.MigrateAsync();
         }
-        catch (Exception ensureEx)
+        catch (Exception ex)
         {
-            Log.Error(ensureEx, "EnsureCreatedAsync also failed. Database may already exist.");
-        }
-    }
-
-    var configuredAdminPasswordHash = authOptions.BootstrapAdminPasswordHash;
-    var hasConfiguredAdminPassword = PasswordHasher.IsSupportedHashFormat(configuredAdminPasswordHash);
-
-    if (hasConfiguredAdminPassword)
-    {
-        var administrator = await db.Users.SingleOrDefaultAsync(user => user.Username == "admin");
-        if (administrator is not null)
-        {
-            var fingerprint = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(configuredAdminPasswordHash)));
-            const string fingerprintKey = "deployment.adminPasswordHashFingerprint";
-            var appliedFingerprint = await db.AppSettings.SingleOrDefaultAsync(setting => setting.Key == fingerprintKey);
-
-            if (!string.Equals(appliedFingerprint?.Value, fingerprint, StringComparison.Ordinal))
+            Log.Warning(ex, "MigrateAsync failed. Falling back to EnsureCreatedAsync.");
+            try
             {
-                administrator.PasswordHash = configuredAdminPasswordHash;
-                if (appliedFingerprint is null)
-                    db.AppSettings.Add(new AppSetting { Key = fingerprintKey, Value = fingerprint });
-                else
-                    appliedFingerprint.Value = fingerprint;
+                await db.Database.EnsureCreatedAsync();
+            }
+            catch (Exception ensureEx)
+            {
+                Log.Error(ensureEx, "EnsureCreatedAsync also failed. Database may already exist.");
+            }
+        }
 
-                await db.SaveChangesAsync();
+        var configuredAdminPasswordHash = authOptions.BootstrapAdminPasswordHash;
+        if (!string.IsNullOrWhiteSpace(configuredAdminPasswordHash))
+        {
+            configuredAdminPasswordHash = configuredAdminPasswordHash.Replace("$$", "$");
+        }
+        var hasConfiguredAdminPassword = PasswordHasher.IsSupportedHashFormat(configuredAdminPasswordHash);
+
+        if (hasConfiguredAdminPassword)
+        {
+            var administrator = await db.Users.SingleOrDefaultAsync(user => user.Username == "admin");
+            if (administrator is not null)
+            {
+                var fingerprint = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(configuredAdminPasswordHash)));
+                const string fingerprintKey = "deployment.adminPasswordHashFingerprint";
+                var appliedFingerprint = await db.AppSettings.SingleOrDefaultAsync(setting => setting.Key == fingerprintKey);
+
+                if (!string.Equals(appliedFingerprint?.Value, fingerprint, StringComparison.Ordinal))
+                {
+                    administrator.PasswordHash = configuredAdminPasswordHash;
+                    if (appliedFingerprint is null)
+                        db.AppSettings.Add(new AppSetting { Key = fingerprintKey, Value = fingerprint });
+                    else
+                        appliedFingerprint.Value = fingerprint;
+
+                    await db.SaveChangesAsync();
+                }
+            }
+        }
+
+        if (!await db.AcademicYears.AnyAsync())
+        {
+            if (hasConfiguredAdminPassword || await db.Users.AnyAsync())
+            {
+                await SeedData.InitializeAsync(
+                    db,
+                    scope.ServiceProvider.GetRequiredService<ILogger<Program>>(),
+                    configuredAdminPasswordHash ?? string.Empty);
+            }
+            else
+            {
+                Log.Warning("Auth:BootstrapAdminPasswordHash is not configured; skipping automatic seed for empty database.");
             }
         }
     }
-
-    if (!await db.AcademicYears.AnyAsync())
+    catch (Exception startupEx)
     {
-        if (!hasConfiguredAdminPassword && !await db.Users.AnyAsync())
-            throw new InvalidOperationException(
-                "Auth:BootstrapAdminPasswordHash must be configured before the first startup of an empty database.");
-
-        await SeedData.InitializeAsync(
-            db,
-            scope.ServiceProvider.GetRequiredService<ILogger<Program>>(),
-            configuredAdminPasswordHash);
+        Log.Error(startupEx, "Database migration/seed error occurred during startup, but continuing application execution.");
     }
 }
 
