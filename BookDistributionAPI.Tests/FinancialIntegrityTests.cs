@@ -121,6 +121,120 @@ public sealed class FinancialIntegrityTests
         Assert.Single(clearance.Items);
     }
 
+    [Fact]
+    public async Task DatabaseAudit_FlagsEmptyAndDuplicateInvoicesWithoutWritingToTheDatabase()
+    {
+        var databasePath = Path.Combine(Path.GetTempPath(), $"bookdistribution-audit-{Guid.NewGuid():N}.db");
+        try
+        {
+            var options = new DbContextOptionsBuilder<AppDbContext>()
+                .UseSqlite($"Data Source={databasePath}")
+                .Options;
+
+            await using (var context = new AppDbContext(options))
+            {
+                await context.Database.EnsureCreatedAsync();
+
+                var year = new AcademicYear { Name = "2026-2027", IsActive = true };
+                context.AcademicYears.Add(year);
+                await context.SaveChangesAsync();
+
+                var semester = new Semester
+                {
+                    AcademicYearId = year.Id,
+                    Name = "Term A",
+                    Code = "A",
+                    IsActive = true
+                };
+                var governorate = new Governorate { Name = "Governorate" };
+                context.AddRange(semester, governorate);
+                await context.SaveChangesAsync();
+
+                var city = new City { Name = "City", GovernorateId = governorate.Id };
+                context.Cities.Add(city);
+                await context.SaveChangesAsync();
+
+                var library = new Library
+                {
+                    Name = "Library",
+                    GovernorateId = governorate.Id,
+                    CityId = city.Id,
+                    IsActive = true
+                };
+                var book = new Book
+                {
+                    Name = "Book",
+                    Grade = "Grade",
+                    Subject = "Subject",
+                    SemesterId = semester.Id,
+                    Price = 10m,
+                    StockQuantity = 10,
+                    IsActive = true
+                };
+                context.AddRange(library, book);
+                await context.SaveChangesAsync();
+
+                Invoice CreateInvoice(int number) => new()
+                {
+                    InvoiceNumber = number,
+                    InvoiceYear = 2026,
+                    TermCode = "A",
+                    Type = "order",
+                    LibraryId = library.Id,
+                    LibraryName = library.Name,
+                    SemesterId = semester.Id,
+                    Date = new DateTime(2026, 8, 1),
+                    TotalAmount = 10m,
+                    PrintStatus = "pending",
+                    Items = new List<InvoiceItem>
+                    {
+                        new()
+                        {
+                            BookId = book.Id,
+                            BookName = book.Name,
+                            BookGrade = book.Grade,
+                            Quantity = 1,
+                            UnitPrice = 10m,
+                            Total = 10m
+                        }
+                    }
+                };
+
+                context.Invoices.AddRange(
+                    CreateInvoice(1),
+                    CreateInvoice(2),
+                    new Invoice
+                    {
+                        InvoiceNumber = 3,
+                        InvoiceYear = 2026,
+                        TermCode = "A",
+                        Type = "order",
+                        LibraryId = library.Id,
+                        LibraryName = library.Name,
+                        SemesterId = semester.Id,
+                        Date = new DateTime(2026, 8, 1),
+                        TotalAmount = 0m,
+                        PrintStatus = "pending"
+                    });
+                await context.SaveChangesAsync();
+            }
+
+            var report = await DatabaseAudit.RunAsync($"Data Source={databasePath}");
+
+            Assert.Equal("ok", report.IntegrityCheck);
+            Assert.Empty(report.Errors);
+            Assert.Equal(1, report.EmptyFinancialInvoiceCount);
+            Assert.Equal(1, report.PossibleDuplicateGroupCount);
+            Assert.Equal(2, report.PossibleDuplicateInvoiceCount);
+            Assert.False(report.IsApproved);
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            File.Delete(databasePath);
+        }
+    }
+
     private sealed class TestDatabase : IAsyncDisposable
     {
         private readonly SqliteConnection _connection;

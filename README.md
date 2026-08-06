@@ -36,6 +36,13 @@ The application will refuse a first production startup without both secrets. Do 
 ## Data and backup
 
 - On the first Docker startup, the packaged client database and uploaded logos are copied into the persistent `book-data` volume once. Existing data is never overwritten.
+- Before accepting a new packaged database, run this read-only audit from the repository root:
+
+  ```powershell
+  dotnet run --project BookDistributionAPI/BookDistributionAPI.csproj -- --verify-database
+  ```
+
+  The command checks SQLite integrity, foreign keys, invoice totals, empty financial invoices, and exact duplicate-invoice candidates. It exits with a nonzero code whenever source-document review is required; it never changes the database.
 - A consistent SQLite backup runs every day at 2:00 AM and is retained for 30 days in `book-backups`.
 - To create a manual backup:
 

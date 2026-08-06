@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Authorization;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using System.Text.Json;
 using Serilog;
 using System.Security.Cryptography;
 using Microsoft.AspNetCore.Cryptography.KeyDerivation;
@@ -46,6 +47,14 @@ if (connectionString.Contains("Data Source=") && !connectionString.Contains("Dat
         }
     }
     connectionString = string.Join(";", parts);
+}
+
+if (args.Any(arg => string.Equals(arg, "--verify-database", StringComparison.OrdinalIgnoreCase)))
+{
+    var report = await DatabaseAudit.RunAsync(connectionString);
+    Console.WriteLine(JsonSerializer.Serialize(report, new JsonSerializerOptions { WriteIndented = true }));
+    Environment.ExitCode = report.IsApproved ? 0 : 1;
+    return;
 }
 
 builder.Services.AddDbContext<AppDbContext>(options =>
@@ -254,7 +263,10 @@ app.UseStaticFiles(new StaticFileOptions
     }
 });
 
-app.UseCors("AllowedClientOrigins");
+if (app.Environment.IsDevelopment())
+{
+    app.UseCors("AllowedClientOrigins");
+}
 
 app.UseAuthentication();
 app.UseAuthorization();

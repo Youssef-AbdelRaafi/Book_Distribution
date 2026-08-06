@@ -280,14 +280,11 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<Book>()
             .HasQueryFilter(b => b.IsActive);
 
-        // Keep dependent collections aligned with Book's soft-delete filter.
-        // Without these matching filters EF warns that required relationships can
-        // unexpectedly remove dependent rows when a Book is filtered out.
+        // Keep LibraryBook aligned with Book's soft-delete filter (active inventory).
+        // InvoiceItem intentionally has NO query filter so that historical invoice
+        // line-items remain visible even after a book is soft-deleted.
         modelBuilder.Entity<LibraryBook>()
             .HasQueryFilter(lb => lb.Book!.IsActive);
-
-        modelBuilder.Entity<InvoiceItem>()
-            .HasQueryFilter(ii => ii.Book!.IsActive);
 
         modelBuilder.Entity<Book>()
             .HasOne(b => b.Semester)
