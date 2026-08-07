@@ -46,6 +46,9 @@ PRODUCTION_READINESS_AUDIT.md
 *.log
 npm-debug.log*
 yarn-error.log*
+tmp/
+BookDistributionAPI/backups/
+BookDistributionAPI/scripts/__pycache__/
 
 app.db
 *.db-shm
