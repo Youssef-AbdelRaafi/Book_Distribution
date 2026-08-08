@@ -237,17 +237,10 @@ public class BooksController : ControllerBase
             if (!Money.HasSupportedPrecision(dto.Price.Value))
                 return BadRequest(ApiResponse<object>.Fail("سعر الكتاب لا يمكن أن يحتوي على أكثر من 3 منازل عشرية"));
 
-            var hasInvoiceItems = await _db.InvoiceItems.AnyAsync(ii => ii.BookId == id, cancellationToken);
-            if (hasInvoiceItems)
-                return BadRequest(ApiResponse<object>.Fail("لا يمكن تغيير سعر كتاب تم استخدامه في فواتير. أضف كتاباً جديداً بالسعر الجديد"));
-
             book.Price = dto.Price.Value;
         }
         if (dto.StockQuantity.HasValue && dto.StockQuantity.Value != book.StockQuantity)
         {
-            if (dto.StockQuantity.Value < book.StockQuantity)
-                return BadRequest(ApiResponse<object>.Fail("لا يمكن تقليل المخزون يدوياً لكتاب له فواتير. استخدم فواتير البيع والمرتجعات"));
-
             if (dto.StockQuantity.Value < 0)
                 return BadRequest(ApiResponse<object>.Fail("المخزون لا يمكن أن يكون سالباً"));
 
@@ -283,9 +276,12 @@ public class BooksController : ControllerBase
         if (hasInvoices)
             return BadRequest(ApiResponse<object>.Fail("لا يمكن حذف كتاب مرتبط بفواتير نشطة"));
 
-        var hasLibraryQuantities = await _db.LibraryBooks.AnyAsync(lb => lb.BookId == id, cancellationToken);
-        if (hasLibraryQuantities)
-            return BadRequest(ApiResponse<object>.Fail("لا يمكن حذف كتاب مرتبط بكميات مكتبات"));
+        // Remove any library book quantity records for this book before soft deleting
+        var libraryBooks = await _db.LibraryBooks.Where(lb => lb.BookId == id).ToListAsync(cancellationToken);
+        if (libraryBooks.Count > 0)
+        {
+            _db.LibraryBooks.RemoveRange(libraryBooks);
+        }
 
         book.IsActive = false;
         await _db.SaveChangesAsync(cancellationToken);
