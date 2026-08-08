@@ -209,6 +209,24 @@ using (var scope = app.Services.CreateScope())
                 Log.Warning("Auth:BootstrapAdminPasswordHash is not configured; skipping automatic seed for empty database.");
             }
         }
+
+        // Automatic cleanup of test/placeholder book "جديد" if present
+        try
+        {
+            var testBooks = await db.Books.IgnoreQueryFilters().Where(b => b.Name == "جديد" || b.Name.Trim() == "جديد").ToListAsync();
+            if (testBooks.Any())
+            {
+                var testBookIds = testBooks.Select(b => b.Id).ToList();
+                await db.InvoiceItems.Where(ii => testBookIds.Contains(ii.BookId)).ExecuteDeleteAsync();
+                await db.LibraryBooks.Where(lb => testBookIds.Contains(lb.BookId)).ExecuteDeleteAsync();
+                await db.Books.IgnoreQueryFilters().Where(b => testBookIds.Contains(b.Id)).ExecuteDeleteAsync();
+                Log.Information("Cleaned up {Count} test book entries named 'جديد'", testBooks.Count);
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Failed to clean up test book 'جديد': {Message}", ex.Message);
+        }
     }
     catch (Exception startupEx)
     {

@@ -49,9 +49,14 @@ public class InvoicesController : ControllerBase
         if (!string.IsNullOrEmpty(type))
             query = query.Where(i => i.Type == type);
         if (semesterId.HasValue)
-            query = query.Where(i => i.SemesterId == semesterId.Value);
+        {
+            if (semesterId.Value > 0)
+                query = query.Where(i => i.SemesterId == semesterId.Value);
+        }
         else if (activeSemesterIds.Count > 0)
+        {
             query = query.Where(i => activeSemesterIds.Contains(i.SemesterId));
+        }
         if (libraryId.HasValue)
             query = query.Where(i => i.LibraryId == libraryId.Value);
         if (fromDate.HasValue)

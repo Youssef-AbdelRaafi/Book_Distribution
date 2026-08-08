@@ -336,7 +336,7 @@
                   name="filter-semester"
                   class="bg-surface-primary border border-outline-variant rounded-md px-2 py-1.5 text-xs focus:border-primary outline-none"
                 >
-                  <option [ngValue]="0">كل الفصل</option>
+                  <option [ngValue]="0">كل الفصول والسنوات</option>
                   <option
                     *ngFor="let sem of activeYearSemesters(); trackBy: trackById"
                     [ngValue]="sem.id"

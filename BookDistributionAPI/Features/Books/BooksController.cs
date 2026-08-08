@@ -279,9 +279,9 @@ public class BooksController : ControllerBase
         var book = await _db.Books.FirstOrDefaultAsync(b => b.Id == id, cancellationToken);
         if (book == null) return NotFound(ApiResponse<object>.Fail("الكتاب غير موجود"));
 
-        var hasInvoices = await _db.InvoiceItems.AnyAsync(ii => ii.BookId == id, cancellationToken);
+        var hasInvoices = await _db.InvoiceItems.AnyAsync(ii => ii.BookId == id && ii.Invoice.IsActive, cancellationToken);
         if (hasInvoices)
-            return BadRequest(ApiResponse<object>.Fail("لا يمكن حذف كتاب مرتبط بفواتير"));
+            return BadRequest(ApiResponse<object>.Fail("لا يمكن حذف كتاب مرتبط بفواتير نشطة"));
 
         var hasLibraryQuantities = await _db.LibraryBooks.AnyAsync(lb => lb.BookId == id, cancellationToken);
         if (hasLibraryQuantities)
